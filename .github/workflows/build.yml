@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+env:
+  PAWPAW_SKIP_LV2: 0
+
+jobs:
+  linux:
+    strategy:
+      matrix:
+        target: [linux-x86_64]
+    runs-on: ubuntu-20.04
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - uses: distrho/dpf-makefile-action@v1
+        with:
+          target: ${{ matrix.target }}
+          pawpaw: true
+
+  windows:
+    strategy:
+      matrix:
+        target: [win64]
+    runs-on: ubuntu-20.04
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - uses: distrho/dpf-makefile-action@v1
+        with:
+          target: ${{ matrix.target }}
+          pawpaw: true
+
+  source:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - uses: distrho/dpf-makefile-action@v1
+        with:
+          target: source
+

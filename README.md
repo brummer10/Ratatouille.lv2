@@ -22,7 +22,7 @@ Both models could have different expectations.
 ## Building from source code
 
 - git clone https://github.com/brummer10//Ratatouille.lv2.git
-- cd Ratatouille
+- cd Ratatouille.lv2
 - git submodule update --init --recursive
 - make
 - make install # will install into ~/.lv2 ... AND/OR....

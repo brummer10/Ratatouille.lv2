@@ -34,9 +34,12 @@
 ifneq ($(MAKECMDGOALS),install)
   ifneq ($(MAKECMDGOALS),clean)
     ifeq ($(shell arch), x86_64)
-      ifneq ($(shell /usr/lib64/ld-linux-x86-64.so.2 --help 2>/dev/null | grep x86-64-v3) , )
+      ifneq ($(shell /usr/lib64/ld-linux-x86-64.so.2 --help 2>/dev/null | grep 'x86-64-v3 (supported, searched)') , )
         CXXFLAGS += -march=x86-64-v3
         $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=x86-64-v3 $(SSE_CFLAGS)$(reset))
+      else ifneq ($(shell /usr/lib64/ld-linux-x86-64.so.2 --help 2>/dev/null | grep 'x86-64-v2 (supported, searched)') , )
+        CXXFLAGS += -march=x86-64-v2
+        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=x86-64-v2 $(SSE_CFLAGS)$(reset))
       else
         CXXFLAGS += -march=x86-64
         $(info $(yellow) INFO: $(reset)optimised for $(blue)-marchx86_64 $(SSE_CFLAGS)$(reset))
@@ -197,6 +200,6 @@ clean:
 ifndef EXTRAQUIET
 	@$(ECHO) ". ., clean up$(reset)"
 endif
-	$(QUIET)rm -f *.a  *.lib *.o *.so *.dll xresources.h
+	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll xresources.h
 	$(QUIET)rm -rf ../bin
 

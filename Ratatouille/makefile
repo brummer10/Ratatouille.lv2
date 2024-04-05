@@ -55,7 +55,6 @@ endif
 	space := $(subst ,, )
 	EXEC_NAME := $(subst $(space),_,$(NAME))
 	BUNDLE = $(EXEC_NAME).lv2
-	RESOURCES_DIR :=../resources/
 	LIB_DIR := ../libxputty/libxputty/
 	HEADER_DIR := $(LIB_DIR)include/
 	UI_LIB:= $(LIB_DIR)libxputty.$(STATIC_LIB_EXT)
@@ -66,12 +65,8 @@ endif
 	NAM_DIR := ../NeuralAmpModelerCore/NAM/
 	NAM_DEPEND_DIR := ../NeuralAmpModelerCore/Dependencies/
 	NAM_SOURCES := $(wildcard $(NAM_DIR)*.cpp)
+	IMPL_SOURCE := $(wildcard *.cc)
 
-	RESOURCES := $(wildcard $(RESOURCES_DIR)*.png)
-	RESOURCES_OBJ := $(notdir $(patsubst %.png,%.o,$(RESOURCES)))
-	RESOURCES_LIB := $(notdir $(patsubst %.png,%.$(STATIC_LIB_EXT),$(RESOURCES)))
-	RESOURCE_EXTLD := $(notdir $(patsubst %.png,%_png,$(RESOURCES)))
-	RESOURCEHEADER := xresources.h
 ifeq ($(TARGET), Linux)
 	GUI_LDFLAGS += -I$(HEADER_DIR) -Wl,-Bstatic -L. $(UI_LIB) \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11` 
@@ -126,50 +121,31 @@ endif
 
 .NOTPARALLEL:
 
-all: $(RESOURCEHEADER) $(EXEC_NAME)
+all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 
+	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
 	$(QUIET)mkdir -p ../bin/$(BUNDLE)
 	$(QUIET)cp ./*.ttl ../bin/$(BUNDLE)
 	$(QUIET)$(TTLUPDATE)
 	$(QUIET)$(TTLUPDATEGUI)
 	$(QUIET)cp ./*.$(LIB_EXT) ../bin/$(BUNDLE)
-	$(QUIET)if [ -f ../bin/$(BUNDLE)/$(EXEC_NAME).$(LIB_EXT) ]; then \
+	@if [ -f ../bin/$(BUNDLE)/$(EXEC_NAME).$(LIB_EXT) ]; then \
 		$(B_ECHO) "build finish, . . . $(reset)"; \
 	else \
 		$(R_ECHO) "Sorry, build fail$(reset)"; \
 	fi
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
-$(RESOURCEHEADER): $(RESOURCES_OBJ)
-	$(QUIET)rm -f $(RESOURCEHEADER)
-	$(QUIET)for f in $(RESOURCE_EXTLD); do \
-		echo 'EXTLD('$${f}')' >> $(RESOURCEHEADER) ; \
-	done
-
-ifdef XXDI
-$(RESOURCES_OBJ): $(RESOURCES)
-	@#use this line to regenerate the *.c files from used images
-	@#cd $(RESOURCES_DIR) && xxd -i $(patsubst %.o,%.png,$@) > $(patsubst %.o,%.c,$@)
-	$(QUIET)$(CC) -c $(RESOURCES_DIR)$(patsubst %.o,%.c,$@) -o $@
-	$(QUIET)$(AR) rcs $(patsubst %.o,%.$(STATIC_LIB_EXT),$@) $@
-else ifdef USE_LDD
-$(RESOURCES_OBJ): $(RESOURCES)
-	$(QUIET)cd $(RESOURCES_DIR) && $(LD) -r -b binary -m $(LDEMULATION) $(patsubst %.o,%.png,$@) -o ../$@
-	$(QUIET)$(AR) rcs $(patsubst %.o,%.$(STATIC_LIB_EXT),$@) $@
-else
-$(RESOURCES_OBJ): $(RESOURCES)
-	$(QUIET)cd $(RESOURCES_DIR) && $(LD) -r -b binary --strip-all $(patsubst %.o,%.png,$@) -o ../$@
-	$(QUIET)$(AR) rcs $(patsubst %.o,%.$(STATIC_LIB_EXT),$@) $@
-endif
-
-$(EXEC_NAME):$(RESOURCES_OBJ)
-	@$(B_ECHO) "Compiling $(NAME).lv2 $(reset)"
-	@# use this line when you include libxputty as submodule
-	$(QUIET)$(CC)   $(CFLAGS) '$(NAME).c' -L. $(RESOURCES_LIB) $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
-	$(QUIET)$(CXX) $(CXXFLAGS) $(FAUSTFLAGS) $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
-	@#$(CC)   $(CFLAGS) '$(NAME).c' -L. $(RESOURCES_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(SLP_LDFLAGS) -I./
-	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
+$(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c
+	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
+	$(QUIET)$(CC) $(CFLAGS) '$(NAME).c' -L. $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)
+
+
+$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(IMPL_SOURCE)
+	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) $(FAUSTFLAGS) $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :
 ifeq ($(TARGET), Linux)
@@ -191,7 +167,6 @@ ifeq ($(TARGET), Linux)
 	@$(B_ECHO) "Uninstall $(NAME).lv2 $(reset)"
 	$(QUIET)rm -rf $(INSTALL_DIR)/$(BUNDLE)
 	$(QUIET)echo ". ., done"
-
 else
 	$(QUIET)$(R_ECHO) "Uninstall is not implemented for windows, please delete the folder $(NAME).lv2 from Program Files/Common Files/LV2$(reset)"
 endif

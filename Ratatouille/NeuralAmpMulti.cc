@@ -5,7 +5,8 @@ private:
     nam::DSP* modelb;
     gx_resample::FixedRateResampler smpa;
     gx_resample::FixedRateResampler smpb;
-    std::atomic<bool> ready;
+    std::atomic<bool> readyA;
+    std::atomic<bool> readyB;
     int fSampleRate;
     int maSampleRate;
     int mbSampleRate;
@@ -44,7 +45,8 @@ NeuralAmpMulti::NeuralAmpMulti(std::condition_variable *var)
     need_aresample = 0;
     need_bresample = 0;
     is_inited = false;
-    ready.store(false, std::memory_order_release);
+    readyA.store(false, std::memory_order_release);
+    readyB.store(false, std::memory_order_release);
  }
 
 NeuralAmpMulti::~NeuralAmpMulti() {
@@ -106,7 +108,7 @@ void NeuralAmpMulti::compute(int count, float *input0, float *output0)
     float bufb[count];
     memcpy(bufb, output0, count*sizeof(float));
     // process model A
-    if (modela && ready.load(std::memory_order_acquire)) {
+    if (modela && readyA.load(std::memory_order_acquire)) {
         if (need_aresample ) {
             int ReCounta = count;
             if (need_aresample == 1) {
@@ -136,7 +138,7 @@ void NeuralAmpMulti::compute(int count, float *input0, float *output0)
         }
     }
     // process model B
-    if (modelb && ready.load(std::memory_order_acquire)) {
+    if (modelb && readyB.load(std::memory_order_acquire)) {
         if (need_bresample) {
             int ReCountb = count;
             if (need_bresample == 1) {
@@ -170,15 +172,16 @@ void NeuralAmpMulti::compute(int count, float *input0, float *output0)
         }
     }
     //mix model A/B
-    if (modela && modelb && ready.load(std::memory_order_acquire)) {
+    if (modela && modelb && readyA.load(std::memory_order_acquire) &&
+                            readyB.load(std::memory_order_acquire)) {
         for (int i0 = 0; i0 < count; i0 = i0 + 1) {
             fRec2[0] = fSlow2 + 0.999 * fRec2[1];
             output0[i0] = bufa[i0] * (1.0 - fRec2[0]) + bufb[i0] * fRec2[0];
             fRec2[1] = fRec2[0];
         }
-    } else if (modela && ready.load(std::memory_order_acquire)) {
+    } else if (modela && readyA.load(std::memory_order_acquire)) {
         memcpy(output0, bufa, count*sizeof(float));
-    } else if (modelb && ready.load(std::memory_order_acquire)) {
+    } else if (modelb && readyB.load(std::memory_order_acquire)) {
         memcpy(output0, bufb, count*sizeof(float));
     }
     // output volume
@@ -194,7 +197,7 @@ bool NeuralAmpMulti::load_nam_afile() {
     if (!load_afile.empty() && is_inited) {
        // fprintf(stderr, "Load file %s\n", load_afile.c_str());
         std::unique_lock<std::mutex> lk(WMutex);
-        ready.store(false, std::memory_order_release);
+        readyA.store(false, std::memory_order_release);
         WCondVar->wait(lk);
         delete modela;
        // fprintf(stderr, "delete modela\n");
@@ -231,7 +234,7 @@ bool NeuralAmpMulti::load_nam_afile() {
             //fprintf(stderr, "sample rate = %i file = %i l = %f\n",fSampleRate, maSampleRate, loudness);
             //fprintf(stderr, "%s\n", load_file.c_str());
         } 
-        ready.store(true, std::memory_order_release);
+        readyA.store(true, std::memory_order_release);
     }
     if (modela) return true;
     return false;
@@ -240,7 +243,7 @@ bool NeuralAmpMulti::load_nam_afile() {
 // non rt callback
 void NeuralAmpMulti::unload_nam_afile() {
     std::unique_lock<std::mutex> lk(WMutex);
-    ready.store(false, std::memory_order_release);
+    readyA.store(false, std::memory_order_release);
     WCondVar->wait(lk);
     delete modela;
    // fprintf(stderr, "delete modela\n");
@@ -248,7 +251,7 @@ void NeuralAmpMulti::unload_nam_afile() {
     need_aresample = 0;
     clear_state_f();
     load_afile = "None";
-    ready.store(true, std::memory_order_release);
+    readyA.store(true, std::memory_order_release);
 }
 
 // non rt callback
@@ -256,7 +259,7 @@ bool NeuralAmpMulti::load_nam_bfile() {
     if (!load_bfile.empty() && is_inited) {
       //  fprintf(stderr, "Load file %s\n", load_bfile.c_str());
         std::unique_lock<std::mutex> lk(WMutex);
-        ready.store(false, std::memory_order_release);
+        readyB.store(false, std::memory_order_release);
         WCondVar->wait(lk);
         delete modelb;
        // fprintf(stderr, "delete modelb\n");
@@ -293,7 +296,7 @@ bool NeuralAmpMulti::load_nam_bfile() {
             //fprintf(stderr, "sample rate = %i file = %i l = %f\n",fSampleRate, mbSampleRate, loudness);
             //fprintf(stderr, "%s\n", load_file.c_str());
         } 
-        ready.store(true, std::memory_order_release);
+        readyB.store(true, std::memory_order_release);
     }
     if (modelb) return true;
     return false;
@@ -302,7 +305,7 @@ bool NeuralAmpMulti::load_nam_bfile() {
 // non rt callback
 void NeuralAmpMulti::unload_nam_bfile() {
     std::unique_lock<std::mutex> lk(WMutex);
-    ready.store(false, std::memory_order_release);
+    readyB.store(false, std::memory_order_release);
     WCondVar->wait(lk);
     delete modelb;
    // fprintf(stderr, "delete modelb\n");
@@ -310,5 +313,5 @@ void NeuralAmpMulti::unload_nam_bfile() {
     need_bresample = 0;
     clear_state_f();
     load_bfile = "None";
-    ready.store(true, std::memory_order_release);
+    readyB.store(true, std::memory_order_release);
 }

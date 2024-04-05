@@ -42,7 +42,7 @@ ifneq ($(MAKECMDGOALS),install)
         $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=x86-64-v2 $(SSE_CFLAGS)$(reset))
       else
         CXXFLAGS += -march=x86-64
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)-marchx86_64 $(SSE_CFLAGS)$(reset))
+        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=x86_64 $(SSE_CFLAGS)$(reset))
       endif
     else ifeq ($(shell arch), aarch64)
       CXXFLAGS += -march=armv8

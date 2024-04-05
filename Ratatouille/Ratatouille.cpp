@@ -489,21 +489,28 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufb, output0, n_samples*sizeof(float));
 
     double fSlow2 = 0.0010000000000000009 * double(*(_blend));
-    
-    rtm.compute(n_samples, bufa, bufa);
-    rtnm.compute(n_samples, bufb, bufb);
+
+    if (_namA.load(std::memory_order_acquire)) {
+        rtm.compute(n_samples, bufa, bufa);
+        rtnm.compute(n_samples, bufb, bufb);
+    } else {
+        rtm.compute(n_samples, bufb, bufb);
+        rtnm.compute(n_samples, bufa, bufa);        
+    }
 
     if ((_namA.load(std::memory_order_acquire) && _rtnB.load(std::memory_order_acquire)) ||
         (_namB.load(std::memory_order_acquire) && _rtnA.load(std::memory_order_acquire))) {
         for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec2[0] = fSlow2 + 0.999 * fRec2[1];
-            output0[i0] = bufb[i0] * (1.0 - fRec2[0]) + bufa[i0] * fRec2[0];
+            output0[i0] = bufa[i0] * (1.0 - fRec2[0]) + bufb[i0] * fRec2[0];
             fRec2[1] = fRec2[0];
         }
-    } else if (_namA.load(std::memory_order_acquire) || _namB.load(std::memory_order_acquire)) {
+    } else if (_namA.load(std::memory_order_acquire) || _rtnA.load(std::memory_order_acquire)) {
         memcpy(output0, bufa, n_samples*sizeof(float));
-    } else if (_rtnA.load(std::memory_order_acquire) || _rtnB.load(std::memory_order_acquire)) {
+    } else if (_namB.load(std::memory_order_acquire)) {
         memcpy(output0, bufb, n_samples*sizeof(float));
+    } else if (_rtnB.load(std::memory_order_acquire)) {
+        memcpy(output0, bufa, n_samples*sizeof(float));
     }
 
     if (_notify_ui.load(std::memory_order_acquire)) {

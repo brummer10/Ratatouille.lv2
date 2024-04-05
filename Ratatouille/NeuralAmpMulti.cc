@@ -203,7 +203,7 @@ bool NeuralAmpMulti::load_nam_afile() {
        // fprintf(stderr, "delete modela\n");
         modela = nullptr;
         need_aresample = 0;
-        clear_state_f();
+        //clear_state_f();
         int32_t warmUpSize = 4096;
         try {
             modela = nam::get_dsp(std::string(load_afile)).release();
@@ -249,7 +249,7 @@ void NeuralAmpMulti::unload_nam_afile() {
    // fprintf(stderr, "delete modela\n");
     modela = nullptr;
     need_aresample = 0;
-    clear_state_f();
+    //clear_state_f();
     load_afile = "None";
     readyA.store(true, std::memory_order_release);
 }
@@ -265,7 +265,7 @@ bool NeuralAmpMulti::load_nam_bfile() {
        // fprintf(stderr, "delete modelb\n");
         modelb = nullptr;
         need_bresample = 0;
-        clear_state_f();
+        //clear_state_f();
         int32_t warmUpSize = 4096;
         try {
             modelb = nam::get_dsp(std::string(load_bfile)).release();
@@ -311,7 +311,7 @@ void NeuralAmpMulti::unload_nam_bfile() {
    // fprintf(stderr, "delete modelb\n");
     modelb = nullptr;
     need_bresample = 0;
-    clear_state_f();
+    //clear_state_f();
     load_bfile = "None";
     readyB.store(true, std::memory_order_release);
 }

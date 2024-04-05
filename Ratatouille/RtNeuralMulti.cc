@@ -225,7 +225,7 @@ bool RtNeuralMulti::load_json_afile() {
         modela = nullptr;
         maSampleRate = 0;
         need_aresample = 0;
-        clear_state_f();
+        //clear_state_f();
         try {
             get_samplerate(std::string(load_afile), &maSampleRate);
             std::ifstream jsonStream(std::string(load_afile), std::ifstream::binary);
@@ -262,7 +262,7 @@ void RtNeuralMulti::unload_json_afile() {
     modela = nullptr;
     maSampleRate = 0;
     need_aresample = 0;
-    clear_state_f();
+    //clear_state_f();
     readyA.store(true, std::memory_order_release);
 }
 
@@ -276,7 +276,7 @@ bool RtNeuralMulti::load_json_bfile() {
         modelb = nullptr;
         mbSampleRate = 0;
         need_bresample = 0;
-        clear_state_f();
+        //clear_state_f();
         try {
             get_samplerate(std::string(load_bfile), &mbSampleRate);
             std::ifstream jsonStream(std::string(load_bfile), std::ifstream::binary);
@@ -312,7 +312,7 @@ void RtNeuralMulti::unload_json_bfile() {
     modelb = nullptr;
     mbSampleRate = 0;
     need_bresample = 0;
-    clear_state_f();
+    //clear_state_f();
     readyB.store(true, std::memory_order_release);
 }
 

@@ -13,12 +13,6 @@
 #include "zita-resampler/resampler.h"
 #include "gx_resampler.cc"
 
-#include "dsp.h"
-#include "activations.h"
-
-#include "RTNeural.h"
-
-
 #include <lv2/core/lv2.h>
 #include <lv2/atom/atom.h>
 #include <lv2/atom/util.h>
@@ -30,6 +24,7 @@
 #include "lv2/state/state.h"
 #include "lv2/worker/worker.h"
 #include <lv2/buf-size/buf-size.h>
+
 ///////////////////////// MACRO SUPPORT ////////////////////////////////
 
 #define PLUGIN_URI "urn:brummer:ratatouille"
@@ -43,17 +38,14 @@
 using std::min;
 using std::max;
 
-typedef int PortIndex;
-
 #include "dcblocker.cc"
-
-////////////////////////////// PLUG-IN CLASS ///////////////////////////
-
-namespace ratatouille {
 
 #include "NeuralAmpMulti.cc"
 #include "RtNeuralMulti.cc"
 
+////////////////////////////// PLUG-IN CLASS ///////////////////////////
+
+namespace ratatouille {
 
 class Xratatouille
 {
@@ -215,7 +207,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
 // connect the Ports used by the plug-in class
 void Xratatouille::connect_(uint32_t port,void* data)
 {
-    switch ((PortIndex)port)
+    switch (port)
     {
         case 0:
             input0 = static_cast<float*>(data);
@@ -473,6 +465,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
             }
         }
     }
+
     if (!_execute.load(std::memory_order_acquire) && _restore.load(std::memory_order_acquire)) {
         _execute.store(true, std::memory_order_release);
         schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
@@ -482,7 +475,9 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // do inplace processing on default
     if(output0 != input0)
         memcpy(output0, input0, n_samples*sizeof(float));
+    // run dcblocker
     dcb->compute(n_samples, output0, output0);
+
     float bufa[n_samples];
     memcpy(bufa, output0, n_samples*sizeof(float));
     float bufb[n_samples];
@@ -490,6 +485,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
 
     double fSlow2 = 0.0010000000000000009 * double(*(_blend));
 
+    // set buffer order for blend control
     if (_namA.load(std::memory_order_acquire)) {
         rtm.compute(n_samples, bufa, bufa);
         rtnm.compute(n_samples, bufb, bufb);
@@ -498,6 +494,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         rtnm.compute(n_samples, bufa, bufa);        
     }
 
+    // mix output when needed
     if ((_namA.load(std::memory_order_acquire) && _rtnB.load(std::memory_order_acquire)) ||
         (_namB.load(std::memory_order_acquire) && _rtnA.load(std::memory_order_acquire))) {
         for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
@@ -513,6 +510,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         memcpy(output0, bufa, n_samples*sizeof(float));
     }
 
+    // notify UI on changed model files
     if (_notify_ui.load(std::memory_order_acquire)) {
         _notify_ui.store(false, std::memory_order_release);
         if (_ab.load(std::memory_order_acquire) == 1) {
@@ -532,6 +530,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         }
         _ab.store(0, std::memory_order_release);
     }
+    // notify neural modeller that process cycle is done
     CondVar.notify_all();
 }
 

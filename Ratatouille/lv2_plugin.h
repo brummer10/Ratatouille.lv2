@@ -61,8 +61,6 @@ typedef struct {
     Widget_t *widget[CONTROLS];
     Widget_t *elem[GUI_ELEMENTS];
     Widget_t *tab_elem[TAB_ELEMENTS];
-    Widget_t *file_button;
-    Widget_t *file_button1;
     unsigned int f_index;
     void *private_ptr;
     int need_resize;

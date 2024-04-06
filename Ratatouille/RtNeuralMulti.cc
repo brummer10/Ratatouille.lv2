@@ -1,4 +1,10 @@
 
+
+#include "RTNeural.h"
+
+
+namespace ratatouille {
+
 class RtNeuralMulti {
 private:
     RTNeural::Model<float> *modela;
@@ -71,7 +77,7 @@ inline void RtNeuralMulti::init(unsigned int sample_rate)
 // connect the Ports used by the plug-in class
 void RtNeuralMulti::connect(uint32_t port,void* data)
 {
-    switch ((PortIndex)port)
+    switch (port)
     {
         case 2:
             _fVslider0 = static_cast<float*>(data);
@@ -316,3 +322,4 @@ void RtNeuralMulti::unload_json_bfile() {
     readyB.store(true, std::memory_order_release);
 }
 
+} // end namespace ratatouille

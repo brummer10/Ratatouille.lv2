@@ -1,7 +1,7 @@
 
 include libxputty/Build/Makefile.base
 
-NOGOAL := install all features
+NOGOAL := install all features mod
 
 PASS := features 
 

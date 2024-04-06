@@ -25,8 +25,6 @@
     else
       ARMCPU = "YES"
     endif
-  else ifeq ($(shell arch), aarch64)
-    SSE_CFLAGS = -march=armv8-a
   else
     SSE_CFLAGS =
   endif
@@ -65,7 +63,8 @@ endif
 	NAM_DIR := ../NeuralAmpModelerCore/NAM/
 	NAM_DEPEND_DIR := ../NeuralAmpModelerCore/Dependencies/
 	NAM_SOURCES := $(wildcard $(NAM_DIR)*.cpp)
-	IMPL_SOURCE := $(wildcard *.cc)
+	IMPL_SOURCE := RtNeuralMulti.cc NeuralAmpMulti.cc
+	GUIIMPL_SOURCE := lv2_plugin.cc
 
 ifeq ($(TARGET), Linux)
 	GUI_LDFLAGS += -I$(HEADER_DIR) -Wl,-Bstatic -L. $(UI_LIB) \
@@ -89,6 +88,9 @@ ifeq ($(TARGET), Linux)
 
 	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -fstack-protector -fvisibility=hidden \
 	-fdata-sections -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--exclude-libs,ALL -DUSE_ATOM
+
+	TTLUPDATEMODGUI =  sed -i -e '140,153d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -I./dsp -I./plugin -fPIC -DPIC -O2 -Wall -funroll-loops \
 	-fstack-protector -ffast-math -fomit-frame-pointer -fstrength-reduce $(SSE_CFLAGS) \
@@ -111,13 +113,15 @@ else ifeq ($(TARGET), Windows)
 
 	TTLUPDATE = sed -i '/lv2:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/manifest.ttl
 	TTLUPDATEGUI = sed -i '/a guiext:X11UI/ s/X11UI/WindowsUI/ ; /guiext:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/$(NAME).ttl
+	TTLUPDATEMODGUI =  sed -i -e '140,153d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 endif
 
 	FAUSTFLAGS :=  \
 	 \
 	
 
-.PHONY : all install uninstall
+.PHONY : all mod install uninstall clean
 
 .NOTPARALLEL:
 
@@ -136,7 +140,22 @@ all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 	fi
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
-$(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c
+mod: $(EXEC_NAME).$(LIB_EXT)
+
+	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
+	$(QUIET)mkdir -p ../bin/$(BUNDLE)
+	$(QUIET)cp ./*.ttl ../bin/$(BUNDLE)
+	$(QUIET)$(TTLUPDATE)
+	$(QUIET)$(TTLUPDATEMODGUI)
+	$(QUIET)cp ./*.$(LIB_EXT) ../bin/$(BUNDLE)
+	@if [ -f ../bin/$(BUNDLE)/$(EXEC_NAME).$(LIB_EXT) ]; then \
+		$(B_ECHO) "build finish, . . . $(reset)"; \
+	else \
+		$(R_ECHO) "Sorry, build fail$(reset)"; \
+	fi
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
+$(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE)
 	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
 	$(QUIET)$(CC) $(CFLAGS) '$(NAME).c' -L. $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)

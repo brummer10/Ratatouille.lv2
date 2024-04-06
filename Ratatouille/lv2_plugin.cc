@@ -159,20 +159,20 @@ static void draw_window(void *w_, void* user_data) {
 #ifdef USE_ATOM
     X11_UI* ui = (X11_UI*)w->parent_struct;
     X11_UI_Private_t *ps = (X11_UI_Private_t*)ui->private_ptr;
-    if (strlen(ps->filename)) {
+    if (strlen(ps->ma.filename)) {
         char label[124];
         memset(label, '\0', sizeof(char)*124);
         cairo_text_extents_t extents_f;
         cairo_set_font_size (w->crb, w->app->normal_font);
-        int slen = strlen(basename(ps->filename));
+        int slen = strlen(basename(ps->ma.filename));
         
         if ((slen - 4) > 48) {
-            utf8crop(label,basename(ps->filename), 48);
+            utf8crop(label,basename(ps->ma.filename), 48);
             strcat(label,"...");
-            tooltip_set_text(ui->widget[0],basename(ps->filename));
+            tooltip_set_text(ui->widget[0],basename(ps->ma.filename));
             ui->widget[0]->flags |= HAS_TOOLTIP;
         } else {
-            strcpy(label, basename(ps->filename));
+            strcpy(label, basename(ps->ma.filename));
             ui->widget[0]->flags &= ~HAS_TOOLTIP;
             hide_tooltip(ui->widget[0]);
         }
@@ -182,20 +182,20 @@ static void draw_window(void *w_, void* user_data) {
         cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 274 * w->app->hdpi );
         cairo_show_text(w->crb, label);
    }
-    if (strlen(ps->filename1)) {
+    if (strlen(ps->mb.filename)) {
         char label[124];
         memset(label, '\0', sizeof(char)*124);
         cairo_text_extents_t extents_f;
         cairo_set_font_size (w->crb, w->app->normal_font);
-        int slen = strlen(basename(ps->filename1));
+        int slen = strlen(basename(ps->mb.filename));
         
         if ((slen - 4) > 48) {
-            utf8crop(label,basename(ps->filename1), 48);
+            utf8crop(label,basename(ps->mb.filename), 48);
             strcat(label,"...");
-            tooltip_set_text(ui->widget[0],basename(ps->filename1));
+            tooltip_set_text(ui->widget[0],basename(ps->mb.filename));
             ui->widget[0]->flags |= HAS_TOOLTIP;
         } else {
-            strcpy(label, basename(ps->filename1));
+            strcpy(label, basename(ps->mb.filename));
             ui->widget[0]->flags &= ~HAS_TOOLTIP;
             hide_tooltip(ui->widget[0]);
         }

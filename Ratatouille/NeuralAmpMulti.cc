@@ -8,31 +8,39 @@ namespace ratatouille {
 
 class NeuralAmpMulti {
 private:
-    nam::DSP* modela;
-    nam::DSP* modelb;
+    nam::DSP*                       modela;
+    nam::DSP*                       modelb;
+
     gx_resample::FixedRateResampler smpa;
     gx_resample::FixedRateResampler smpb;
-    std::atomic<bool> readyA;
-    std::atomic<bool> readyB;
-    int fSampleRate;
-    int maSampleRate;
-    int mbSampleRate;
-    float* _fVslider0;
-    float* _fVslider1;
-    float* _fVslider2;
-    double fRec0[2];
-    double fRec1[2];
-    double fRec2[2];
-    int need_aresample;
-    int need_bresample;
-    float loudnessa;
-    float loudnessb;
-    bool is_inited;
-    std::mutex WMutex;
-    std::condition_variable *WCondVar;
+
+    std::atomic<bool>               readyA;
+    std::atomic<bool>               readyB;
+
+    int                             fSampleRate;
+    int                             maSampleRate;
+    int                             mbSampleRate;
+    float*                          _fVslider0;
+    float*                          _fVslider1;
+    float*                          _fVslider2;
+
+    double                          fRec0[2];
+    double                          fRec1[2];
+    double                          fRec2[2];
+
+    int                             need_aresample;
+    int                             need_bresample;
+    float                           loudnessa;
+    float                           loudnessb;
+
+    bool                            is_inited;
+    std::mutex                      WMutex;
+    std::condition_variable*        SyncWait;
+
 public:
-    std::string load_afile;
-    std::string load_bfile;
+    std::string                     load_afile;
+    std::string                     load_bfile;
+
     void clear_state_f();
     void init(unsigned int sample_rate);
     void connect(uint32_t port,void* data);
@@ -41,12 +49,13 @@ public:
     bool load_nam_bfile();
     void unload_nam_afile();
     void unload_nam_bfile();
+
     NeuralAmpMulti(std::condition_variable *var);
     ~NeuralAmpMulti();
 };
 
-NeuralAmpMulti::NeuralAmpMulti(std::condition_variable *var)
-    : modela(nullptr), modelb(nullptr), smpa(), smpb(), WCondVar(var) {
+NeuralAmpMulti::NeuralAmpMulti(std::condition_variable *Sync)
+    : modela(nullptr), modelb(nullptr), smpa(), smpb(), SyncWait(Sync) {
     loudnessa = 0.0;
     loudnessb = 0.0;
     need_aresample = 0;
@@ -205,7 +214,7 @@ bool NeuralAmpMulti::load_nam_afile() {
        // fprintf(stderr, "Load file %s\n", load_afile.c_str());
         std::unique_lock<std::mutex> lk(WMutex);
         readyA.store(false, std::memory_order_release);
-        WCondVar->wait(lk);
+        SyncWait->wait(lk);
         delete modela;
        // fprintf(stderr, "delete modela\n");
         modela = nullptr;
@@ -251,7 +260,7 @@ bool NeuralAmpMulti::load_nam_afile() {
 void NeuralAmpMulti::unload_nam_afile() {
     std::unique_lock<std::mutex> lk(WMutex);
     readyA.store(false, std::memory_order_release);
-    WCondVar->wait(lk);
+    SyncWait->wait(lk);
     delete modela;
    // fprintf(stderr, "delete modela\n");
     modela = nullptr;
@@ -267,7 +276,7 @@ bool NeuralAmpMulti::load_nam_bfile() {
       //  fprintf(stderr, "Load file %s\n", load_bfile.c_str());
         std::unique_lock<std::mutex> lk(WMutex);
         readyB.store(false, std::memory_order_release);
-        WCondVar->wait(lk);
+        SyncWait->wait(lk);
         delete modelb;
        // fprintf(stderr, "delete modelb\n");
         modelb = nullptr;
@@ -313,7 +322,7 @@ bool NeuralAmpMulti::load_nam_bfile() {
 void NeuralAmpMulti::unload_nam_bfile() {
     std::unique_lock<std::mutex> lk(WMutex);
     readyB.store(false, std::memory_order_release);
-    WCondVar->wait(lk);
+    SyncWait->wait(lk);
     delete modelb;
    // fprintf(stderr, "delete modelb\n");
     modelb = nullptr;

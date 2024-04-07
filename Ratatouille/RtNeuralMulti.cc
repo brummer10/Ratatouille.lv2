@@ -7,30 +7,37 @@ namespace ratatouille {
 
 class RtNeuralMulti {
 private:
-    RTNeural::Model<float> *modela;
-    RTNeural::Model<float> *modelb;
+    RTNeural::Model<float>*         modela;
+    RTNeural::Model<float>*         modelb;
+
     gx_resample::FixedRateResampler smpa;
     gx_resample::FixedRateResampler smpb;
-    std::atomic<bool> readyA;
-    std::atomic<bool> readyB;
-    int fSampleRate;
-    int maSampleRate;
-    int mbSampleRate;
-    float* _fVslider0;
-    float* _fVslider1;
-    float* _fVslider2;
-    double fRec0[2];
-    double fRec1[2];
-    double fRec2[2];
-    int need_aresample;
-    int need_bresample;
-    bool is_inited;
-    std::mutex WMutex;
-    std::condition_variable *WCondVar;
+
+    std::atomic<bool>               readyA;
+    std::atomic<bool>               readyB;
+
+    int                             fSampleRate;
+    int                             maSampleRate;
+    int                             mbSampleRate;
+    float*                          _fVslider0;
+    float*                          _fVslider1;
+    float*                          _fVslider2;
+
+    double                          fRec0[2];
+    double                          fRec1[2];
+    double                          fRec2[2];
+
+    int                             need_aresample;
+    int                             need_bresample;
+
+    bool                            is_inited;
+    std::mutex                      WMutex;
+    std::condition_variable*        SyncWait;
 
 public:
-    std::string load_afile;
-    std::string load_bfile;
+    std::string                     load_afile;
+    std::string                     load_bfile;
+
     void clear_state_f();
     void init(unsigned int sample_rate);
     void connect(uint32_t port,void* data);
@@ -40,12 +47,13 @@ public:
     bool load_json_bfile();
     void unload_json_afile();
     void unload_json_bfile();
+
     RtNeuralMulti(std::condition_variable *var);
     ~RtNeuralMulti();
 };
 
-RtNeuralMulti::RtNeuralMulti(std::condition_variable *var)
-    : modela(nullptr), modelb(nullptr), smpa(), smpb(), WCondVar(var) {
+RtNeuralMulti::RtNeuralMulti(std::condition_variable *Sync)
+    : modela(nullptr), modelb(nullptr), smpa(), smpb(), SyncWait(Sync) {
     need_aresample = 0;
     need_bresample = 0;
     is_inited = false;
@@ -175,7 +183,7 @@ void RtNeuralMulti::compute(int count, float *input0, float *output0)
             }
         }
     }
-
+    //mix model A/B
     if (modela && modelb && readyA.load(std::memory_order_acquire) &&
                             readyB.load(std::memory_order_acquire)) {
         for (int i0 = 0; i0 < count; i0 = i0 + 1) {
@@ -225,7 +233,7 @@ bool RtNeuralMulti::load_json_afile() {
        // fprintf(stderr, "Load file %s\n", load_afile.c_str());
         std::unique_lock<std::mutex> lk(WMutex);
         readyA.store(false, std::memory_order_release);
-        WCondVar->wait(lk);
+        SyncWait->wait(lk);
         delete modela;
        // fprintf(stderr, "delete model\n");
         modela = nullptr;
@@ -262,7 +270,7 @@ bool RtNeuralMulti::load_json_afile() {
 void RtNeuralMulti::unload_json_afile() {
     std::unique_lock<std::mutex> lk(WMutex);
     readyA.store(false, std::memory_order_release);
-    WCondVar->wait(lk);
+    SyncWait->wait(lk);
     delete modela;
    // fprintf(stderr, "delete model\n");
     modela = nullptr;
@@ -277,7 +285,7 @@ bool RtNeuralMulti::load_json_bfile() {
     if (!load_bfile.empty() && is_inited) {
         std::unique_lock<std::mutex> lk(WMutex);
         readyB.store(false, std::memory_order_release);
-        WCondVar->wait(lk);
+        SyncWait->wait(lk);
         delete modelb;
         modelb = nullptr;
         mbSampleRate = 0;
@@ -313,7 +321,7 @@ bool RtNeuralMulti::load_json_bfile() {
 void RtNeuralMulti::unload_json_bfile() {
     std::unique_lock<std::mutex> lk(WMutex);
     readyB.store(false, std::memory_order_release);
-    WCondVar->wait(lk);
+    SyncWait->wait(lk);
     delete modelb;
     modelb = nullptr;
     mbSampleRate = 0;

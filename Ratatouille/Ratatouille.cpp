@@ -50,18 +50,21 @@ namespace ratatouille {
 class Xratatouille
 {
 private:
-    dcblocker::Dsp* dcb;
-    NeuralAmpMulti rtm;
-    RtNeuralMulti  rtnm;
-    float* input0;
-    float* output0;
-    float* _blend;
-    double fRec2[2];
-    std::string model_file;
-    std::string model_file1;
-    std::string rtmodel_file;
-    std::string rtmodel_file1;
+    dcblocker::Dsp*              dcb;
+    NeuralAmpMulti               rtm;
+    RtNeuralMulti                rtnm;
+
+    float*                       input0;
+    float*                       output0;
+    float*                       _blend;
+    double                       fRec2[2];
     bool                         doit;
+
+    std::string                  model_file;
+    std::string                  model_file1;
+    std::string                  rtmodel_file;
+    std::string                  rtmodel_file1;
+
     std::atomic<bool>            _execute;
     std::atomic<bool>            _notify_ui;
     std::atomic<bool>            _restore;
@@ -70,34 +73,36 @@ private:
     std::atomic<bool>            _namB;
     std::atomic<bool>            _rtnA;
     std::atomic<bool>            _rtnB;
-    std::condition_variable      CondVar;
+
+    std::condition_variable      Sync;
+
     // LV2 stuff
     LV2_URID_Map*                map;
     LV2_Worker_Schedule*         schedule;
-    const LV2_Atom_Sequence* control;
-    LV2_Atom_Sequence* notify;
-    LV2_Atom_Forge forge;
-    LV2_Atom_Forge_Frame notify_frame;
+    const LV2_Atom_Sequence*     control;
+    LV2_Atom_Sequence*           notify;
+    LV2_Atom_Forge               forge;
+    LV2_Atom_Forge_Frame         notify_frame;
 
-    LV2_URID xlv2_model_file;
-    LV2_URID xlv2_model_file1;
-    LV2_URID xlv2_rtmodel_file;
-    LV2_URID xlv2_rtmodel_file1;
-    LV2_URID xlv2_gui;
-    LV2_URID atom_Object;
-    LV2_URID atom_Int;
-    LV2_URID atom_Float;
-    LV2_URID atom_Bool;
-    LV2_URID atom_Vector;
-    LV2_URID atom_Path;
-    LV2_URID atom_String;
-    LV2_URID atom_URID;
-    LV2_URID atom_eventTransfer;
-    LV2_URID patch_Put;
-    LV2_URID patch_Get;
-    LV2_URID patch_Set;
-    LV2_URID patch_property;
-    LV2_URID patch_value;
+    LV2_URID                     xlv2_model_file;
+    LV2_URID                     xlv2_model_file1;
+    LV2_URID                     xlv2_rtmodel_file;
+    LV2_URID                     xlv2_rtmodel_file1;
+    LV2_URID                     xlv2_gui;
+    LV2_URID                     atom_Object;
+    LV2_URID                     atom_Int;
+    LV2_URID                     atom_Float;
+    LV2_URID                     atom_Bool;
+    LV2_URID                     atom_Vector;
+    LV2_URID                     atom_Path;
+    LV2_URID                     atom_String;
+    LV2_URID                     atom_URID;
+    LV2_URID                     atom_eventTransfer;
+    LV2_URID                     patch_Put;
+    LV2_URID                     patch_Get;
+    LV2_URID                     patch_Set;
+    LV2_URID                     patch_property;
+    LV2_URID                     patch_value;
     // private functions
     inline void run_dsp_(uint32_t n_samples);
     inline void connect_(uint32_t port,void* data);
@@ -109,7 +114,8 @@ private:
     inline void deactivate_f();
 public:
     inline void map_uris(LV2_URID_Map* map);
-    inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge, const LV2_URID xlv2_model, const char* filename);
+    inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
+            const LV2_URID xlv2_model, const char* filename);
     inline const LV2_Atom* read_set_file(const LV2_Atom_Object* obj);
     // LV2 Descriptor
     static const LV2_Descriptor descriptor;
@@ -150,8 +156,8 @@ public:
 // constructor
 Xratatouille::Xratatouille() :
     dcb(dcblocker::plugin()),
-    rtm(&CondVar),
-    rtnm(&CondVar),
+    rtm(&Sync),
+    rtnm(&Sync),
     input0(NULL),
     output0(NULL) {};
 
@@ -163,25 +169,25 @@ Xratatouille::~Xratatouille() {
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
 
 inline void Xratatouille::map_uris(LV2_URID_Map* map) {
-    xlv2_model_file = map->map(map->handle, XLV2__MODELFILE);
-    xlv2_model_file1 = map->map(map->handle, XLV2__MODELFILE1);
-    xlv2_rtmodel_file = map->map(map->handle, XLV2__RTMODELFILE);
-    xlv2_rtmodel_file1 = map->map(map->handle, XLV2__RTMODELFILE1);
-    xlv2_gui = map->map(map->handle, XLV2__GUI);
-    atom_Object = map->map(map->handle, LV2_ATOM__Object);
-    atom_Int = map->map(map->handle, LV2_ATOM__Int);
-    atom_Float = map->map(map->handle, LV2_ATOM__Float);
-    atom_Bool = map->map(map->handle, LV2_ATOM__Bool);
-    atom_Vector = map->map(map->handle, LV2_ATOM__Vector);
-    atom_Path = map->map(map->handle, LV2_ATOM__Path);
-    atom_String = map->map(map->handle, LV2_ATOM__String);
-    atom_URID = map->map(map->handle, LV2_ATOM__URID);
-    atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
-    patch_Put = map->map(map->handle, LV2_PATCH__Put);
-    patch_Get = map->map(map->handle, LV2_PATCH__Get);
-    patch_Set = map->map(map->handle, LV2_PATCH__Set);
-    patch_property = map->map(map->handle, LV2_PATCH__property);
-    patch_value = map->map(map->handle, LV2_PATCH__value);
+    xlv2_model_file =       map->map(map->handle, XLV2__MODELFILE);
+    xlv2_model_file1 =      map->map(map->handle, XLV2__MODELFILE1);
+    xlv2_rtmodel_file =     map->map(map->handle, XLV2__RTMODELFILE);
+    xlv2_rtmodel_file1 =    map->map(map->handle, XLV2__RTMODELFILE1);
+    xlv2_gui =              map->map(map->handle, XLV2__GUI);
+    atom_Object =           map->map(map->handle, LV2_ATOM__Object);
+    atom_Int =              map->map(map->handle, LV2_ATOM__Int);
+    atom_Float =            map->map(map->handle, LV2_ATOM__Float);
+    atom_Bool =             map->map(map->handle, LV2_ATOM__Bool);
+    atom_Vector =           map->map(map->handle, LV2_ATOM__Vector);
+    atom_Path =             map->map(map->handle, LV2_ATOM__Path);
+    atom_String =           map->map(map->handle, LV2_ATOM__String);
+    atom_URID =             map->map(map->handle, LV2_ATOM__URID);
+    atom_eventTransfer =    map->map(map->handle, LV2_ATOM__eventTransfer);
+    patch_Put =             map->map(map->handle, LV2_PATCH__Put);
+    patch_Get =             map->map(map->handle, LV2_PATCH__Get);
+    patch_Set =             map->map(map->handle, LV2_PATCH__Set);
+    patch_property =        map->map(map->handle, LV2_PATCH__property);
+    patch_value =           map->map(map->handle, LV2_PATCH__value);
 }
 
 void Xratatouille::init_dsp_(uint32_t rate)
@@ -189,10 +195,12 @@ void Xratatouille::init_dsp_(uint32_t rate)
     dcb->init(rate);
     rtm.init(rate);
     rtnm.init(rate);
+
     model_file = "None";
     model_file1 = "None";
     rtmodel_file = "None";
     rtmodel_file1 = "None";
+
     _execute.store(false, std::memory_order_release);
     _notify_ui.store(false, std::memory_order_release);
     _restore.store(false, std::memory_order_release);
@@ -201,6 +209,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     _namB.store(false, std::memory_order_release);
     _rtnA.store(false, std::memory_order_release);
     _rtnB.store(false, std::memory_order_release);
+
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec2[l0] = 0.0;
 }
 
@@ -387,7 +396,9 @@ void Xratatouille::do_work_mono()
     _notify_ui.store(true, std::memory_order_release);
 }
 
-inline LV2_Atom* Xratatouille::write_set_file(LV2_Atom_Forge* forge, const LV2_URID xlv2_model, const char* filename) {
+inline LV2_Atom* Xratatouille::write_set_file(LV2_Atom_Forge* forge,
+                    const LV2_URID xlv2_model, const char* filename) {
+
     LV2_Atom_Forge_Frame frame;
     lv2_atom_forge_frame_time(forge, 0);
     LV2_Atom* set = (LV2_Atom*)lv2_atom_forge_object(
@@ -406,8 +417,10 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
     if (obj->body.otype != patch_Set) {
         return NULL;
     }
+
     const LV2_Atom* property = NULL;
     lv2_atom_object_get(obj, patch_property, &property, 0);
+
     if (property && (property->type == atom_URID)) {
         if (((LV2_Atom_URID*)property)->body == xlv2_model_file)
             _ab.store(1, std::memory_order_release);
@@ -419,11 +432,13 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
             _ab.store(5, std::memory_order_release);
         else return NULL;
     }
+
     const LV2_Atom* file_path = NULL;
     lv2_atom_object_get(obj, patch_value, &file_path, 0);
     if (!file_path || (file_path->type != atom_Path)) {
         return NULL;
     }
+
     return file_path;
 }
 
@@ -439,13 +454,13 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
             const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
             if (obj->body.otype == patch_Get) {
                 if (model_file != "None")
-                write_set_file(&forge, xlv2_model_file, model_file.data());
+                    write_set_file(&forge, xlv2_model_file, model_file.data());
                 if (model_file1 != "None")
-                write_set_file(&forge, xlv2_model_file1, model_file1.data());
+                    write_set_file(&forge, xlv2_model_file1, model_file1.data());
                 if (rtmodel_file != "None")
-                write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
+                    write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
                 if (rtmodel_file1 != "None")
-                write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
+                    write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
             } else if (obj->body.otype == patch_Set) {
                 const LV2_Atom* file_path = read_set_file(obj);
                 if (file_path) {
@@ -531,7 +546,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         _ab.store(0, std::memory_order_release);
     }
     // notify neural modeller that process cycle is done
-    CondVar.notify_all();
+    Sync.notify_all();
 }
 
 void Xratatouille::connect_all__ports(uint32_t port, void* data)
@@ -553,12 +568,16 @@ LV2_State_Status Xratatouille::save_state(LV2_Handle instance,
 
     store(handle,self->xlv2_model_file,self->model_file.data(), strlen(self->model_file.data()) + 1,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
     store(handle,self->xlv2_model_file1,self->model_file1.data(), strlen(self->model_file1.data()) + 1,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
     store(handle,self->xlv2_rtmodel_file,self->rtmodel_file.data(), strlen(self->rtmodel_file.data()) + 1,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
     store(handle,self->xlv2_rtmodel_file1,self->rtmodel_file1.data(), strlen(self->rtmodel_file1.data()) + 1,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
     return LV2_STATE_SUCCESS;
 }
 
@@ -609,6 +628,7 @@ LV2_State_Status Xratatouille::restore_state(LV2_Handle instance,
             self->_ab.fetch_add(12, std::memory_order_relaxed);
         }
     }
+
     self-> _restore.store(true, std::memory_order_release);
     return LV2_STATE_SUCCESS;
 }
@@ -638,10 +658,12 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
             options = (const LV2_Options_Option*)features[i]->data;
         }
     }
+
     if (!self->schedule) {
         fprintf(stderr, "Missing feature work:schedule.\n");
         self->_execute.store(true, std::memory_order_release);
     }
+
     if (!self->map) {
         fprintf(stderr, "Missing feature uri:map.\n");
     }
@@ -670,9 +692,11 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
             printf("using block size: %d\n", bufsize);
         }
     }
+
     self->map_uris(self->map);
     lv2_atom_forge_init(&self->forge, self->map);
     self->init_dsp_((uint32_t)rate);
+
     return (LV2_Handle)self;
 }
 
@@ -731,12 +755,14 @@ const void* Xratatouille::extension_data(const char* uri)
 {
     static const LV2_Worker_Interface worker = { work, work_response, NULL };
     static const LV2_State_Interface  state  = { save_state, restore_state };
+
     if (!strcmp(uri, LV2_WORKER__interface)) {
         return &worker;
     }
     else if (!strcmp(uri, LV2_STATE__interface)) {
         return &state;
     }
+
     return NULL;
 }
 

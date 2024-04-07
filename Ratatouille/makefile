@@ -93,7 +93,7 @@ ifeq ($(TARGET), Linux)
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -I./dsp -I./plugin -fPIC -DPIC -O2 -Wall -funroll-loops \
-	-fstack-protector -ffast-math -fomit-frame-pointer -fstrength-reduce $(SSE_CFLAGS) \
+	-fstack-protector -ffast-math -fomit-frame-pointer -fstrength-reduce \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
 	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL $(SSE_CFLAGS) \
 	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \

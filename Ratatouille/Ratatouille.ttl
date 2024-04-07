@@ -26,25 +26,25 @@
 
 rata:NAM_Model
     a lv2:Parameter ;
-    mod:fileTypes "nam" ;
+    mod:fileTypes "nammodel" ;
     rdfs:label "NAM Model A" ;
     rdfs:range atom:Path .
 
 rata:NAM_Model1
     a lv2:Parameter ;
-    mod:fileTypes "nam" ;
+    mod:fileTypes "nammodel" ;
     rdfs:label "NAM Model B" ;
     rdfs:range atom:Path .
 
 rata:RTN_Model
     a lv2:Parameter ;
-    mod:fileTypes "aidax" ;
+    mod:fileTypes "aidadspmodel" ;
     rdfs:label "RTN Model A" ;
     rdfs:range atom:Path .
 
 rata:RTN_Model1
     a lv2:Parameter ;
-    mod:fileTypes "aidax" ;
+    mod:fileTypes "aidadspmodel" ;
     rdfs:label "RTN Model B" ;
     rdfs:range atom:Path .
 

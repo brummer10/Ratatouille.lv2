@@ -1,3 +1,10 @@
+/*
+ * Ratatouille.c
+ *
+ * SPDX-License-Identifier:  BSD-3-Clause
+ *
+ * Copyright (C) 2024 brummer <brummer@web.de>
+ */
 
 
 #define CONTROLS 3

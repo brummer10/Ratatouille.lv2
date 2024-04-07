@@ -1,5 +1,10 @@
-// generated from file 'dcblocker.dsp' by dsp2cc:
-// Code generated with Faust 2.70.3 (https://faust.grame.fr)
+/*
+ * dcblocker.cc
+ *
+ * SPDX-License-Identifier:  BSD-3-Clause
+ *
+ * Copyright (C) 2024 brummer <brummer@web.de>
+ */
 
 #include <cmath>
 

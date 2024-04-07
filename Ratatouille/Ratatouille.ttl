@@ -18,6 +18,7 @@
 @prefix state:   <http://lv2plug.in/ns/ext/state#> .
 @prefix mod: <http://moddevices.com/ns/mod#> .
 @prefix rata: <urn:brummer:ratatouille#> .
+@prefix spdx:  <http://spdx.org/rdf/terms#> .
 
 
 <urn:name#me>
@@ -53,6 +54,7 @@ rata:RTN_Model1
        lv2:SimulatorPlugin ;
    doap:maintainer <urn:name#me> ;
    doap:name "Ratatouille" ;
+   doap:license <https://spdx.org/licenses/BSD-3-Clause> ;
    lv2:project <urn:brummer:ratatouille> ;
    lv2:requiredFeature urid:map ;
    lv2:optionalFeature lv2:hardRTCapable ;

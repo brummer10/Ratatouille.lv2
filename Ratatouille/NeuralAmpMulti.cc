@@ -1,4 +1,10 @@
-
+/*
+ * NeuralAmpMulti.cc
+ *
+ * SPDX-License-Identifier:  BSD-3-Clause
+ *
+ * Copyright (C) 2024 brummer <brummer@web.de>
+ */
 
 #include "dsp.h"
 #include "activations.h"
@@ -123,6 +129,7 @@ void NeuralAmpMulti::compute(int count, float *input0, float *output0)
     memcpy(bufa, output0, count*sizeof(float));
     float bufb[count];
     memcpy(bufb, output0, count*sizeof(float));
+
     // process model A
     if (modela && readyA.load(std::memory_order_acquire)) {
         if (need_aresample ) {
@@ -153,6 +160,7 @@ void NeuralAmpMulti::compute(int count, float *input0, float *output0)
             modela->finalize_(count);
         }
     }
+
     // process model B
     if (modelb && readyB.load(std::memory_order_acquire)) {
         if (need_bresample) {
@@ -187,6 +195,7 @@ void NeuralAmpMulti::compute(int count, float *input0, float *output0)
             modelb->finalize_(count);
         }
     }
+
     //mix model A/B
     if (modela && modelb && readyA.load(std::memory_order_acquire) &&
                             readyB.load(std::memory_order_acquire)) {

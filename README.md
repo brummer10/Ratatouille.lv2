@@ -13,10 +13,10 @@ You can also load just a single model file, in that case the "Blend" control wil
 When you've loaded a second model, the "Blend" control will blend between the two models and
 mix them to simulate your specific tone.
 
-To round up your sound you can load a Impulse Response File in the last slot.
+To round up your sound you can load two Impulse Response Files and mix them to your needs.
 
 Ratatouille.lv2 supports resampling when needed to match the expected sample rate of the 
-loaded models. Both models and the IR File may have different expectations regarding the sample rate.
+loaded models. Both models and the IR Files may have different expectations regarding the sample rate.
 
 ## Dependencies
 

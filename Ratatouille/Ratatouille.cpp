@@ -40,6 +40,7 @@
 #define XLV2__RTMODELFILE "urn:brummer:ratatouille#RTN_Model"
 #define XLV2__RTMODELFILE1 "urn:brummer:ratatouille#RTN_Model1"
 #define XLV2__IRFILE "urn:brummer:ratatouille#irfile"
+#define XLV2__IRFILE1 "urn:brummer:ratatouille#irfile1"
 
 #define XLV2__GUI "urn:brummer:ratatouille#gui"
 
@@ -68,13 +69,17 @@ private:
     RtNeuralMulti                rtnm;
     gx_resample::StreamingResampler resamp;
     GxConvolver                  conv;
+    gx_resample::StreamingResampler resamp1;
+    GxConvolver                  conv1;
 
     int32_t                      rt_prio;
     int32_t                      rt_policy;
     float*                       input0;
     float*                       output0;
     float*                       _blend;
+    float*                       _mix;
     double                       fRec2[2];
+    double                       fRec1[2];
     uint32_t                     bufsize;
     uint32_t                     s_rate;
     bool                         doit;
@@ -84,6 +89,7 @@ private:
     std::string                  rtmodel_file;
     std::string                  rtmodel_file1;
     std::string                  ir_file;
+    std::string                  ir_file1;
 
     std::atomic<bool>            _execute;
     std::atomic<bool>            _notify_ui;
@@ -109,6 +115,7 @@ private:
     LV2_URID                     xlv2_rtmodel_file;
     LV2_URID                     xlv2_rtmodel_file1;
     LV2_URID                     xlv2_ir_file;
+    LV2_URID                     xlv2_ir_file1;
     LV2_URID                     xlv2_gui;
     LV2_URID                     atom_Object;
     LV2_URID                     atom_Int;
@@ -180,16 +187,21 @@ Xratatouille::Xratatouille() :
     rtm(&Sync),
     rtnm(&Sync),
     conv(GxConvolver(resamp)),
+    conv1(GxConvolver(resamp1)),
     rt_prio(0),
     rt_policy(0),
     input0(NULL),
-    output0(NULL) {};
+    output0(NULL),
+    _blend(0),
+    _mix(0) {};
 
 // destructor
 Xratatouille::~Xratatouille() {
     dcb->del_instance(dcb);
     conv.stop_process();
     conv.cleanup();
+    conv1.stop_process();
+    conv1.cleanup();
 };
 
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
@@ -200,6 +212,7 @@ inline void Xratatouille::map_uris(LV2_URID_Map* map) {
     xlv2_rtmodel_file =     map->map(map->handle, XLV2__RTMODELFILE);
     xlv2_rtmodel_file1 =    map->map(map->handle, XLV2__RTMODELFILE1);
     xlv2_ir_file =          map->map(map->handle, XLV2__IRFILE);
+    xlv2_ir_file1 =         map->map(map->handle, XLV2__IRFILE1);
     xlv2_gui =              map->map(map->handle, XLV2__GUI);
     atom_Object =           map->map(map->handle, LV2_ATOM__Object);
     atom_Int =              map->map(map->handle, LV2_ATOM__Int);
@@ -242,6 +255,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     _rtnB.store(false, std::memory_order_release);
 
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec2[l0] = 0.0;
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec1[l0] = 0.0;
 }
 
 // connect the Ports used by the plug-in class
@@ -264,6 +278,9 @@ void Xratatouille::connect_(uint32_t port,void* data)
         case 6:
             notify = (LV2_Atom_Sequence*)data;
             break;
+        case 7:
+            _mix = static_cast<float*>(data);
+            break;
         default:
             break;
     }
@@ -277,6 +294,7 @@ void Xratatouille::activate_f()
 void Xratatouille::clean_up()
 {
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec2[l0] = 0.0;
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec1[l0] = 0.0;
     // delete the internal DSP mem
 }
 
@@ -436,7 +454,24 @@ void Xratatouille::do_work_mono()
             while (!conv.checkstate());
             if(!conv.start(rt_prio, rt_policy)) {
                 ir_file = "None";
-                printf("preamp impulse convolver update fail\n");
+                printf("impulse convolver update fail\n");
+            }
+        }
+        if (ir_file1 != "None") {
+            if (conv1.is_runnable()) {
+                conv1.set_not_runnable();
+                conv1.stop_process();
+            }
+
+            conv1.cleanup();
+            conv1.set_samplerate(s_rate);
+            conv1.set_buffersize(bufsize);
+
+            conv1.configure(ir_file1, 1.0, 0, 0, 0, 0, 0);
+            while (!conv1.checkstate());
+            if(!conv1.start(rt_prio, rt_policy)) {
+                ir_file1 = "None";
+                printf("impulse convolver1 update fail\n");
             }
         }
     } else if (_ab.load(std::memory_order_acquire) == 7) {
@@ -453,7 +488,23 @@ void Xratatouille::do_work_mono()
         while (!conv.checkstate());
         if(!conv.start(rt_prio, rt_policy)) {
             ir_file = "None";
-            printf("preamp impulse convolver update fail\n");
+            printf("impulse convolver update fail\n");
+        }
+    } else if (_ab.load(std::memory_order_acquire) == 8) {
+        if (conv1.is_runnable()) {
+            conv1.set_not_runnable();
+            conv1.stop_process();
+        }
+
+        conv1.cleanup();
+        conv1.set_samplerate(s_rate);
+        conv1.set_buffersize(bufsize);
+
+        conv1.configure(ir_file1, 1.0, 0, 0, 0, 0, 0);
+        while (!conv1.checkstate());
+        if(!conv1.start(rt_prio, rt_policy)) {
+            ir_file1 = "None";
+            printf("impulse convolver1 update fail\n");
         }
     }
     _execute.store(false, std::memory_order_release);
@@ -496,6 +547,8 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
             _ab.store(5, std::memory_order_release);
         else if (((LV2_Atom_URID*)property)->body == xlv2_ir_file)
             _ab.store(7, std::memory_order_release);
+        else if (((LV2_Atom_URID*)property)->body == xlv2_ir_file1)
+            _ab.store(8, std::memory_order_release);
         else return NULL;
     }
 
@@ -529,6 +582,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
                     write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
                 if (ir_file != "None")
                     write_set_file(&forge, xlv2_ir_file, ir_file.data());
+                if (ir_file1 != "None")
+                    write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
            } else if (obj->body.otype == patch_Set) {
                 const LV2_Atom* file_path = read_set_file(obj);
                 if (file_path) {
@@ -540,9 +595,10 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
                         rtmodel_file = (const char*)(file_path+1);
                     else if (_ab.load(std::memory_order_acquire) == 5)
                         rtmodel_file1 = (const char*)(file_path+1);
-                    else if (_ab.load(std::memory_order_acquire) == 7) {
+                    else if (_ab.load(std::memory_order_acquire) == 7)
                         ir_file = (const char*)(file_path+1);
-                    }
+                    else if (_ab.load(std::memory_order_acquire) == 8)
+                        ir_file1 = (const char*)(file_path+1);
                     if (!_execute.load(std::memory_order_acquire)) {
                         bufsize = n_samples;
                         _execute.store(true, std::memory_order_release);
@@ -572,6 +628,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufb, output0, n_samples*sizeof(float));
 
     double fSlow2 = 0.0010000000000000009 * double(*(_blend));
+    double fSlow1 = 0.0010000000000000009 * double(*(_mix));
 
     // set buffer order for blend control
     if (_namA.load(std::memory_order_acquire)) {
@@ -597,8 +654,29 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     } else if (_rtnB.load(std::memory_order_acquire)) {
         memcpy(output0, bufa, n_samples*sizeof(float));
     }
+
+    // set buffer for mix control
+    memcpy(bufa, output0, n_samples*sizeof(float));
+    memcpy(bufb, output0, n_samples*sizeof(float));
+
+    // impulse response convolution
     if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
-        conv.compute(n_samples, output0, output0);
+        conv.compute(n_samples, bufa, bufa);
+    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable())
+        conv1.compute(n_samples, bufb, bufb);
+
+    // mix output when needed
+    if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {
+        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+            fRec1[0] = fSlow1 + 0.999 * fRec1[1];
+            output0[i0] = bufa[i0] * (1.0 - fRec1[0]) + bufb[i0] * fRec1[0];
+            fRec1[1] = fRec1[0];
+        }
+    } else if (!_execute.load(std::memory_order_acquire) && conv.is_runnable()) {
+        memcpy(output0, bufa, n_samples*sizeof(float));
+    } else if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
+        memcpy(output0, bufb, n_samples*sizeof(float));
+    }
 
     // notify UI on changed model files
     if (_notify_ui.load(std::memory_order_acquire)) {
@@ -619,6 +697,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
             write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
         } else if (_ab.load(std::memory_order_acquire) == 7) {
             write_set_file(&forge, xlv2_ir_file, ir_file.data());
+        } else if (_ab.load(std::memory_order_acquire) == 8) {
+            write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
         }
         _ab.store(0, std::memory_order_release);
     }
@@ -656,6 +736,9 @@ LV2_State_Status Xratatouille::save_state(LV2_Handle instance,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
     store(handle,self->xlv2_ir_file,self->ir_file.data(), strlen(self->ir_file.data()) + 1,
+          self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+
+    store(handle,self->xlv2_ir_file1,self->ir_file1.data(), strlen(self->ir_file1.data()) + 1,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
     return LV2_STATE_SUCCESS;
@@ -714,6 +797,15 @@ LV2_State_Status Xratatouille::restore_state(LV2_Handle instance,
     if (name) {
         self->ir_file = (const char*)(name);
         if (!self->ir_file.empty() && (self->ir_file != "None")) {
+            self->_ab.fetch_add(12, std::memory_order_relaxed);
+        }
+    }
+
+    name = retrieve(handle, self->xlv2_ir_file1, &size, &type, &fflags);
+
+    if (name) {
+        self->ir_file1 = (const char*)(name);
+        if (!self->ir_file1.empty() && (self->ir_file1 != "None")) {
             self->_ab.fetch_add(12, std::memory_order_relaxed);
         }
     }

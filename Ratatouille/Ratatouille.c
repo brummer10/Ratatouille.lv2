@@ -7,7 +7,7 @@
  */
 
 
-#define CONTROLS 3
+#define CONTROLS 4
 
 #define GUI_ELEMENTS 0
 
@@ -25,6 +25,7 @@
 #define XLV2__rtneural_model "urn:brummer:ratatouille#RTN_Model"
 #define XLV2__rtneural_model1 "urn:brummer:ratatouille#RTN_Model1"
 #define XLV2__IRFILE "urn:brummer:ratatouille#irfile"
+#define XLV2__IRFILE1 "urn:brummer:ratatouille#irfile1"
 
 #define OBJ_BUF_SIZE 1024
 
@@ -35,6 +36,7 @@ typedef struct {
     LV2_URID rtneural_model;
     LV2_URID rtneural_model1;
     LV2_URID conv_ir_file;
+    LV2_URID conv_ir_file1;
     LV2_URID atom_Object;
     LV2_URID atom_Int;
     LV2_URID atom_Float;
@@ -65,6 +67,7 @@ typedef struct {
     ModelPicker ma;
     ModelPicker mb;
     ModelPicker ir;
+    ModelPicker ir1;
     char *fname;
 } X11_UI_Private_t;
 
@@ -74,6 +77,7 @@ static inline void map_x11ui_uris(LV2_URID_Map* map, X11LV2URIs* uris) {
     uris->rtneural_model = map->map(map->handle, XLV2__rtneural_model);
     uris->rtneural_model1 = map->map(map->handle, XLV2__rtneural_model1);
     uris->conv_ir_file = map->map(map->handle, XLV2__IRFILE);
+    uris->conv_ir_file1 = map->map(map->handle, XLV2__IRFILE1);
     uris->atom_Object = map->map(map->handle, LV2_ATOM__Object);
     uris->atom_Int = map->map(map->handle, LV2_ATOM__Int);
     uris->atom_Float = map->map(map->handle, LV2_ATOM__Float);
@@ -209,7 +213,8 @@ static void file_load_response(void *w_, void* user_data) {
             if ( m == &ps->ma) urid = ps->uris.rtneural_model;
             else urid = ps->uris.rtneural_model1;
         } else if (ends_with(m->filename, "wav")) {
-            urid = ps->uris.conv_ir_file;
+            if ( m == &ps->ir) urid = ps->uris.conv_ir_file;
+            else urid = ps->uris.conv_ir_file1;
         } else return;
         uint8_t obj_buf[OBJ_BUF_SIZE];
         lv2_atom_forge_set_buffer(&ps->forge, obj_buf, OBJ_BUF_SIZE);
@@ -282,7 +287,7 @@ void plugin_value_changed(X11_UI *ui, Widget_t *w, PortIndex index) {
 
 void plugin_set_window_size(int *w,int *h,const char * plugin_uri) {
     (*w) = 500; //set initial width of main window
-    (*h) = 389; //set initial height of main window
+    (*h) = 429; //set initial height of main window
 }
 
 const char* plugin_set_name() {
@@ -299,9 +304,11 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     ps->ma.filename = strdup("None");
     ps->mb.filename = strdup("None");
     ps->ir.filename = strdup("None");
+    ps->ir1.filename = strdup("None");
     ps->ma.dir_name = NULL;
     ps->mb.dir_name = NULL;
     ps->ir.dir_name = NULL;
+    ps->ir1.dir_name = NULL;
     ps->fname = NULL;
     ps->ma.filepicker = (FilePicker*)malloc(sizeof(FilePicker));
     fp_init(ps->ma.filepicker, "/");
@@ -315,6 +322,10 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     fp_init(ps->ir.filepicker, "/");
     asprintf(&ps->ir.filepicker->filter ,"%s", ".wav");
     ps->ir.filepicker->use_filter = 1;
+    ps->ir1.filepicker = (FilePicker*)malloc(sizeof(FilePicker));
+    fp_init(ps->ir1.filepicker, "/");
+    asprintf(&ps->ir1.filepicker->filter ,"%s", ".wav");
+    ps->ir1.filepicker->use_filter = 1;
 
     ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 30,  254, 60, 30);
     ps->ma.filebutton->parent_struct = (void*)&ps->ma;
@@ -328,17 +339,26 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     ps->ir.filebutton->parent_struct = (void*)&ps->ir;
     ps->ir.filebutton->func.user_callback = file_load_response;
 
-    ui->widget[0] = add_lv2_knob (ui->widget[0], ui->win, 2, "Input", ui, 55,  80, 120, 140);
+    ps->ir1.filebutton = add_lv2_irfile_button (ps->ir1.filebutton, ui->win, -4, "IR File", ui, 30,  374, 60, 30);
+    ps->ir1.filebutton->parent_struct = (void*)&ps->ir1;
+    ps->ir1.filebutton->func.user_callback = file_load_response;
+
+    ui->widget[0] = add_lv2_knob (ui->widget[0], ui->win, 2, "Input", ui, 30,  80, 100, 120);
     set_adjustment(ui->widget[0]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
     set_widget_color(ui->widget[0], 0, 0, 0.3, 0.55, 0.91, 1.0);
     set_widget_color(ui->widget[0], 0, 3,  0.682, 0.686, 0.686, 1.0);
 
-    ui->widget[2] = add_lv2_knob (ui->widget[2], ui->win, 4, "Blend", ui, 190,  80, 120, 140);
+    ui->widget[2] = add_lv2_knob (ui->widget[2], ui->win, 4, "Blend", ui, 140,  80, 100, 120);
     set_adjustment(ui->widget[2]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
     set_widget_color(ui->widget[2], 0, 0, 0.3, 0.55, 0.91, 1.0);
     set_widget_color(ui->widget[2], 0, 3,  0.682, 0.686, 0.686, 1.0);
 
-    ui->widget[1] = add_lv2_knob (ui->widget[1], ui->win, 3, "Output ", ui, 325,  80, 120, 140);
+    ui->widget[3] = add_lv2_knob (ui->widget[3], ui->win, 7, "Mix (IR)", ui, 240,  80, 100, 120);
+    set_adjustment(ui->widget[3]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
+    set_widget_color(ui->widget[3], 0, 0, 0.3, 0.55, 0.91, 1.0);
+    set_widget_color(ui->widget[3], 0, 3,  0.682, 0.686, 0.686, 1.0);
+
+    ui->widget[1] = add_lv2_knob (ui->widget[1], ui->win, 3, "Output ", ui, 350,  80, 100, 120);
     set_adjustment(ui->widget[1]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
     set_widget_color(ui->widget[1], 0, 0, 0.3, 0.55, 0.91, 1.0);
     set_widget_color(ui->widget[1], 0, 3,  0.682, 0.686, 0.686, 1.0);
@@ -360,6 +380,12 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     combobox_set_pop_position(ps->ir.fbutton, 1);
     combobox_add_entry(ps->ir.fbutton, "None");
     ps->ir.fbutton->func.value_changed_callback = file_menu_callback;
+
+    ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 450,  374, 22, 30);
+    ps->ir1.fbutton->parent_struct = (void*)&ps->ir1;
+    combobox_set_pop_position(ps->ir1.fbutton, 1);
+    combobox_add_entry(ps->ir1.fbutton, "None");
+    ps->ir1.fbutton->func.value_changed_callback = file_menu_callback;
 }
 
 void plugin_cleanup(X11_UI *ui) {
@@ -371,12 +397,16 @@ void plugin_cleanup(X11_UI *ui) {
     free(ps->mb.dir_name);
     free(ps->ir.filename);
     free(ps->ir.dir_name);
+    free(ps->ir1.filename);
+    free(ps->ir1.dir_name);
     fp_free(ps->ma.filepicker);
     free(ps->ma.filepicker);
     fp_free(ps->mb.filepicker);
     free(ps->mb.filepicker);
     fp_free(ps->ir.filepicker);
     free(ps->ir.filepicker);
+    fp_free(ps->ir1.filepicker);
+    free(ps->ir1.filepicker);
     // clean up used sources when needed
 }
 
@@ -388,6 +418,8 @@ Widget_t *get_widget_from_urid(X11_UI *ui, const LV2_URID urid) {
         return ps->mb.filebutton;
     else if (urid == ps->uris.conv_ir_file)
         return ps->ir.filebutton;
+    else if (urid == ps->uris.conv_ir_file1)
+        return ps->ir1.filebutton;
     return NULL;
 }
 

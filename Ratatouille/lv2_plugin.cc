@@ -161,6 +161,14 @@ static void draw_window(void *w_, void* user_data) {
                                             350 * w->app->hdpi, 30 * w->app->hdpi, true);
     cairo_fill (w->crb);
 
+    cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
+    round_rectangle(w->crb, 90 * w->app->hdpi, 374 * w->app->hdpi,
+                                            350 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
+    cairo_fill_preserve (w->crb);
+    boxShadowInset(w->crb,90 * w->app->hdpi,374 * w->app->hdpi,
+                                            350 * w->app->hdpi, 30 * w->app->hdpi, true);
+    cairo_fill (w->crb);
+
     if (w->image) {
         cairo_set_source_surface (w->crb, w->image, 0, 0);
         cairo_paint (w->crb);
@@ -214,7 +222,7 @@ static void draw_window(void *w_, void* user_data) {
         double twf = extents_f.width/2.0;
         cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 314 * w->app->hdpi );
         cairo_show_text(w->crb, label);
-   }
+    }
     if (strlen(ps->ir.filename)) {
         char label[124];
         memset(label, '\0', sizeof(char)*124);
@@ -237,7 +245,30 @@ static void draw_window(void *w_, void* user_data) {
         double twf = extents_f.width/2.0;
         cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 354 * w->app->hdpi );
         cairo_show_text(w->crb, label);
-   }
+    }
+    if (strlen(ps->ir1.filename)) {
+        char label[124];
+        memset(label, '\0', sizeof(char)*124);
+        cairo_text_extents_t extents_f;
+        cairo_set_font_size (w->crb, w->app->normal_font);
+        int slen = strlen(basename(ps->ir1.filename));
+        
+        if ((slen - 4) > 48) {
+            utf8crop(label,basename(ps->ir1.filename), 48);
+            strcat(label,"...");
+            tooltip_set_text(ui->widget[0],basename(ps->ir1.filename));
+            ui->widget[0]->flags |= HAS_TOOLTIP;
+        } else {
+            strcpy(label, basename(ps->ir1.filename));
+            ui->widget[0]->flags &= ~HAS_TOOLTIP;
+            hide_tooltip(ui->widget[0]);
+        }
+
+        cairo_text_extents(w->crb, label, &extents_f);
+        double twf = extents_f.width/2.0;
+        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 394 * w->app->hdpi );
+        cairo_show_text(w->crb, label);
+    }
 #endif
 #ifndef HIDE_NAME
     cairo_set_font_size (w->crb, w->app->big_font+8);

@@ -91,10 +91,16 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri);
 Widget_t* add_lv2_button(Widget_t *w, Widget_t *p, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height);
 
+Widget_t* add_lv2_switch(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height);
+
 Widget_t* add_lv2_knob(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height);
 
 Widget_t* add_lv2_file_button(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height);
+
+Widget_t* add_lv2_irfile_button(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height);
 
 // free used mem on exit

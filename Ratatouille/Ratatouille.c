@@ -24,6 +24,7 @@
 #define XLV2__neural_model1 "urn:brummer:ratatouille#NAM_Model1"
 #define XLV2__rtneural_model "urn:brummer:ratatouille#RTN_Model"
 #define XLV2__rtneural_model1 "urn:brummer:ratatouille#RTN_Model1"
+#define XLV2__IRFILE "urn:brummer:ratatouille#irfile"
 
 #define OBJ_BUF_SIZE 1024
 
@@ -33,6 +34,7 @@ typedef struct {
     LV2_URID neural_model1;
     LV2_URID rtneural_model;
     LV2_URID rtneural_model1;
+    LV2_URID conv_ir_file;
     LV2_URID atom_Object;
     LV2_URID atom_Int;
     LV2_URID atom_Float;
@@ -62,6 +64,7 @@ typedef struct {
     X11LV2URIs   uris;
     ModelPicker ma;
     ModelPicker mb;
+    ModelPicker ir;
     char *fname;
 } X11_UI_Private_t;
 
@@ -70,6 +73,7 @@ static inline void map_x11ui_uris(LV2_URID_Map* map, X11LV2URIs* uris) {
     uris->neural_model1 = map->map(map->handle, XLV2__neural_model1);
     uris->rtneural_model = map->map(map->handle, XLV2__rtneural_model);
     uris->rtneural_model1 = map->map(map->handle, XLV2__rtneural_model1);
+    uris->conv_ir_file = map->map(map->handle, XLV2__IRFILE);
     uris->atom_Object = map->map(map->handle, LV2_ATOM__Object);
     uris->atom_Int = map->map(map->handle, LV2_ATOM__Int);
     uris->atom_Float = map->map(map->handle, LV2_ATOM__Float);
@@ -189,19 +193,24 @@ static void file_load_response(void *w_, void* user_data) {
     X11_UI_Private_t *ps = (X11_UI_Private_t*)ui->private_ptr;
     if(user_data !=NULL) {
         int old = ends_with(m->filename, "nam");
+        int old1 = ends_with(m->filename, "wav");
         free(m->filename);
         m->filename = NULL;
         m->filename = strdup(*(const char**)user_data);
         LV2_URID urid;
-        if ((strcmp(m->filename, "None") == 0) && old) {
-            urid = ps->uris.neural_model;
+        if ((strcmp(m->filename, "None") == 0)) {
+            if (old) urid = ps->uris.neural_model;
+            else if (old1) urid = ps->uris.conv_ir_file;
+            else urid = ps->uris.rtneural_model;
         } else if (ends_with(m->filename, "nam")) {
             if ( m == &ps->ma) urid = ps->uris.neural_model;
             else  urid = ps->uris.neural_model1;
-        } else {
+        } else if (ends_with(m->filename, "json") || ends_with(m->filename, "aidax")){
             if ( m == &ps->ma) urid = ps->uris.rtneural_model;
             else urid = ps->uris.rtneural_model1;
-        }
+        } else if (ends_with(m->filename, "wav")) {
+            urid = ps->uris.conv_ir_file;
+        } else return;
         uint8_t obj_buf[OBJ_BUF_SIZE];
         lv2_atom_forge_set_buffer(&ps->forge, obj_buf, OBJ_BUF_SIZE);
         LV2_Atom* msg = (LV2_Atom*)write_set_file(urid, &ps->forge, &ps->uris, m->filename);
@@ -273,7 +282,7 @@ void plugin_value_changed(X11_UI *ui, Widget_t *w, PortIndex index) {
 
 void plugin_set_window_size(int *w,int *h,const char * plugin_uri) {
     (*w) = 500; //set initial width of main window
-    (*h) = 359; //set initial height of main window
+    (*h) = 389; //set initial height of main window
 }
 
 const char* plugin_set_name() {
@@ -289,8 +298,10 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     lv2_atom_forge_init(&ps->forge, ui->map);
     ps->ma.filename = strdup("None");
     ps->mb.filename = strdup("None");
+    ps->ir.filename = strdup("None");
     ps->ma.dir_name = NULL;
     ps->mb.dir_name = NULL;
+    ps->ir.dir_name = NULL;
     ps->fname = NULL;
     ps->ma.filepicker = (FilePicker*)malloc(sizeof(FilePicker));
     fp_init(ps->ma.filepicker, "/");
@@ -300,6 +311,10 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     fp_init(ps->mb.filepicker, "/");
     asprintf(&ps->mb.filepicker->filter ,"%s", ".nam|.aidax|.json");
     ps->mb.filepicker->use_filter = 1;
+    ps->ir.filepicker = (FilePicker*)malloc(sizeof(FilePicker));
+    fp_init(ps->ir.filepicker, "/");
+    asprintf(&ps->ir.filepicker->filter ,"%s", ".wav");
+    ps->ir.filepicker->use_filter = 1;
 
     ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 30,  254, 60, 30);
     ps->ma.filebutton->parent_struct = (void*)&ps->ma;
@@ -308,6 +323,10 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     ps->mb.filebutton = add_lv2_file_button (ps->mb.filebutton, ui->win, -2, "Neural Model", ui, 30,  294, 60, 30);
     ps->mb.filebutton->parent_struct = (void*)&ps->mb;
     ps->mb.filebutton->func.user_callback = file_load_response;
+
+    ps->ir.filebutton = add_lv2_irfile_button (ps->ir.filebutton, ui->win, -3, "IR File", ui, 30,  334, 60, 30);
+    ps->ir.filebutton->parent_struct = (void*)&ps->ir;
+    ps->ir.filebutton->func.user_callback = file_load_response;
 
     ui->widget[0] = add_lv2_knob (ui->widget[0], ui->win, 2, "Input", ui, 55,  80, 120, 140);
     set_adjustment(ui->widget[0]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
@@ -335,6 +354,12 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     combobox_set_pop_position(ps->mb.fbutton, 1);
     combobox_add_entry(ps->mb.fbutton, "None");
     ps->mb.fbutton->func.value_changed_callback = file_menu_callback;
+
+    ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 450,  334, 22, 30);
+    ps->ir.fbutton->parent_struct = (void*)&ps->ir;
+    combobox_set_pop_position(ps->ir.fbutton, 1);
+    combobox_add_entry(ps->ir.fbutton, "None");
+    ps->ir.fbutton->func.value_changed_callback = file_menu_callback;
 }
 
 void plugin_cleanup(X11_UI *ui) {
@@ -344,10 +369,14 @@ void plugin_cleanup(X11_UI *ui) {
     free(ps->mb.filename);
     free(ps->ma.dir_name);
     free(ps->mb.dir_name);
+    free(ps->ir.filename);
+    free(ps->ir.dir_name);
     fp_free(ps->ma.filepicker);
     free(ps->ma.filepicker);
     fp_free(ps->mb.filepicker);
     free(ps->mb.filepicker);
+    fp_free(ps->ir.filepicker);
+    free(ps->ir.filepicker);
     // clean up used sources when needed
 }
 
@@ -357,6 +386,8 @@ Widget_t *get_widget_from_urid(X11_UI *ui, const LV2_URID urid) {
         return ps->ma.filebutton;
     else if (urid == ps->uris.neural_model1 || urid == ps->uris.rtneural_model1)
         return ps->mb.filebutton;
+    else if (urid == ps->uris.conv_ir_file)
+        return ps->ir.filebutton;
     return NULL;
 }
 

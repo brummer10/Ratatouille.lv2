@@ -49,6 +49,12 @@ rata:RTN_Model1
     rdfs:label "RTN Model B" ;
     rdfs:range atom:Path .
 
+rata:irfile
+    a lv2:Parameter ;
+    mod:fileTypes "audio" ;
+    rdfs:label "IR File" ;
+    rdfs:range atom:Path .
+
 <urn:brummer:ratatouille>
    a lv2:Plugin ,
        lv2:SimulatorPlugin ;
@@ -72,6 +78,7 @@ patch:writable rata:NAM_Model ;
 patch:writable rata:NAM_Model1 ;
 patch:writable rata:RTN_Model ;
 patch:writable rata:RTN_Model1 ;
+patch:writable rata:irfile ;
 
 rdfs:comment """
 ...

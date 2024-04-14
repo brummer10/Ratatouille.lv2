@@ -71,13 +71,15 @@ ifeq ($(TARGET), Linux)
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11` 
 
 	LDFLAGS += -fvisibility=hidden -shared -lm -fPIC -pthread -lpthread \
-	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections
+	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections -lfftw3 -lfftw3f \
+	`$(PKGCONFIG) --cflags --libs sndfile`
 
 	CXXFLAGS += -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
 	-fomit-frame-pointer -fstrength-reduce -fstack-protector -fvisibility=hidden \
 	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \
 	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL -I./zita-resampler-1.1.0 \
+	-I. -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-I$(NAM_DIR) -I./ -I$(DEPEND_DIR)eigen/ -I./ -I$(DEPEND_DIR)nlohmann/  \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS -MD
@@ -89,7 +91,7 @@ ifeq ($(TARGET), Linux)
 	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -fstack-protector -fvisibility=hidden \
 	-fdata-sections -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--exclude-libs,ALL -DUSE_ATOM
 
-	TTLUPDATEMODGUI =  sed -i -e '140,153d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '168,183d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -I./dsp -I./plugin -fPIC -DPIC -O2 -Wall -funroll-loops \
@@ -98,11 +100,13 @@ else ifeq ($(TARGET), Windows)
 	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL $(SSE_CFLAGS) \
 	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \
 	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL -I./zita-resampler-1.1.0 \
+	-I. -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-I$(NAM_DIR) -I./ -I$(DEPEND_DIR)eigen/ -I./ -I$(DEPEND_DIR)nlohmann/  \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS -MD
 
-	LDFLAGS += -I. -shared -lm $(PAWPAW_LFLAGS)
+	LDFLAGS += -I. -shared -lm $(PAWPAW_LFLAGS) -lfftw3 -lfftw3f \
+	`$(PKGCONFIG) --cflags --libs sndfile`
 
 	GUI_LDFLAGS += -I$(HEADER_DIR) -static-libgcc -static-libstdc++ \
 	`$(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags --libs cairo ` \
@@ -113,7 +117,7 @@ else ifeq ($(TARGET), Windows)
 
 	TTLUPDATE = sed -i '/lv2:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/manifest.ttl
 	TTLUPDATEGUI = sed -i '/a guiext:X11UI/ s/X11UI/WindowsUI/ ; /guiext:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/$(NAME).ttl
-	TTLUPDATEMODGUI =  sed -i -e '140,153d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '168,183d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 endif
 

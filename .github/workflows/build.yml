@@ -17,12 +17,12 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
           pawpaw: true
 
-  linux-optimised:
+  linux:
     strategy:
       matrix:
         target: [linux-x86_64]
@@ -33,10 +33,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
-          extraargs: BUNDLE=RatatouilleV3.lv2
           target: ${{ matrix.target }}
+          postfix: v3
           pawpaw: true
 
   windows:
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
           pawpaw: true
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: source
 

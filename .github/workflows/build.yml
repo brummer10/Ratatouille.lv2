@@ -35,6 +35,7 @@ jobs:
           submodules: recursive
       - uses: distrho/dpf-makefile-action@v1
         with:
+          extraargs: BUNDLE=RatatouilleV3.lv2
           target: ${{ matrix.target }}
           pawpaw: true
 

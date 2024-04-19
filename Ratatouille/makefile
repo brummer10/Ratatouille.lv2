@@ -76,13 +76,17 @@ ifeq ($(TARGET), Linux)
 
 	CXXFLAGS += -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
-	-fomit-frame-pointer -fstrength-reduce -fstack-protector -fvisibility=hidden \
+	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
 	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \
 	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL -I./zita-resampler-1.1.0 \
 	-I. -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-I$(NAM_DIR) -I./ -I$(DEPEND_DIR)eigen/ -I./ -I$(DEPEND_DIR)nlohmann/  \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS -MD
+
+	ifeq (,$(findstring clang, $(CXX)))
+	CXXFLAGS += -fstrength-reduce
+	endif
 
 	SLP_LDFLAGS += -fvisibility=hidden -Wl,-Bstatic `pkg-config --cflags --libs xputty` \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11 lilv-0` \

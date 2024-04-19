@@ -22,7 +22,7 @@ jobs:
           target: ${{ matrix.target }}
           pawpaw: true
 
-  linux:
+  linux-optimised:
     strategy:
       matrix:
         target: [linux-x86_64]

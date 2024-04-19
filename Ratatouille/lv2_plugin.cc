@@ -133,8 +133,17 @@ static void draw_window(void *w_, void* user_data) {
 #endif
 
     widget_set_scale(w);
-    cairo_move_to (w->crb, 50 * w->app->hdpi,244 * w->app->hdpi );
-    cairo_line_to (w->crb, 450 * w->app->hdpi, 244 * w->app->hdpi );
+
+    cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 0.333);
+    round_rectangle(w->crb, 25 * w->app->hdpi, 70 * w->app->hdpi,
+        450 * w->app->hdpi, 154 * w->app->hdpi, 0.08);
+    cairo_fill_preserve (w->crb);
+    boxShadowInset(w->crb,25 * w->app->hdpi,70 * w->app->hdpi,
+        450 * w->app->hdpi,154 * w->app->hdpi, true);
+    cairo_stroke (w->crb);
+
+    cairo_move_to (w->crb, 50 * w->app->hdpi,242 * w->app->hdpi );
+    cairo_line_to (w->crb, 450 * w->app->hdpi, 242 * w->app->hdpi );
     use_text_color_scheme(w, NORMAL_);
     cairo_stroke (w->crb);
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
@@ -272,7 +281,7 @@ static void draw_window(void *w_, void* user_data) {
 #endif
 #ifndef HIDE_NAME
     cairo_set_font_size (w->crb, w->app->big_font+8);
-    cairo_move_to (w->crb, (w->scale.init_width*0.5)-tw, w->scale.init_y+50 * w->app->hdpi);
+    cairo_move_to (w->crb, (w->scale.init_width*0.5)-tw, w->scale.init_y+42 * w->app->hdpi);
     cairo_show_text(w->crb, w->label);
     cairo_move_to (w->crb, 50 * w->app->hdpi, w->scale.init_y+55 * w->app->hdpi);
     cairo_line_to (w->crb, 450 * w->app->hdpi, w->scale.init_y+55 * w->app->hdpi);
@@ -399,7 +408,7 @@ static void draw_my_knob(void *w_, void* user_data) {
     cairo_text_extents_t extents;
     cairo_select_font_face (w->crb, "Sans", CAIRO_FONT_SLANT_NORMAL,
                                CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size (w->crb, w->app->normal_font);
+    cairo_set_font_size (w->crb, w->app->normal_font/w->scale.ascale);
     char s[17];
     char sa[17];
     float value = adj_get_value(w->adj);
@@ -416,7 +425,7 @@ static void draw_my_knob(void *w_, void* user_data) {
 
     /** show label below the knob**/
     use_text_color_scheme(w, get_color_state(w));
-    cairo_set_font_size (w->crb, w->app->normal_font+4);
+    cairo_set_font_size (w->crb, (w->app->normal_font+4)/w->scale.ascale);
     cairo_text_extents(w->crb,w->label , &extents);
     cairo_move_to (w->crb, (width*0.5)-(extents.width/2), height + (height * 0.15)-(extents.height*0.1));
     cairo_show_text(w->crb, w->label);

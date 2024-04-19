@@ -58,9 +58,10 @@ runs:
         echo "HOMEBREW_NO_AUTO_UPDATE=1" >> $GITHUB_ENV
         echo "HOMEBREW_NO_INSTALL_CLEANUP=1" >> $GITHUB_ENV
         echo "LIBGL_ALWAYS_SOFTWARE=true" >> $GITHUB_ENV
-        echo "PAWPAW_CACHE_VERSION=${PAWPAW_CACHE_VERSION:=7}" >> $GITHUB_ENV
-        echo "PAWPAW_COMMIT_HASH=${PAWPAW_COMMIT_HASH:=76f3aef7313e4928967e80f37fbd8912ac8fbc77}" >> $GITHUB_ENV
+        echo "PAWPAW_CACHE_VERSION=${PAWPAW_CACHE_VERSION:=8}" >> $GITHUB_ENV
+        echo "PAWPAW_COMMIT_HASH=${PAWPAW_COMMIT_HASH:=80607a764da0b5a6b2daa4d5dd165beafa0535bc}" >> $GITHUB_ENV
         echo "PAWPAW_SKIP_GLIB=${PAWPAW_SKIP_GLIB:=1}" >> $GITHUB_ENV
+        echo "PAWPAW_SKIP_LV2=${PAWPAW_SKIP_LV2:=1}" >> $GITHUB_ENV
     - name: Fix GitHub's mess (detect version)
       if: ${{ runner.os == 'Linux' }}
       shell: bash
@@ -74,9 +75,8 @@ runs:
         sudo rm /etc/apt/sources.list.d/*.list
         sudo apt-get update -qq
         sudo apt-get purge -yqq git-man libclang* libgbm* libllvm* libmono* libnginx* moby* mono* nginx* perl php* libgdiplus libpcre2-posix3 libselinux1-dev libzip4
-        sudo apt-get install -yqq --allow-downgrades autoconf/focal automake/focal build-essential/focal git/focal libgd3/focal libglib2.0-0/focal libglib2.0-dev/focal libpcre2-8-0/focal libpcre2-16-0/focal libpcre2-32-0/focal libpcre2-posix2/focal pkg-config/focal ninja-build/focal python3-pip/focal
+        sudo apt-get install -yqq --allow-downgrades autoconf/focal automake/focal build-essential/focal git/focal libgd3/focal libglib2.0-0/focal libglib2.0-dev/focal libpcre2-8-0/focal libpcre2-16-0/focal libpcre2-32-0/focal libpcre2-posix2/focal pkg-config/focal
         sudo apt-get clean
-        sudo pip3 install meson
     - name: Fix GitHub's mess (ubuntu-22.04)
       if: ${{ runner.os == 'Linux' && env.UBUNTU_VERSION == '22.04' }}
       shell: bash
@@ -84,14 +84,13 @@ runs:
         sudo rm /etc/apt/sources.list.d/*.list
         sudo apt-get update -qq
         sudo apt-get purge -yqq git-man libclang* libgbm* libllvm* libmono* libnginx* moby* mono* msbuild* nginx* perl php* libgdiplus libpcre2-posix3 libselinux1-dev libzip4
-        sudo apt-get install -yqq --allow-downgrades git/jammy autoconf/jammy automake/jammy build-essential/jammy pkg-config/jammy ninja-build meson
+        sudo apt-get install -y --allow-downgrades git/jammy libatomic1/jammy libc6/jammy libgcc-s1/jammy libglvnd0/jammy libstdc++6/jammy
         sudo apt-get clean
+
     # setup build options
     - name: Setup build options
       shell: bash
       run: |
-        # lto for regular build
-        echo "WITH_LTO=${{ inputs.lto }}" >> $GITHUB_ENV
         # pawpaw debug
         PAWPAW_DEBUG=0
         [[ "${{ inputs.debug }}" = "true" ]] && PAWPAW_DEBUG=1
@@ -106,6 +105,8 @@ runs:
         [[ "${PAWPAW_TARGET}" = "macos" ]] && PAWPAW_TARGET=macos-universal
         [[ "${PAWPAW_TARGET}" = "macos-intel" ]] && PAWPAW_TARGET=macos
         echo "PAWPAW_TARGET=${PAWPAW_TARGET}" >> $GITHUB_ENV
+        # make extra args
+        echo "MAKE_EXTRA_ARGS=DEBUG=${{ inputs.debug }} HAVE_CAIRO=${{ inputs.pawpaw }} WITH_LTO=${{ inputs.lto }} ${{ inputs.extraargs }}" >> $GITHUB_ENV
 
     # setup build cache
     - name: Setup build cache
@@ -127,7 +128,7 @@ runs:
         echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${{ env.UBUNTU_CODENAME }}-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/ports-arm64.list
         echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${{ env.UBUNTU_CODENAME }}-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/ports-arm64.list
         sudo apt-get update -qq
-        sudo apt-get install -yqq --allow-downgrades g++-aarch64-linux-gnu libasound2-dev:arm64 libatomic1:arm64 libc6:arm64 libdbus-1-dev:arm64 libgcc-s1:arm64 libgl1-mesa-dev:arm64 libglib2.0-dev:arm64 liblo-dev:arm64 libstdc++6:arm64 libx11-dev:arm64 libxcursor-dev:arm64 libxext-dev:arm64 libxrandr-dev:arm64 gperf qemu-user-static
+        sudo apt-get install -yqq --allow-downgrades g++-aarch64-linux-gnu libasound2-dev:arm64 libdbus-1-dev:arm64 libgl1-mesa-dev:arm64 libglib2.0-dev:arm64 liblo-dev:arm64 libx11-dev:arm64 libxcursor-dev:arm64 libxext-dev:arm64 libxrandr-dev:arm64 gperf qemu-user-static
         sudo apt-get clean
     - name: Setup dependencies (linux-armhf)
       if: ${{ inputs.target == 'linux-armhf' }}
@@ -140,7 +141,7 @@ runs:
         echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports ${{ env.UBUNTU_CODENAME }}-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/ports-armhf.list
         echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports ${{ env.UBUNTU_CODENAME }}-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/ports-armhf.list
         sudo apt-get update -qq
-        sudo apt-get install -yqq --allow-downgrades g++-arm-linux-gnueabihf libasound2-dev:armhf libatomic1:armhf libc6:armhf libdbus-1-dev:armhf libgcc-s1:armhf libgl1-mesa-dev:armhf libglib2.0-dev:armhf liblo-dev:armhf libstdc++6:armhf libx11-dev:armhf libxcursor-dev:armhf libxext-dev:armhf libxrandr-dev:armhf gperf qemu-user-static
+        sudo apt-get install -yqq --allow-downgrades g++-arm-linux-gnueabihf libasound2-dev:armhf libdbus-1-dev:armhf libgl1-mesa-dev:armhf libglib2.0-dev:armhf liblo-dev:armhf libx11-dev:armhf libxcursor-dev:armhf libxext-dev:armhf libxrandr-dev:armhf gperf qemu-user-static
         sudo apt-get clean
     - name: Setup dependencies (linux-i686)
       if: ${{ inputs.target == 'linux-i386' || inputs.target == 'linux-i686' }}
@@ -148,7 +149,7 @@ runs:
       run: |
         sudo dpkg --add-architecture i386
         sudo apt-get update -qq
-        sudo apt-get install --allow-downgrades g++-i686-linux-gnu libasound2-dev:i386 libatomic1:i386 libc6:i386 libdbus-1-dev:i386 libgcc-s1:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 liblo-dev:i386 libstdc++6:i386 libx11-dev:i386 libxcursor-dev:i386 libxext-dev:i386 libxrandr-dev:i386 gperf
+        sudo apt-get install -yqq --allow-downgrades g++-i686-linux-gnu libasound2-dev:i386 libdbus-1-dev:i386 libgl1-mesa-dev:i386 libglib2.0-dev:i386 liblo-dev:i386 libx11-dev:i386 libxcursor-dev:i386 libxext-dev:i386 libxrandr-dev:i386 gperf
         sudo apt-get clean
     - name: Setup dependencies (linux-riscv64)
       if: ${{ inputs.target == 'linux-riscv64' }}
@@ -161,7 +162,7 @@ runs:
         echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports ${{ env.UBUNTU_CODENAME }}-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/ports-riscv64.list
         echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports ${{ env.UBUNTU_CODENAME }}-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/ports-riscv64.list
         sudo apt-get update -qq
-        sudo apt-get install -yqq --allow-downgrades g++-riscv64-linux-gnu libasound2-dev:riscv64 libatomic1:riscv64 libc6:riscv64 libdbus-1-dev:riscv64 libgcc-s1:riscv64 libgl1-mesa-dev:riscv64 libglapi-mesa:riscv64 libglib2.0-dev:riscv64 libglvnd0:riscv64 liblo-dev:riscv64 libstdc++6:riscv64 libx11-dev:riscv64 libxcursor-dev:riscv64 libxext-dev:riscv64 libxrandr-dev:riscv64 gperf qemu-user-static
+        sudo apt-get install -yqq --allow-downgrades g++-riscv64-linux-gnu libasound2-dev:riscv64 libdbus-1-dev:riscv64 libgl1-mesa-dev:riscv64 libglapi-mesa:riscv64 libglib2.0-dev:riscv64 liblo-dev:riscv64 libx11-dev:riscv64 libxcursor-dev:riscv64 libxext-dev:riscv64 libxrandr-dev:riscv64 gperf qemu-user-static
         sudo apt-get clean
     - name: Setup dependencies (linux-x86_64)
       if: ${{ inputs.target == 'linux-x86_64' || inputs.target == 'linux' }}
@@ -181,7 +182,7 @@ runs:
       run: |
         sudo dpkg --add-architecture i386
         sudo apt-get update -qq
-        sudo apt-get install -yqq --allow-downgrades binutils-mingw-w64-i686 g++-mingw-w64-i686 libc6:i386 libgcc-s1:i386 libstdc++6:i386 mingw-w64 gperf wine-stable:i386 xvfb
+        sudo apt-get install -yqq --allow-downgrades binutils-mingw-w64-i686 g++-mingw-w64-i686 mingw-w64 gperf wine-stable:i386 xvfb
         sudo apt-get clean
     - name: Setup dependencies (win64)
       if: ${{ inputs.target == 'win64' }}
@@ -189,7 +190,7 @@ runs:
       run: |
         sudo dpkg --add-architecture i386
         sudo apt-get update -qq
-        sudo apt-get install -yqq --allow-downgrades binutils-mingw-w64-x86-64 g++-mingw-w64-x86-64 libc6 libgcc-s1 libstdc++6 mingw-w64 gperf wine-stable xvfb
+        sudo apt-get install -yqq --allow-downgrades binutils-mingw-w64-x86-64 g++-mingw-w64-x86-64 mingw-w64 gperf wine-stable xvfb
         sudo apt-get clean
     - name: Setup dependencies (pluginval)
       if: ${{ inputs.target == 'pluginval' || inputs.target == 'plugin-validation' }}
@@ -238,8 +239,13 @@ runs:
       run: |
         git clone https://github.com/DISTRHO/PawPaw.git
         git -C PawPaw checkout ${{ env.PAWPAW_COMMIT_HASH }}
+        echo t1
+        ./PawPaw/.github/workflows/bootstrap-deps.sh ${{ env.PAWPAW_TARGET }}
+        echo t2
         ./PawPaw/bootstrap-plugins.sh ${{ env.PAWPAW_TARGET }}
+        echo t3
         ./PawPaw/.cleanup.sh ${{ env.PAWPAW_TARGET }}
+        echo t4
 
     # build plugins
     - name: Build linux arm64 cross-compiled
@@ -252,8 +258,8 @@ runs:
         PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(nproc)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(nproc)
     - name: Build linux armhf cross-compiled
       if: ${{ inputs.target == 'linux-armhf' }}
       shell: bash
@@ -264,8 +270,8 @@ runs:
         PKG_CONFIG_PATH: /usr/lib/arm-linux-gnueabihf/pkgconfig
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(nproc)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(nproc)
     - name: Build linux i686
       if: ${{ inputs.target == 'linux-i386' || inputs.target == 'linux-i686' }}
       shell: bash
@@ -278,8 +284,8 @@ runs:
         PKG_CONFIG_PATH: /usr/lib/i386-linux-gnu/pkgconfig
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(nproc)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(nproc)
     - name: Build linux riscv64 cross-compiled
       if: ${{ inputs.target == 'linux-riscv64' }}
       shell: bash
@@ -290,8 +296,8 @@ runs:
         PKG_CONFIG_PATH: /usr/lib/riscv64-linux-gnu/pkgconfig
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(nproc)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(nproc)
     - name: Build linux x86_64
       if: ${{ inputs.target == 'linux-x86_64' || inputs.target == 'linux' }}
       shell: bash
@@ -299,8 +305,8 @@ runs:
         LDFLAGS: -static-libgcc -static-libstdc++
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(nproc)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(nproc)
     - name: Build macOS intel
       if: ${{ inputs.target == 'macos-intel' }}
       shell: bash
@@ -310,8 +316,8 @@ runs:
         LDFLAGS: -arch x86_64 -mmacosx-version-min=10.8 -stdlib=libc++
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(sysctl -n hw.logicalcpu)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(sysctl -n hw.logicalcpu)
         ${{ inputs.dpf_path }}/utils/package-osx-bundles.sh
     - name: Build macOS universal
       if: ${{ inputs.target == 'macos' || inputs.target == 'macos-universal' }}
@@ -322,8 +328,8 @@ runs:
         LDFLAGS: -arch x86_64 -arch arm64 -mmacosx-version-min=10.12
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' NOOPT=true -j $(sysctl -n hw.logicalcpu)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} NOOPT=true -j $(sysctl -n hw.logicalcpu)
         ${{ inputs.dpf_path }}/utils/package-osx-bundles.sh
     - name: Build macOS universal (10.15)
       if: ${{ inputs.target == 'macos-10.15' || inputs.target == 'macos-universal-10.15' }}
@@ -334,13 +340,14 @@ runs:
         LDFLAGS: -arch x86_64 -arch arm64 -mmacosx-version-min=10.15
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' NOOPT=true -j $(sysctl -n hw.logicalcpu)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} NOOPT=true -j $(sysctl -n hw.logicalcpu)
         ${{ inputs.dpf_path }}/utils/package-osx-bundles.sh
     - name: Build win32 cross-compiled
       if: ${{ inputs.target == 'win32' }}
       shell: bash
       env:
+        AR: i686-w64-mingw32-ar
         CC: i686-w64-mingw32-gcc
         CXX: i686-w64-mingw32-g++
         EXE_WRAPPER: wine
@@ -348,12 +355,13 @@ runs:
         WINEDEBUG: "-all"
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(nproc)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(nproc)
     - name: Build win64 cross-compiled
       if: ${{ inputs.target == 'win64' }}
       shell: bash
       env:
+        AR: x86_64-w64-mingw32-ar
         CC: x86_64-w64-mingw32-gcc
         CXX: x86_64-w64-mingw32-g++
         EXE_WRAPPER: wine
@@ -361,8 +369,8 @@ runs:
         WINEDEBUG: "-all"
       run: |
         ${{ inputs.pawpaw == 'true' }} && pushd PawPaw && source local.env ${{ env.PAWPAW_TARGET }} && popd
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' features
-        make ${{ inputs.extraargs }} HAVE_CAIRO='${{ inputs.pawpaw }}' DEBUG='${{ inputs.debug }}' -j $(nproc)
+        make ${{ env.MAKE_EXTRA_ARGS }} features
+        make ${{ env.MAKE_EXTRA_ARGS }} -j $(nproc)
     - name: Build plugins
       if: ${{ inputs.target == 'pluginval' || inputs.target == 'plugin-validation' }}
       shell: bash

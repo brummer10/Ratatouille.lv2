@@ -20,6 +20,7 @@ jobs:
       - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
+          lto: true
           pawpaw: true
 
   linux-optimised:
@@ -36,7 +37,8 @@ jobs:
       - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          postfix: v3
+          postfix: -v3
+          lto: true
           pawpaw: true
 
   windows:
@@ -53,6 +55,7 @@ jobs:
       - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
+          lto: true
           pawpaw: true
 
   source:

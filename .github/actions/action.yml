@@ -508,8 +508,8 @@ runs:
       shell: bash
       run: |
         [[ "${{ inputs.debug }}" = "true" ]] && TARGET_SUFFIX="-debug"
-        echo "ARTIFACT_BASENAME=${{ github.event.repository.name }}-${{ inputs.target }}${TARGET_SUFFIX}-${{ inputs.postfix }}-${{ github.event.pull_request.number || env.SHA8 }}" >> $GITHUB_ENV
-        echo "RELEASE_BASENAME=${{ github.event.repository.name }}-${{ inputs.postfix }}-$(echo ${{ github.ref_name }} | sed 's|/|-|g')" >> $GITHUB_ENV
+        echo "ARTIFACT_BASENAME=${{ github.event.repository.name }}-${{ inputs.target }}${TARGET_SUFFIX}${{ inputs.postfix }}-${{ github.event.pull_request.number || env.SHA8 }}" >> $GITHUB_ENV
+        echo "RELEASE_BASENAME=${{ github.event.repository.name }}${{ inputs.postfix }}-$(echo ${{ github.ref_name }} | sed 's|/|-|g')" >> $GITHUB_ENV
 
     # create release archive (macOS exception)
     - name: Create release archive (macOS non-release)

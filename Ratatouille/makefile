@@ -1,5 +1,6 @@
 
-
+	# check on which OS we build
+	UNAME_S := $(shell uname -s)
 	# check if user is root
 	user = $(shell whoami)
 	ifeq ($(user),root)
@@ -9,6 +10,7 @@
 	endif
 
 # check CPU and supported optimization flags
+ifneq ($(UNAME_S), FreeBSD)
   ifneq ($(shell cat /proc/cpuinfo | grep sse3 ) , )
     SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
   else ifneq ($(shell cat /proc/cpuinfo | grep sse2 ) , )
@@ -28,7 +30,17 @@
   else
     SSE_CFLAGS =
   endif
+else
+  ifneq ($(shell dmidecode -t processor -t cache | grep SSE3 ) , )
+    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
+  else ifneq ($(shell dmidecode -t processor -t cache | grep SSE2 ) , )
+    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr
+  else ifneq ($(shell dmidecode -t processor -t cache | grep SSE ) , )
+    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr
+  endif
+endif
 
+ifneq ($(UNAME_S), FreeBSD)
 ifneq ($(MAKECMDGOALS),install)
   ifneq ($(MAKECMDGOALS),clean)
     ifeq ($(shell arch), x86_64)
@@ -47,6 +59,7 @@ ifneq ($(MAKECMDGOALS),install)
       $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8 $(SSE_CFLAGS)$(reset))
     endif
   endif
+endif
 endif
 
 	NAME = Ratatouille
@@ -84,8 +97,14 @@ ifeq ($(TARGET), Linux)
 	-I$(NAM_DIR) -I./ -I$(DEPEND_DIR)eigen/ -I./ -I$(DEPEND_DIR)nlohmann/  \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS -MD
 
+	ifneq ($(UNAME_S), FreeBSD)
 	ifeq (,$(findstring clang, $(CXX)))
 	CXXFLAGS += -fstrength-reduce
+	else
+	CXXFLAGS += -Wno-unused-private-field
+	endif
+	else
+	CXXFLAGS += -Wno-unused-private-field
 	endif
 
 	SLP_LDFLAGS += -fvisibility=hidden -Wl,-Bstatic `pkg-config --cflags --libs xputty` \

@@ -142,10 +142,10 @@ static void draw_window(void *w_, void* user_data) {
         450 * w->app->hdpi,154 * w->app->hdpi, true);
     cairo_stroke (w->crb);
 
-    cairo_move_to (w->crb, 50 * w->app->hdpi,242 * w->app->hdpi );
-    cairo_line_to (w->crb, 450 * w->app->hdpi, 242 * w->app->hdpi );
-    use_text_color_scheme(w, NORMAL_);
-    cairo_stroke (w->crb);
+   // cairo_move_to (w->crb, 50 * w->app->hdpi,242 * w->app->hdpi );
+   // cairo_line_to (w->crb, 450 * w->app->hdpi, 242 * w->app->hdpi );
+   // use_text_color_scheme(w, NORMAL_);
+  //  cairo_stroke (w->crb);
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
     round_rectangle(w->crb, 90 * w->app->hdpi, 254 * w->app->hdpi,
                                             350 * w->app->hdpi, 30 * w->app->hdpi, 0.5);

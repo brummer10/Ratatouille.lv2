@@ -203,9 +203,16 @@ static void file_load_response(void *w_, void* user_data) {
         m->filename = strdup(*(const char**)user_data);
         LV2_URID urid;
         if ((strcmp(m->filename, "None") == 0)) {
-            if (old) urid = ps->uris.neural_model;
-            else if (old1) urid = ps->uris.conv_ir_file;
-            else urid = ps->uris.rtneural_model;
+            if (old) {
+                if ( m == &ps->ma) urid = ps->uris.neural_model;
+                else urid = ps->uris.neural_model1;
+            } else if (old1) {
+                if ( m == &ps->ir) urid = ps->uris.conv_ir_file;
+                else urid = ps->uris.conv_ir_file1;
+            } else {
+                if ( m == &ps->ma) urid = ps->uris.rtneural_model;
+                else urid = ps->uris.rtneural_model1;
+            }
         } else if (ends_with(m->filename, "nam")) {
             if ( m == &ps->ma) urid = ps->uris.neural_model;
             else  urid = ps->uris.neural_model1;

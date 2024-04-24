@@ -13,6 +13,7 @@
 #include <cmath>
 #include <iostream>
 #include <cstring>
+#include <thread>
 #include <unistd.h>
 
 #include "resampler.cc"
@@ -57,9 +58,30 @@ using std::max;
 #include "gx_convolver.cc"
 #include "gx_convolver.h"
 
-////////////////////////////// PLUG-IN CLASS ///////////////////////////
 
 namespace ratatouille {
+
+class Xratatouille;
+
+///////////////////////// INTERNAL WORKER CLASS   //////////////////////
+
+class XratatouilleWorker {
+private:
+    std::atomic<bool> _execute;
+    std::thread _thd;
+    std::mutex m;
+
+public:
+    XratatouilleWorker();
+    ~XratatouilleWorker();
+    void stop();
+    void start(Xratatouille *xr);
+    std::atomic<bool> is_done;
+    bool is_running() const noexcept;
+    std::condition_variable cv;
+};
+
+////////////////////////////// PLUG-IN CLASS ///////////////////////////
 
 class Xratatouille
 {
@@ -71,6 +93,7 @@ private:
     GxConvolver                  conv;
     gx_resample::StreamingResampler resamp1;
     GxConvolver                  conv1;
+    XratatouilleWorker           xrworker;
 
     int32_t                      rt_prio;
     int32_t                      rt_policy;
@@ -141,6 +164,7 @@ private:
     inline void do_work_mono();
     inline void deactivate_f();
 public:
+    inline void do_non_rt_work(Xratatouille* xr) {return xr->do_work_mono();};
     inline void map_uris(LV2_URID_Map* map);
     inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
             const LV2_URID xlv2_model, const char* filename);
@@ -193,7 +217,7 @@ Xratatouille::Xratatouille() :
     input0(NULL),
     output0(NULL),
     _blend(0),
-    _mix(0) {};
+    _mix(0) {xrworker.start(this);};
 
 // destructor
 Xratatouille::~Xratatouille() {
@@ -202,7 +226,53 @@ Xratatouille::~Xratatouille() {
     conv.cleanup();
     conv1.stop_process();
     conv1.cleanup();
+    xrworker.stop();
 };
+
+///////////////////////// INTERNAL WORKER CLASS   //////////////////////
+
+XratatouilleWorker::XratatouilleWorker()
+    : _execute(false),
+    is_done(false) {
+}
+
+XratatouilleWorker::~XratatouilleWorker() {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+}
+
+void XratatouilleWorker::stop() {
+    _execute.store(false, std::memory_order_release);
+    if (_thd.joinable()) {
+        cv.notify_one();
+        _thd.join();
+    }
+}
+
+void XratatouilleWorker::start(Xratatouille *xr) {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+    _execute.store(true, std::memory_order_release);
+    _thd = std::thread([this, xr]() {
+        while (_execute.load(std::memory_order_acquire)) {
+            std::unique_lock<std::mutex> lk(m);
+            // wait for signal from dsp that work is to do
+            cv.wait(lk);
+            //do work
+            if (_execute.load(std::memory_order_acquire)) {
+                xr->do_non_rt_work(xr);
+            }
+        }
+        // when done
+    });
+}
+
+bool XratatouilleWorker::is_running() const noexcept {
+    return ( _execute.load(std::memory_order_acquire) && 
+             _thd.joinable() );
+}
 
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
 
@@ -602,7 +672,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
                     if (!_execute.load(std::memory_order_acquire)) {
                         bufsize = n_samples;
                         _execute.store(true, std::memory_order_release);
-                        schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+                        xrworker.cv.notify_one();
+                        //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
                     }
                 }
             }
@@ -612,7 +683,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     if (!_execute.load(std::memory_order_acquire) && _restore.load(std::memory_order_acquire)) {
         _execute.store(true, std::memory_order_release);
         bufsize = n_samples;
-        schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+        xrworker.cv.notify_one();
+        //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
         _restore.store(false, std::memory_order_release);
     }
 

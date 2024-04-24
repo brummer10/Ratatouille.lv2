@@ -45,10 +45,10 @@ public:
     std::string                     load_afile;
     std::string                     load_bfile;
 
-    void clear_state_f();
-    void init(unsigned int sample_rate);
+    inline void clear_state_f();
+    inline void init(unsigned int sample_rate);
     void connect(uint32_t port,void* data);
-    void compute(int count, float *input0, float *output0);
+    inline void compute(int count, float *input0, float *output0);
     void get_samplerate(std::string config_file, int *mSampleRate);
     bool load_json_afile();
     bool load_json_bfile();
@@ -108,7 +108,7 @@ void RtNeuralMulti::connect(uint32_t port,void* data)
     }
 }
 
-void RtNeuralMulti::compute(int count, float *input0, float *output0)
+inline void RtNeuralMulti::compute(int count, float *input0, float *output0)
 {
     if (!modela && !modelb) return;
     if (output0 != input0)

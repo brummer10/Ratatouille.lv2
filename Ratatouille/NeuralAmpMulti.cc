@@ -47,10 +47,10 @@ public:
     std::string                     load_afile;
     std::string                     load_bfile;
 
-    void clear_state_f();
-    void init(unsigned int sample_rate);
+    inline void clear_state_f();
+    inline void init(unsigned int sample_rate);
     void connect(uint32_t port,void* data);
-    void compute(int count, float *input0, float *output0);
+    inline void compute(int count, float *input0, float *output0);
     bool load_nam_afile();
     bool load_nam_bfile();
     void unload_nam_afile();
@@ -111,7 +111,7 @@ void NeuralAmpMulti::connect(uint32_t port,void* data)
     }
 }
 
-void NeuralAmpMulti::compute(int count, float *input0, float *output0)
+inline void NeuralAmpMulti::compute(int count, float *input0, float *output0)
 {
     if (!modela && !modelb) return;
     if (output0 != input0)

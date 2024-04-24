@@ -453,7 +453,7 @@ static inline const LV2_Atom* read_set_file(const X11LV2URIs* uris, X11_UI *ui,
 
 static inline void get_file(const LV2_Atom* file_uri, X11_UI* ui, ModelPicker *m) {
     const char* uri = (const char*)LV2_ATOM_BODY(file_uri);
-    if (strlen(uri)) {
+    if (strlen(uri) && (strcmp(uri, "None") != 0)) {
         if (strcmp(uri, (const char*)m->filename) !=0) {
             free(m->filename);
             m->filename = NULL;

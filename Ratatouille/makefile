@@ -62,6 +62,14 @@ ifneq ($(MAKECMDGOALS),install)
 endif
 endif
 
+ifeq ($(UNAME_S), Linux)
+  CXX_VERSION = $(shell clang++ --version 2>/dev/null)
+  ifdef CXX_VERSION
+    CXX := clang++
+  endif
+endif
+$(info $(yellow) INFO: $(reset)with          $(blue)$(CXX)$(reset))
+
 	NAME = Ratatouille
 	space := $(subst ,, )
 	EXEC_NAME := $(subst $(space),_,$(NAME))
@@ -85,9 +93,9 @@ ifeq ($(TARGET), Linux)
 
 	LDFLAGS += -fvisibility=hidden -shared -lm -fPIC -pthread -lpthread \
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections -lfftw3 -lfftw3f \
-	`$(PKGCONFIG) --cflags --libs sndfile`
+	-lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
 
-	CXXFLAGS += -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
+	CXXFLAGS += -MMD -std=c++20 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
 	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
 	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \
@@ -99,7 +107,7 @@ ifeq ($(TARGET), Linux)
 
 	ifneq ($(UNAME_S), FreeBSD)
 	ifeq (,$(findstring clang, $(CXX)))
-	CXXFLAGS += -fstrength-reduce
+	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects
 	else
 	CXXFLAGS += -Wno-unused-private-field
 	endif

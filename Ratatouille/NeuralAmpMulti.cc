@@ -62,6 +62,7 @@ public:
 
 NeuralAmpMulti::NeuralAmpMulti(std::condition_variable *Sync)
     : modela(nullptr), modelb(nullptr), smpa(), smpb(), SyncWait(Sync) {
+    nam::activations::Activation::enable_fast_tanh();
     loudnessa = 0.0;
     loudnessb = 0.0;
     need_aresample = 0;

@@ -61,6 +61,47 @@ using std::max;
 
 namespace ratatouille {
 
+/////////////////////////// DENORMAL PROTECTION   //////////////////////
+
+class DenormalProtection {
+private:
+#ifdef __SSE__
+    uint32_t  mxcsr_mask;
+    uint32_t  mxcsr;
+    uint32_t  old_mxcsr;
+#endif
+
+public:
+    inline void set_() {
+#ifdef __SSE__
+        old_mxcsr = _mm_getcsr();
+        mxcsr = old_mxcsr;
+        _mm_setcsr((mxcsr | _MM_DENORMALS_ZERO_MASK | _MM_FLUSH_ZERO_MASK) & mxcsr_mask);
+#endif
+    };
+    inline void reset_() {
+#ifdef __SSE__
+        _mm_setcsr(old_mxcsr);
+#endif
+    };
+
+    inline DenormalProtection() {
+#ifdef __SSE__
+        mxcsr_mask = 0xffbf; // Default MXCSR mask
+        mxcsr      = 0;
+        uint8_t fxsave[512] __attribute__ ((aligned (16))); // Structure for storing FPU state with FXSAVE command
+
+        memset(fxsave, 0, sizeof(fxsave));
+        __builtin_ia32_fxsave(&fxsave);
+        uint32_t mask = *(reinterpret_cast<uint32_t *>(&fxsave[0x1c])); // Obtain the MXCSR mask from FXSAVE structure
+        if (mask != 0)
+            mxcsr_mask = mask;
+#endif
+    };
+
+    inline ~DenormalProtection() {};
+};
+
 class Xratatouille;
 
 ///////////////////////// INTERNAL WORKER CLASS   //////////////////////
@@ -94,6 +135,7 @@ private:
     gx_resample::StreamingResampler resamp1;
     GxConvolver                  conv1;
     XratatouilleWorker           xrworker;
+    DenormalProtection           MXCSR;
 
     int32_t                      rt_prio;
     int32_t                      rt_policy;
@@ -634,6 +676,7 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
 void Xratatouille::run_dsp_(uint32_t n_samples)
 {
     if(n_samples<1) return;
+    MXCSR.set_();
     const uint32_t notify_capacity = this->notify->atom.size;
     lv2_atom_forge_set_buffer(&forge, (uint8_t*)notify, notify_capacity);
     lv2_atom_forge_sequence_head(&forge, &notify_frame, 0);
@@ -691,8 +734,6 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // do inplace processing on default
     if(output0 != input0)
         memcpy(output0, input0, n_samples*sizeof(float));
-    // run dcblocker
-    dcb->compute(n_samples, output0, output0);
 
     float bufa[n_samples];
     memcpy(bufa, output0, n_samples*sizeof(float));
@@ -726,6 +767,9 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     } else if (_rtnB.load(std::memory_order_acquire)) {
         memcpy(output0, bufa, n_samples*sizeof(float));
     }
+
+    // run dcblocker
+    dcb->compute(n_samples, output0, output0);
 
     // set buffer for mix control
     memcpy(bufa, output0, n_samples*sizeof(float));
@@ -776,6 +820,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     }
     // notify neural modeller that process cycle is done
     Sync.notify_all();
+    MXCSR.reset_();
 }
 
 void Xratatouille::connect_all__ports(uint32_t port, void* data)

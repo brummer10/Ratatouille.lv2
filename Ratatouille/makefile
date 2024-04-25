@@ -64,7 +64,8 @@ endif
 
 ifeq ($(UNAME_S), Linux)
   ifeq ($(TARGET), Linux)
-    ifdef $(shell clang++ --version 2>/dev/null)
+    CXX_VERSION = $(shell clang++ --version 2>/dev/null)
+    ifneq ($(CXX_VERSION),)
       CXX := clang++
     endif
   endif
@@ -101,7 +102,7 @@ ifeq ($(TARGET), Linux)
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections -lfftw3 -lfftw3f \
 	-lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
 
-	CXXFLAGS += -MMD -std=c++20 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
+	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
 	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
 	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \

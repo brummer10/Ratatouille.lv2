@@ -65,7 +65,7 @@ endif
 ifeq ($(UNAME_S), Linux)
   ifeq ($(TARGET), Linux)
     CXX_VERSION = $(shell clang++ --version 2>/dev/null)
-    CXXFLAGS:=$(filter-out -fno-gnu-unique,$(CXXFLAGS))
+    CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
     ifdef CXX_VERSION
       CXX := clang++
     endif
@@ -118,6 +118,7 @@ ifeq ($(TARGET), Linux)
 	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects
 	else
 	CXXFLAGS += -Wno-unused-private-field
+    CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
 	endif
 	else
 	CXXFLAGS += -Wno-unused-private-field

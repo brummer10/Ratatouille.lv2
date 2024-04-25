@@ -64,8 +64,7 @@ endif
 
 ifeq ($(UNAME_S), Linux)
   ifeq ($(TARGET), Linux)
-    CXX_VERSION = $(shell clang++ --version 2>/dev/null)
-    ifdef CXX_VERSION
+    ifdef $(shell clang++ --version 2>/dev/null)
       CXX := clang++
     endif
   endif

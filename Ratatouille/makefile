@@ -63,12 +63,20 @@ endif
 endif
 
 ifeq ($(UNAME_S), Linux)
-  CXX_VERSION = $(shell clang++ --version 2>/dev/null)
-  ifdef CXX_VERSION
-    CXX := clang++
+  ifeq ($(TARGET), Linux)
+    CXX_VERSION = $(shell clang++ --version 2>/dev/null)
+    CXXFLAGS:=$(filter-out -fno-gnu-unique,$(CXXFLAGS))
+    ifdef CXX_VERSION
+      CXX := clang++
+    endif
   endif
 endif
-$(info $(yellow) INFO: $(reset)with          $(blue)$(CXX)$(reset))
+
+ifeq (,$(filter clean,$(MAKECMDGOALS)))
+  ifeq (,$(filter install,$(MAKECMDGOALS)))
+    $(info $(yellow) INFO: $(reset)with          $(blue)$(CXX)$(reset))
+  endif
+endif
 
 	NAME = Ratatouille
 	space := $(subst ,, )

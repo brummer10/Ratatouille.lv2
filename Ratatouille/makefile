@@ -207,7 +207,7 @@ $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 
 $(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(IMPL_SOURCE)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
-	$(QUIET)$(CXX) $(filter-out -fno-gnu-unique,$(CXXFLAGS)) $(FAUSTFLAGS) $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	$(CXX) $(filter-out -fno-gnu-unique,$(CXXFLAGS)) $(FAUSTFLAGS) $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :

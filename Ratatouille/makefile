@@ -65,7 +65,6 @@ endif
 ifeq ($(UNAME_S), Linux)
   ifeq ($(TARGET), Linux)
     CXX_VERSION = $(shell clang++ --version 2>/dev/null)
-    CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
     ifdef CXX_VERSION
       CXX := clang++
     endif
@@ -118,7 +117,6 @@ ifeq ($(TARGET), Linux)
 	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects
 	else
 	CXXFLAGS += -Wno-unused-private-field
-    CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
 	endif
 	else
 	CXXFLAGS += -Wno-unused-private-field
@@ -207,7 +205,7 @@ $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 
 $(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(IMPL_SOURCE)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
-	$(CXX) $(filter-out -fno-gnu-unique,$(CXXFLAGS)) $(FAUSTFLAGS) $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	$(QUIET)$(CXX) $(CXXFLAGS) $(FAUSTFLAGS) $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :

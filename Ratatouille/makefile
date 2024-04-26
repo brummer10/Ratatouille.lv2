@@ -112,14 +112,11 @@ ifeq ($(TARGET), Linux)
 	-I$(NAM_DIR) -I./ -I$(DEPEND_DIR)eigen/ -I./ -I$(DEPEND_DIR)nlohmann/  \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS -MD
 
-
 	ifneq ($(UNAME_S), FreeBSD)
 	ifeq (,$(findstring clang, $(CXX)))
 	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects
 	else
 	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero
-	LDFLAGS := $(filter-out -fno-gnu-unique,$(LDFLAGS))
-	CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
 	endif
 	else
 	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero

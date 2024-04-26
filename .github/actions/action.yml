@@ -84,7 +84,7 @@ runs:
         sudo rm /etc/apt/sources.list.d/*.list
         sudo apt-get update -qq
         sudo apt-get purge -yqq git-man libclang* libgbm* libllvm* libmono* libnginx* moby* mono* msbuild* nginx* perl php* libgdiplus libpcre2-posix3 libselinux1-dev libzip4
-        sudo apt-get install -y --allow-downgrades git/jammy libatomic1/jammy libc6/jammy libgcc-s1/jammy libglvnd0/jammy libstdc++6/jammy clang/jammy llvm/jammy
+        sudo apt-get install -y --allow-downgrades git/jammy libatomic1/jammy libc6/jammy libgcc-s1/jammy libglvnd0/jammy libstdc++6/jammy
         sudo apt-get clean
 
     # setup build options

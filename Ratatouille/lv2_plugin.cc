@@ -196,12 +196,12 @@ static void draw_window(void *w_, void* user_data) {
         if ((slen - 4) > 48) {
             utf8crop(label,basename(ps->ma.filename), 48);
             strcat(label,"...");
-            tooltip_set_text(ui->widget[0],basename(ps->ma.filename));
-            ui->widget[0]->flags |= HAS_TOOLTIP;
+            tooltip_set_text(ps->ma.filebutton,basename(ps->ma.filename));
+            ps->ma.filebutton->flags |= HAS_TOOLTIP;
         } else {
             strcpy(label, basename(ps->ma.filename));
-            ui->widget[0]->flags &= ~HAS_TOOLTIP;
-            hide_tooltip(ui->widget[0]);
+            ps->ma.filebutton->flags &= ~HAS_TOOLTIP;
+            hide_tooltip(ps->ma.filebutton);
         }
 
         cairo_text_extents(w->crb, label, &extents_f);
@@ -219,12 +219,12 @@ static void draw_window(void *w_, void* user_data) {
         if ((slen - 4) > 48) {
             utf8crop(label,basename(ps->mb.filename), 48);
             strcat(label,"...");
-            tooltip_set_text(ui->widget[0],basename(ps->mb.filename));
-            ui->widget[0]->flags |= HAS_TOOLTIP;
+            tooltip_set_text(ps->mb.filebutton,basename(ps->mb.filename));
+            ps->mb.filebutton->flags |= HAS_TOOLTIP;
         } else {
             strcpy(label, basename(ps->mb.filename));
-            ui->widget[0]->flags &= ~HAS_TOOLTIP;
-            hide_tooltip(ui->widget[0]);
+            ps->mb.filebutton->flags &= ~HAS_TOOLTIP;
+            hide_tooltip(ps->mb.filebutton);
         }
 
         cairo_text_extents(w->crb, label, &extents_f);
@@ -242,12 +242,12 @@ static void draw_window(void *w_, void* user_data) {
         if ((slen - 4) > 48) {
             utf8crop(label,basename(ps->ir.filename), 48);
             strcat(label,"...");
-            tooltip_set_text(ui->widget[0],basename(ps->ir.filename));
-            ui->widget[0]->flags |= HAS_TOOLTIP;
+            tooltip_set_text(ps->ir.filebutton,basename(ps->ir.filename));
+            ps->ir.filebutton->flags |= HAS_TOOLTIP;
         } else {
             strcpy(label, basename(ps->ir.filename));
-            ui->widget[0]->flags &= ~HAS_TOOLTIP;
-            hide_tooltip(ui->widget[0]);
+            ps->ir.filebutton->flags &= ~HAS_TOOLTIP;
+            hide_tooltip(ps->ir.filebutton);
         }
 
         cairo_text_extents(w->crb, label, &extents_f);
@@ -265,12 +265,12 @@ static void draw_window(void *w_, void* user_data) {
         if ((slen - 4) > 48) {
             utf8crop(label,basename(ps->ir1.filename), 48);
             strcat(label,"...");
-            tooltip_set_text(ui->widget[0],basename(ps->ir1.filename));
-            ui->widget[0]->flags |= HAS_TOOLTIP;
+            tooltip_set_text(ps->ir1.filebutton,basename(ps->ir1.filename));
+            ps->ir1.filebutton->flags |= HAS_TOOLTIP;
         } else {
             strcpy(label, basename(ps->ir1.filename));
-            ui->widget[0]->flags &= ~HAS_TOOLTIP;
-            hide_tooltip(ui->widget[0]);
+            ps->ir1.filebutton->flags &= ~HAS_TOOLTIP;
+            hide_tooltip(ps->ir1.filebutton);
         }
 
         cairo_text_extents(w->crb, label, &extents_f);
@@ -751,6 +751,7 @@ static LV2UI_Handle instantiate(const LV2UI_Descriptor * descriptor,
 
     // init Xputty
     main_init(&ui->main);
+    set_custom_theme(ui);
 
     float scale = 1.0;
     if (opts != NULL) {

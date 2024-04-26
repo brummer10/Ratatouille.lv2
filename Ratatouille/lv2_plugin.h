@@ -85,6 +85,9 @@ void plugin_set_window_size(int *w,int *h,const char * plugin_uri);
 // set the plugin name
 const char* plugin_set_name();
 
+// set custom theme 
+void set_custom_theme(X11_UI *ui);
+
 // create all needed controller 
 void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri);
 

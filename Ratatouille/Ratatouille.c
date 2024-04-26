@@ -94,8 +94,8 @@ static inline void map_x11ui_uris(LV2_URID_Map* map, X11LV2URIs* uris) {
     uris->patch_value = map->map(map->handle, LV2_PATCH__value);
 }
 
-void set_costum_theme(Widget_t *w) {
-    w->color_scheme->normal = (Colors) {
+void set_custom_theme(X11_UI *ui) {
+    ui->main.color_scheme->normal = (Colors) {
          /* cairo    / r  / g  / b  / a  /  */
         .fg =       { 0.850, 0.850, 0.850, 1.000},
         .bg =       { 0.100, 0.100, 0.100, 1.000},
@@ -106,7 +106,7 @@ void set_costum_theme(Widget_t *w) {
         .light =    { 0.100, 0.100, 0.100, 1.000}
     };
 
-    w->color_scheme->prelight = (Colors) {
+    ui->main.color_scheme->prelight = (Colors) {
          /* cairo    / r  / g  / b  / a  /  */
         .fg =       { 1.000, 0.000, 1.000, 1.000},
         .bg =       { 0.250, 0.250, 0.250, 1.000},
@@ -117,7 +117,7 @@ void set_costum_theme(Widget_t *w) {
         .light =    { 0.300, 0.300, 0.300, 1.000}
     };
 
-    w->color_scheme->selected = (Colors) {
+    ui->main.color_scheme->selected = (Colors) {
          /* cairo    / r  / g  / b  / a  /  */
         .fg =       { 0.900, 0.900, 0.900, 1.000},
         .bg =       { 0.200, 0.200, 0.200, 1.000},
@@ -128,7 +128,7 @@ void set_costum_theme(Widget_t *w) {
         .light =    { 0.500, 0.180, 0.180, 1.000}
     };
 
-    w->color_scheme->active = (Colors) {
+    ui->main.color_scheme->active = (Colors) {
          /* cairo    / r  / g  / b  / a  /  */
         .fg =       { 0.000, 1.000, 1.000, 1.000},
         .bg =       { 0.000, 0.000, 0.000, 1.000},
@@ -139,7 +139,7 @@ void set_costum_theme(Widget_t *w) {
         .light =    { 0.180, 0.380, 0.380, 1.000}
     };
 
-    w->color_scheme->insensitive = (Colors) {
+    ui->main.color_scheme->insensitive = (Colors) {
          /* cairo    / r  / g  / b  / a  /  */
         .fg =       { 0.850, 0.850, 0.850, 0.500},
         .bg =       { 0.100, 0.100, 0.100, 0.500},
@@ -302,7 +302,6 @@ const char* plugin_set_name() {
 }
 
 void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
-    set_costum_theme(ui->win);
 
     X11_UI_Private_t *ps =(X11_UI_Private_t*)malloc(sizeof(X11_UI_Private_t));
     ui->private_ptr = (void*)ps;

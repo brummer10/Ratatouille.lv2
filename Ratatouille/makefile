@@ -115,7 +115,7 @@ ifeq ($(TARGET), Linux)
 
 	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
-	-fomit-frame-pointer -fvisibility=hidden \
+	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
 	-fdata-sections -I./zita-resampler-1.1.0 \
 	-I. -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
@@ -142,7 +142,7 @@ ifeq ($(TARGET), Linux)
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -I./dsp -I./plugin -fPIC -DPIC -O2 -Wall -funroll-loops \
-	-fstack-protector -ffast-math -fomit-frame-pointer -fstrength-reduce \
+	-ffast-math -fomit-frame-pointer -fstrength-reduce \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
 	$(SSE_CFLAGS) -fdata-sections -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \

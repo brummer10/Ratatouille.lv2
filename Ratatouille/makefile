@@ -115,7 +115,7 @@ ifeq ($(TARGET), Linux)
 
 	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
-	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
+	-fomit-frame-pointer -fvisibility=hidden \
 	-fdata-sections -I./zita-resampler-1.1.0 \
 	-I. -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \

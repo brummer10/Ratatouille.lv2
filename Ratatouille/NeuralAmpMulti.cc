@@ -120,6 +120,8 @@ inline void NeuralAmpMulti::compute(int count, float *input0, float *output0)
     double fSlow0 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_fVslider0)));
     double fSlow1 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_fVslider1)));
     double fSlow2 = 0.0010000000000000009 * double(*(_fVslider2));
+    if (!readyA.load(std::memory_order_acquire)) fSlow2 = 1.0;
+    else if (!readyB.load(std::memory_order_acquire)) fSlow2 = 0.0;
     // input volume
     for (int i0 = 0; i0 < count; i0 = i0 + 1) {
         fRec0[0] = fSlow0 + 0.999 * fRec0[1];

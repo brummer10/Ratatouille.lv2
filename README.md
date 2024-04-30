@@ -26,6 +26,8 @@ loaded models. Both models and the IR Files may have different expectations rega
 - libx11-dev
 - lv2-dev
 
+[![build](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml/badge.svg)](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml)
+
 ## Building from source code
 
 - git clone https://github.com/brummer10//Ratatouille.lv2.git

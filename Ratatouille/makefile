@@ -85,32 +85,41 @@ endif
 	HEADER_DIR := $(LIB_DIR)include/
 	UI_LIB:= $(LIB_DIR)libxputty.$(STATIC_LIB_EXT)
 	STRIP ?= strip
+
 	RTN_DIR := ../RTNeural/RTNeural/
 	RTN_DEPEND_DIR := ../RTNeural/modules/
 	RTN_SOURCES := $(wildcard $(RTN_DIR)*.cpp)
+	RTN_OBJ := $(patsubst %.cpp,%.o,$(RTN_SOURCES))
+	RTN_INCLUDES := -I$(RTN_DIR) -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/ 
+	RTN_LIB := rtneural.$(STATIC_LIB_EXT)
+
 	NAM_DIR := ../NeuralAmpModelerCore/NAM/
 	NAM_DEPEND_DIR := ../NeuralAmpModelerCore/Dependencies/
 	NAM_SOURCES := $(wildcard $(NAM_DIR)*.cpp)
+	NAM_OBJ := $(patsubst %.cpp,%.o,$(NAM_SOURCES))
+	NAM_INCLUDES := -I$(NAM_DIR) -I$(NAM_DEPEND_DIR)eigen/ -I./ -I$(NAM_DEPEND_DIR)nlohmann/
+	NAM_LIB := nam.$(STATIC_LIB_EXT)
+
 	IMPL_SOURCE := RtNeuralMulti.cc NeuralAmpMulti.cc
 	GUIIMPL_SOURCE := lv2_plugin.cc
+
+	DEPS = $(RTN_OBJ:%.o=%.d) $(NAM_OBJ:%.o=%.d) Ratatouille.d
 
 ifeq ($(TARGET), Linux)
 	GUI_LDFLAGS += -I$(HEADER_DIR) -Wl,-Bstatic -L. $(UI_LIB) \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11` 
 
 	LDFLAGS += -fvisibility=hidden -shared -lm -fPIC -pthread -lpthread \
-	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections -lfftw3 -lfftw3f \
-	-lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
+	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
+	-lfftw3 -lfftw3f -lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
 
 	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
 	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
-	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \
-	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL -I./zita-resampler-1.1.0 \
-	-I. -I./zita-convolver -I./zita-resampler-1.1.0 \
+	-fdata-sections -I./zita-resampler-1.1.0 \
+	-I. -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
-	-I$(NAM_DIR) -I./ -I$(DEPEND_DIR)eigen/ -I./ -I$(DEPEND_DIR)nlohmann/  \
-	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS -MD
+	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
 	ifneq ($(UNAME_S), FreeBSD)
 	ifeq (,$(findstring clang, $(CXX)))
@@ -135,16 +144,12 @@ else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -I./dsp -I./plugin -fPIC -DPIC -O2 -Wall -funroll-loops \
 	-fstack-protector -ffast-math -fomit-frame-pointer -fstrength-reduce \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
-	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL $(SSE_CFLAGS) \
-	-I$(RTN_DIR) -I./ -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/  \
-	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL -I./zita-resampler-1.1.0 \
-	-I. -I./zita-convolver -I./zita-resampler-1.1.0 \
+	$(SSE_CFLAGS) -fdata-sections -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
-	-I$(NAM_DIR) -I./ -I$(DEPEND_DIR)eigen/ -I./ -I$(DEPEND_DIR)nlohmann/  \
-	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS -MD
+	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
 	LDFLAGS += -I. -shared -lm $(PAWPAW_LFLAGS) -lfftw3 -lfftw3f \
-	`$(PKGCONFIG) --cflags --libs sndfile`
+	-Wl,--gc-sections -Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile`
 
 	GUI_LDFLAGS += -I$(HEADER_DIR) -static-libgcc -static-libstdc++ \
 	`$(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags --libs cairo ` \
@@ -158,10 +163,6 @@ else ifeq ($(TARGET), Windows)
 	TTLUPDATEMODGUI =  sed -i -e '164,179d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 endif
-
-	FAUSTFLAGS :=  \
-	 \
-	
 
 .PHONY : all mod install uninstall clean
 
@@ -197,15 +198,34 @@ mod: $(EXEC_NAME).$(LIB_EXT)
 	fi
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
+-include $(DEPS)
+
+$(RTN_OBJ): $(RTN_SOURCES)
+	@$(ECHO) "Building object file $@ $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD -Wall -c $(patsubst %.o,%.cpp,$@) -o $@ $(RTN_INCLUDES)
+
+$(RTN_LIB): $(RTN_OBJ)
+	@$(B_ECHO) "Build static library $@ $(reset)"
+	$(QUIET)$(AR) rcs $(RTN_LIB) $(RTN_OBJ)
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
+$(NAM_OBJ): $(NAM_SOURCES)
+	@$(ECHO) "Building object file $@ $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD -Wall -c $(patsubst %.o,%.cpp,$@) -o $@  $(NAM_INCLUDES)
+
+$(NAM_LIB): $(NAM_OBJ)
+	@$(B_ECHO) "Build static library $@ $(reset)"
+	$(QUIET)$(AR) rcs $(NAM_LIB) $(NAM_OBJ)
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
 $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
 	$(QUIET)$(CC) $(CFLAGS) '$(NAME).c' -L. $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)
 
-
-$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(IMPL_SOURCE)
+$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_LIB) $(NAM_LIB) $(IMPL_SOURCE)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
-	$(QUIET)$(CXX) $(CXXFLAGS) $(FAUSTFLAGS) $(EXEC_NAME).cpp $(RTN_SOURCES) $(NAM_SOURCES) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp -L. $(RTN_LIB) -L. $(NAM_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :
@@ -236,6 +256,8 @@ clean:
 ifndef EXTRAQUIET
 	@$(ECHO) ". ., clean up$(reset)"
 endif
-	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll xresources.h
+	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll 
+	$(QUIET)rm -f $(NAM_DIR)*.a $(NAM_DIR)*.lib $(NAM_DIR)*.o $(NAM_DIR)*.d
+	$(QUIET)rm -f $(RTN_DIR)*.a $(RTN_DIR)*.lib $(RTN_DIR)*.o $(RTN_DIR)*.d
 	$(QUIET)rm -rf ../bin
 

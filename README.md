@@ -18,6 +18,10 @@ To round up your sound you can load two Impulse Response Files and mix them to y
 Ratatouille.lv2 supports resampling when needed to match the expected sample rate of the 
 loaded models. Both models and the IR Files may have different expectations regarding the sample rate.
 
+## MOD Desktop
+You could find a Ratatouille GUI for using it on the [MOD Desktop](https://github.com/moddevices/mod-desktop)
+made by David Germain [here](https://github.com/Riebeck-one/ratatouille-modgui)
+
 ## Dependencies
 
 - libsndfile1-dev

@@ -411,15 +411,21 @@ static void draw_my_knob(void *w_, void* user_data) {
     cairo_set_font_size (w->crb, w->app->normal_font/w->scale.ascale);
     char s[17];
     char sa[17];
+    int o = 0;
     float value = adj_get_value(w->adj);
     float v = copysign(1, (int)(value * 10));
     value = copysign(value, v);
-    snprintf(s, 16, "%.1f", value);
+    if (fabs(w->adj->step)>0.99) {
+        snprintf(s, 16,"%d",  (int) value);
+        o = 5;
+    } else {
+        snprintf(s, 16, "%.1f", value);
+    }
     snprintf(sa, strlen(s),"%s",  "000000000000000");
     cairo_text_extents(w->crb, sa, &extents);
     int wx = extents.width * 0.5;
     cairo_text_extents(w->crb, s, &extents);
-    cairo_move_to (w->crb, knobx1 - wx, knoby1+extents.height/2);
+    cairo_move_to (w->crb, knobx1 - wx - o, knoby1+extents.height/2);
     cairo_show_text(w->crb, s);
     cairo_new_path (w->crb);
 

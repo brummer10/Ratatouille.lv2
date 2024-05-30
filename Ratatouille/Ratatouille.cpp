@@ -49,6 +49,7 @@ using std::min;
 using std::max;
 
 #include "dcblocker.cc"
+#include "cdelay.cc"
 
 #include "NeuralAmpMulti.cc"
 #include "RtNeuralMulti.cc"

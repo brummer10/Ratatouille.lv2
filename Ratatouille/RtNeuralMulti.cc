@@ -16,6 +16,7 @@ class RtNeuralMulti {
 private:
     RTNeural::Model<float>*         modela;
     RTNeural::Model<float>*         modelb;
+    cdeleay::Dsp*                   cdelay;
 
     gx_resample::FixedRateResampler smpa;
     gx_resample::FixedRateResampler smpb;
@@ -60,7 +61,8 @@ public:
 };
 
 RtNeuralMulti::RtNeuralMulti(std::condition_variable *Sync)
-    : modela(nullptr), modelb(nullptr), smpa(), smpb(), SyncWait(Sync) {
+    : modela(nullptr), modelb(nullptr), cdelay(cdeleay::plugin()),
+      smpa(), smpb(), SyncWait(Sync) {
     need_aresample = 0;
     need_bresample = 0;
     is_inited = false;
@@ -71,6 +73,7 @@ RtNeuralMulti::RtNeuralMulti(std::condition_variable *Sync)
 RtNeuralMulti::~RtNeuralMulti() {
     delete modela;
     delete modelb;
+    cdelay->del_instance(cdelay);
 }
 
 inline void RtNeuralMulti::clear_state_f()
@@ -83,6 +86,7 @@ inline void RtNeuralMulti::clear_state_f()
 inline void RtNeuralMulti::init(unsigned int sample_rate)
 {
     fSampleRate = sample_rate;
+    cdelay->init(fSampleRate);
     clear_state_f();
     is_inited = true;
     load_json_afile();
@@ -106,6 +110,7 @@ void RtNeuralMulti::connect(uint32_t port,void* data)
         default:
             break;
     }
+    cdelay->connect(port, data);
 }
 
 inline void RtNeuralMulti::compute(int count, float *input0, float *output0)
@@ -191,6 +196,7 @@ inline void RtNeuralMulti::compute(int count, float *input0, float *output0)
                  bufb[i0] = modelb->forward (&bufb[i0]);
             }
         }
+        cdelay->compute(count, bufb, bufb);
     }
     //mix model A/B
     if (modela && modelb && readyA.load(std::memory_order_acquire) &&
@@ -299,7 +305,7 @@ bool RtNeuralMulti::load_json_bfile() {
         modelb = nullptr;
         mbSampleRate = 0;
         need_bresample = 0;
-        //clear_state_f();
+        cdelay->clear_state_f();
         try {
             get_samplerate(std::string(load_bfile), &mbSampleRate);
             std::ifstream jsonStream(std::string(load_bfile), std::ifstream::binary);
@@ -335,7 +341,7 @@ void RtNeuralMulti::unload_json_bfile() {
     modelb = nullptr;
     mbSampleRate = 0;
     need_bresample = 0;
-    //clear_state_f();
+    cdelay->clear_state_f();
     readyB.store(true, std::memory_order_release);
 }
 

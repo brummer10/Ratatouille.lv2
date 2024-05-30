@@ -16,6 +16,7 @@ class NeuralAmpMulti {
 private:
     nam::DSP*                       modela;
     nam::DSP*                       modelb;
+    cdeleay::Dsp*                   cdelay;
 
     gx_resample::FixedRateResampler smpa;
     gx_resample::FixedRateResampler smpb;
@@ -61,7 +62,8 @@ public:
 };
 
 NeuralAmpMulti::NeuralAmpMulti(std::condition_variable *Sync)
-    : modela(nullptr), modelb(nullptr), smpa(), smpb(), SyncWait(Sync) {
+    : modela(nullptr), modelb(nullptr), cdelay(cdeleay::plugin()),
+      smpa(), smpb(), SyncWait(Sync) {
     nam::activations::Activation::enable_fast_tanh();
     loudnessa = 0.0;
     loudnessb = 0.0;
@@ -75,6 +77,7 @@ NeuralAmpMulti::NeuralAmpMulti(std::condition_variable *Sync)
 NeuralAmpMulti::~NeuralAmpMulti() {
     delete modela;
     delete modelb;
+    cdelay->del_instance(cdelay);
 }
 
 inline void NeuralAmpMulti::clear_state_f()
@@ -87,6 +90,7 @@ inline void NeuralAmpMulti::clear_state_f()
 inline void NeuralAmpMulti::init(unsigned int sample_rate)
 {
     fSampleRate = sample_rate;
+    cdelay->init(fSampleRate);
     clear_state_f();
     is_inited = true;
     load_nam_afile();
@@ -110,6 +114,7 @@ void NeuralAmpMulti::connect(uint32_t port,void* data)
         default:
             break;
     }
+    cdelay->connect(port, data);
 }
 
 inline void NeuralAmpMulti::compute(int count, float *input0, float *output0)
@@ -197,6 +202,7 @@ inline void NeuralAmpMulti::compute(int count, float *input0, float *output0)
             modelb->process(bufb, bufb, count);
             modelb->finalize_(count);
         }
+        cdelay->compute(count, bufb, bufb);
     }
 
     //mix model A/B
@@ -293,7 +299,7 @@ bool NeuralAmpMulti::load_nam_bfile() {
        // fprintf(stderr, "delete modelb\n");
         modelb = nullptr;
         need_bresample = 0;
-        //clear_state_f();
+        cdelay->clear_state_f();
         int32_t warmUpSize = 4096;
         try {
             modelb = nam::get_dsp(std::string(load_bfile)).release();
@@ -339,7 +345,7 @@ void NeuralAmpMulti::unload_nam_bfile() {
    // fprintf(stderr, "delete modelb\n");
     modelb = nullptr;
     need_bresample = 0;
-    //clear_state_f();
+    cdelay->clear_state_f();
     load_bfile = "None";
     readyB.store(true, std::memory_order_release);
 }

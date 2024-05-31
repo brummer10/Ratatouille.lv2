@@ -354,17 +354,17 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     set_widget_color(ui->widget[0], 0, 0, 0.3, 0.55, 0.91, 1.0);
     set_widget_color(ui->widget[0], 0, 3,  0.682, 0.686, 0.686, 1.0);
 
-    ui->widget[2] = add_lv2_knob (ui->widget[2], ui->win, 4, "Blend", ui, 135,  85, 80, 100);
+    ui->widget[2] = add_lv2_knob (ui->widget[2], ui->win, 4, "Blend", ui, 135,  95, 80, 110);
     set_adjustment(ui->widget[2]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
     set_widget_color(ui->widget[2], 0, 0, 0.3, 0.55, 0.91, 1.0);
     set_widget_color(ui->widget[2], 0, 3,  0.682, 0.686, 0.686, 1.0);
 
-    ui->widget[4] = add_lv2_knob (ui->widget[4], ui->win, 8, "Delay", ui, 215,  115, 70, 90);
+    ui->widget[4] = add_lv2_knob (ui->widget[4], ui->win, 8, "Delay", ui, 215,  100, 70, 105);
     set_adjustment(ui->widget[4]->adj, 0.0, 0.0, 0.0, 4096.0, 16.0, CL_CONTINUOS);
     set_widget_color(ui->widget[4], 0, 0, 0.3, 0.55, 0.91, 1.0);
     set_widget_color(ui->widget[4], 0, 3,  0.682, 0.686, 0.686, 1.0);
 
-    ui->widget[3] = add_lv2_knob (ui->widget[3], ui->win, 7, "Mix (IR)", ui, 285,  85, 80, 100);
+    ui->widget[3] = add_lv2_knob (ui->widget[3], ui->win, 7, "Mix (IR)", ui, 285,  95, 80, 110);
     set_adjustment(ui->widget[3]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
     set_widget_color(ui->widget[3], 0, 0, 0.3, 0.55, 0.91, 1.0);
     set_widget_color(ui->widget[3], 0, 3,  0.682, 0.686, 0.686, 1.0);

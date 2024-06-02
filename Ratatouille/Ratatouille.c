@@ -284,7 +284,7 @@ static void rebuild_file_menu(ModelPicker *m) {
     }
     combobox_add_entry(m->fbutton, "None");
     adj_set_value(m->fbutton->adj, active_entry);
-    combobox_set_menu_size(m->fbutton, min(14, m->filepicker->file_counter));
+    combobox_set_menu_size(m->fbutton, min(14, m->filepicker->file_counter+1));
     m->fbutton->func.value_changed_callback = store;
 }
 
@@ -333,19 +333,19 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     asprintf(&ps->ir1.filepicker->filter ,"%s", ".wav");
     ps->ir1.filepicker->use_filter = 1;
 
-    ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 30,  254, 60, 30);
+    ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 25,  254, 60, 30);
     ps->ma.filebutton->parent_struct = (void*)&ps->ma;
     ps->ma.filebutton->func.user_callback = file_load_response;
 
-    ps->mb.filebutton = add_lv2_file_button (ps->mb.filebutton, ui->win, -2, "Neural Model", ui, 30,  294, 60, 30);
+    ps->mb.filebutton = add_lv2_file_button (ps->mb.filebutton, ui->win, -2, "Neural Model", ui, 25,  294, 60, 30);
     ps->mb.filebutton->parent_struct = (void*)&ps->mb;
     ps->mb.filebutton->func.user_callback = file_load_response;
 
-    ps->ir.filebutton = add_lv2_irfile_button (ps->ir.filebutton, ui->win, -3, "IR File", ui, 30,  334, 60, 30);
+    ps->ir.filebutton = add_lv2_irfile_button (ps->ir.filebutton, ui->win, -3, "IR File", ui, 25,  334, 60, 30);
     ps->ir.filebutton->parent_struct = (void*)&ps->ir;
     ps->ir.filebutton->func.user_callback = file_load_response;
 
-    ps->ir1.filebutton = add_lv2_irfile_button (ps->ir1.filebutton, ui->win, -4, "IR File", ui, 30,  374, 60, 30);
+    ps->ir1.filebutton = add_lv2_irfile_button (ps->ir1.filebutton, ui->win, -4, "IR File", ui, 25,  374, 60, 30);
     ps->ir1.filebutton->parent_struct = (void*)&ps->ir1;
     ps->ir1.filebutton->func.user_callback = file_load_response;
 

@@ -69,13 +69,14 @@ rata:irfile1
    doap:license <https://spdx.org/licenses/BSD-3-Clause> ;
    lv2:project <urn:brummer:ratatouille> ;
    lv2:requiredFeature urid:map ;
-   lv2:optionalFeature lv2:hardRTCapable ;
+   lv2:optionalFeature lv2:hardRTCapable ,
+       opts:options ;
    lv2:requiredFeature urid:map ,
        bufsz:boundedBlockLength ,
        work:schedule ;
    lv2:extensionData work:interface ,
                     state:interface ;
-   lv2:minorVersion 1 ;
+   lv2:minorVersion 3 ;
    lv2:microVersion 0 ;
 
 guiext:ui <urn:brummer:ratatouille_ui> ;
@@ -88,7 +89,7 @@ patch:writable rata:irfile ;
 patch:writable rata:irfile1 ;
 
 rdfs:comment """
-...
+A Neural Model loader and mixer
 """;
 
 

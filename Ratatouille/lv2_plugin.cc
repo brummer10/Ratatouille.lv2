@@ -20,6 +20,7 @@
 
 
 #include "lv2_plugin.h"
+#include "texture.c"
 
 /*---------------------------------------------------------------------
 -----------------------------------------------------------------------    
@@ -116,13 +117,22 @@ char* utf8crop(char* dst, const char* src, size_t sizeDest ) {
 // draw the window
 static void draw_window(void *w_, void* user_data) {
     Widget_t *w = (Widget_t*)w_;
+    
     set_pattern(w,&w->color_scheme->selected,&w->color_scheme->normal,BACKGROUND_);
     cairo_paint (w->crb);
+
     round_rectangle(w->crb, 10 * w->app->hdpi, 10 * w->app->hdpi,
         w->width-20 * w->app->hdpi, w->height-20 * w->app->hdpi, 0.08);
+
+    cairo_pattern_t *pat = cairo_pattern_create_for_surface(w->image);
+    cairo_pattern_set_extend (pat, CAIRO_EXTEND_REPEAT);
+    cairo_set_source(w->crb, pat);
+    cairo_fill_preserve (w->crb);
+
     boxShadowOutset(w->crb,10 * w->app->hdpi,10 * w->app->hdpi,
         w->width-20 * w->app->hdpi,w->height-20 * w->app->hdpi, true);
     cairo_stroke (w->crb);
+    cairo_pattern_destroy (pat);
 
 #ifndef HIDE_NAME
     cairo_text_extents_t extents;
@@ -178,11 +188,7 @@ static void draw_window(void *w_, void* user_data) {
                                             350 * w->app->hdpi, 30 * w->app->hdpi, true);
     cairo_fill (w->crb);
 
-    if (w->image) {
-        cairo_set_source_surface (w->crb, w->image, 0, 0);
-        cairo_paint (w->crb);
-    }
-    use_text_color_scheme(w, get_color_state(w));
+    use_text_color_scheme(w, NORMAL_);
 #ifdef USE_ATOM
     X11_UI* ui = (X11_UI*)w->parent_struct;
     X11_UI_Private_t *ps = (X11_UI_Private_t*)ui->private_ptr;
@@ -417,7 +423,10 @@ static void draw_my_knob(void *w_, void* user_data) {
     value = copysign(value, v);
     if (fabs(w->adj->step)>0.99) {
         snprintf(s, 16,"%d",  (int) value);
-        o = 5;
+        o = 4;
+    } else if (fabs(w->adj->step)<0.09) {
+        snprintf(s, 16, "%.2f", value);
+        o = 1;
     } else {
         snprintf(s, 16, "%.1f", value);
     }
@@ -786,6 +795,7 @@ static LV2UI_Handle instantiate(const LV2UI_Descriptor * descriptor,
     ui->win = create_window(&ui->main, (Window)ui->parentXwindow, 0, 0, w, h);
     ui->win->parent_struct = ui;
     ui->win->label = plugin_set_name();
+    widget_get_png(ui->win, LDVAR(texture));
     // connect the expose func
     ui->win->func.expose_callback = draw_window;
     // create controller widgets

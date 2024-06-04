@@ -97,10 +97,10 @@ static inline void map_x11ui_uris(LV2_URID_Map* map, X11LV2URIs* uris) {
 void set_custom_theme(X11_UI *ui) {
     ui->main.color_scheme->normal = (Colors) {
          /* cairo    / r  / g  / b  / a  /  */
-        .fg =       { 0.850, 0.850, 0.850, 1.000},
-        .bg =       { 0.100, 0.100, 0.100, 1.000},
+        .fg =       { 0.686, 0.729, 0.773, 1.000},
+        .bg =       { 0.129, 0.149, 0.180, 1.000},
         .base =     { 0.000, 0.000, 0.000, 1.000},
-        .text =     { 0.682, 0.686, 0.686, 1.000},
+        .text =     { 0.686, 0.729, 0.773, 1.000},
         .shadow =   { 0.000, 0.000, 0.000, 0.200},
         .frame =    { 0.000, 0.000, 0.000, 1.000},
         .light =    { 0.100, 0.100, 0.100, 1.000}
@@ -120,7 +120,7 @@ void set_custom_theme(X11_UI *ui) {
     ui->main.color_scheme->selected = (Colors) {
          /* cairo    / r  / g  / b  / a  /  */
         .fg =       { 0.900, 0.900, 0.900, 1.000},
-        .bg =       { 0.200, 0.200, 0.200, 1.000},
+        .bg =       { 0.176, 0.200, 0.231, 1.000},
         .base =     { 0.500, 0.180, 0.180, 1.000},
         .text =     { 1.000, 1.000, 1.000, 1.000},
         .shadow =   { 0.800, 0.180, 0.180, 0.200},
@@ -351,28 +351,28 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
 
     ui->widget[0] = add_lv2_knob (ui->widget[0], ui->win, 2, "Input", ui, 35,  85, 100, 120);
     set_adjustment(ui->widget[0]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
-    set_widget_color(ui->widget[0], 0, 0, 0.3, 0.55, 0.91, 1.0);
-    set_widget_color(ui->widget[0], 0, 3,  0.682, 0.686, 0.686, 1.0);
+    set_widget_color(ui->widget[0], 0, 0, 0.259, 0.518, 0.894, 1.0);
+    set_widget_color(ui->widget[0], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
     ui->widget[2] = add_lv2_knob (ui->widget[2], ui->win, 4, "Blend", ui, 135,  95, 80, 110);
     set_adjustment(ui->widget[2]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
-    set_widget_color(ui->widget[2], 0, 0, 0.3, 0.55, 0.91, 1.0);
-    set_widget_color(ui->widget[2], 0, 3,  0.682, 0.686, 0.686, 1.0);
+    set_widget_color(ui->widget[2], 0, 0, 0.259, 0.518, 0.894, 1.0);
+    set_widget_color(ui->widget[2], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
     ui->widget[4] = add_lv2_knob (ui->widget[4], ui->win, 8, "Delay", ui, 215,  100, 70, 105);
     set_adjustment(ui->widget[4]->adj, 0.0, 0.0, 0.0, 4096.0, 16.0, CL_CONTINUOS);
-    set_widget_color(ui->widget[4], 0, 0, 0.3, 0.55, 0.91, 1.0);
-    set_widget_color(ui->widget[4], 0, 3,  0.682, 0.686, 0.686, 1.0);
+    set_widget_color(ui->widget[4], 0, 0, 0.259, 0.518, 0.894, 1.0);
+    set_widget_color(ui->widget[4], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
     ui->widget[3] = add_lv2_knob (ui->widget[3], ui->win, 7, "Mix (IR)", ui, 285,  95, 80, 110);
     set_adjustment(ui->widget[3]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
-    set_widget_color(ui->widget[3], 0, 0, 0.3, 0.55, 0.91, 1.0);
-    set_widget_color(ui->widget[3], 0, 3,  0.682, 0.686, 0.686, 1.0);
+    set_widget_color(ui->widget[3], 0, 0, 0.259, 0.518, 0.894, 1.0);
+    set_widget_color(ui->widget[3], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
     ui->widget[1] = add_lv2_knob (ui->widget[1], ui->win, 3, "Output ", ui, 365,  85, 100, 120);
     set_adjustment(ui->widget[1]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
-    set_widget_color(ui->widget[1], 0, 0, 0.3, 0.55, 0.91, 1.0);
-    set_widget_color(ui->widget[1], 0, 3,  0.682, 0.686, 0.686, 1.0);
+    set_widget_color(ui->widget[1], 0, 0, 0.259, 0.518, 0.894, 1.0);
+    set_widget_color(ui->widget[1], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
     ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 450,  254, 22, 30);
     ps->ma.fbutton->parent_struct = (void*)&ps->ma;
@@ -475,6 +475,11 @@ static inline void get_file(const LV2_Atom* file_uri, X11_UI* ui, ModelPicker *m
             free(dn);
             expose_widget(ui->win);
         }
+    } else if (strcmp(m->filename, "None") != 0) {
+        free(m->filename);
+        m->filename = NULL;
+        m->filename = strdup("None");
+        expose_widget(ui->win);
     }
 }
 

@@ -356,6 +356,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     rtmodel_file = "None";
     rtmodel_file1 = "None";
     ir_file = "None";
+    ir_file1 = "None";
     bufsize = 0;
 
     _execute.store(false, std::memory_order_release);
@@ -569,6 +570,11 @@ void Xratatouille::do_work_mono()
                 ir_file = "None";
                 printf("impulse convolver update fail\n");
             }
+        } else {
+            if (conv.is_runnable()) {
+                conv.set_not_runnable();
+                conv.stop_process();
+            }            
         }
         if (ir_file1 != "None") {
             if (conv1.is_runnable()) {
@@ -586,6 +592,11 @@ void Xratatouille::do_work_mono()
                 ir_file1 = "None";
                 printf("impulse convolver1 update fail\n");
             }
+        } else {
+            if (conv1.is_runnable()) {
+                conv1.set_not_runnable();
+                conv1.stop_process();
+            }            
         }
     } else if (_ab.load(std::memory_order_acquire) == 7) {
         if (conv.is_runnable()) {
@@ -798,25 +809,35 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // notify UI on changed model files
     if (_notify_ui.load(std::memory_order_acquire)) {
         _notify_ui.store(false, std::memory_order_release);
-        if (_ab.load(std::memory_order_acquire) == 1) {
+        // notify for removed files
+        if (model_file == "None") {
             write_set_file(&forge, xlv2_model_file, model_file.data());
-        } else if (_ab.load(std::memory_order_acquire) == 2) {
-            write_set_file(&forge, xlv2_model_file1, model_file1.data());
-        } else if (_ab.load(std::memory_order_acquire) == 3) {
-            write_set_file(&forge, xlv2_model_file, model_file.data());
-            write_set_file(&forge, xlv2_model_file1, model_file1.data());
-        } else if (_ab.load(std::memory_order_acquire) == 4) {
-            write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
-        } else if (_ab.load(std::memory_order_acquire) == 5) {
-            write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
-        } else if (_ab.load(std::memory_order_acquire) == 6) {
-            write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
-            write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
-        } else if (_ab.load(std::memory_order_acquire) == 7) {
-            write_set_file(&forge, xlv2_ir_file, ir_file.data());
-        } else if (_ab.load(std::memory_order_acquire) == 8) {
-            write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
         }
+        if (model_file1 == "None") {
+            write_set_file(&forge, xlv2_model_file1, model_file1.data());
+        }
+        if (rtmodel_file == "None") {
+            write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
+        }
+        if (rtmodel_file1 == "None") {
+            write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
+        }
+        // notify for loaded files
+        if (model_file != "None") {
+            write_set_file(&forge, xlv2_model_file, model_file.data());
+        }
+        if (model_file1 != "None") {
+            write_set_file(&forge, xlv2_model_file1, model_file1.data());
+        }
+        if (rtmodel_file != "None") {
+            write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
+        }
+        if (rtmodel_file1 != "None") {
+            write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
+        }
+
+        write_set_file(&forge, xlv2_ir_file, ir_file.data());
+        write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
         _ab.store(0, std::memory_order_release);
     }
     // notify neural modeller that process cycle is done

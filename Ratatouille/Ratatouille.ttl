@@ -76,7 +76,7 @@ rata:irfile1
        work:schedule ;
    lv2:extensionData work:interface ,
                     state:interface ;
-   lv2:minorVersion 3 ;
+   lv2:minorVersion 4 ;
    lv2:microVersion 0 ;
 
 guiext:ui <urn:brummer:ratatouille_ui> ;

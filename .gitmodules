@@ -7,3 +7,6 @@
 [submodule "NeuralAmpModelerCore"]
 	path = NeuralAmpModelerCore
 	url = https://github.com/sdatkinson/NeuralAmpModelerCore.git
+[submodule "FFTConvolver"]
+	path = FFTConvolver
+	url = https://github.com/HiFi-LoFi/FFTConvolver.git

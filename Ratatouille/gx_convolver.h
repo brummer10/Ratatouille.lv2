@@ -24,6 +24,7 @@
 #define SRC_HEADERS_GX_CONVOLVER_H_
 
 #include "zita-convolver.h"
+#include "FFTConvolver.h"
 #include <stdint.h>
 #include <unistd.h>
 #include "gx_resampler.h"
@@ -90,9 +91,6 @@ private:
     unsigned int _size;
 };
 
-bool read_audio(const std::string& filename, unsigned int *audio_size, int *audio_chan,
-		int *audio_type, int *audio_form, int *audio_rate, float **buffer);
-
 class GxConvolverBase: protected Convproc
 {
 protected:
@@ -146,51 +144,108 @@ class GxConvolver: public GxConvolverBase {
 private:
     gx_resample::StreamingResampler resamp;
     bool read_sndfile(Audiofile& audio, int nchan, int samplerate, const float *gain,
-		      unsigned int *delay, unsigned int offset, unsigned int length);
+                    unsigned int *delay, unsigned int offset, unsigned int length);
 public:
-    GxConvolver(gx_resample::StreamingResampler resamp)
+    GxConvolver()
       : GxConvolverBase(), resamp() {}
-    bool configure(
-        std::string fname, float gain, float lgain,
-        unsigned int delay, unsigned int ldelay, unsigned int offset,
-        unsigned int length, unsigned int size, unsigned int bufsize);
-    bool compute(int count, float* input1, float *input2, float *output1, float *output2);
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
-		   unsigned int length, unsigned int size, unsigned int bufsize);
+                    unsigned int length, unsigned int size, unsigned int bufsize);
     bool compute(int count, float* input, float *output);
 };
 
-class GxSimpleConvolver: public GxConvolverBase
+
+class SingleThreadConvolver
 {
-private:
-  gx_resample::BufferResampler& resamp;
 public:
-  int32_t pre_count;
-  uint32_t pre_sr;
-  float *pre_data;
-  float *pre_data_new;
-  GxSimpleConvolver(gx_resample::BufferResampler& resamp_)
-    : GxConvolverBase(), resamp(resamp_), pre_count(0), pre_sr(0),
-    pre_data(NULL), pre_data_new(NULL) {}
-  bool configure(int32_t count, float *impresp, uint32_t imprate);
-  bool update(int32_t count, float *impresp, uint32_t imprate);
-  bool compute(int32_t count, float* input, float *output);
-  bool compute(int32_t count, float* buffer)
-  {
-    return is_runnable() ? compute(count, buffer, buffer) : true;
-  }
-  
-  bool configure_stereo(int32_t count, float *impresp, uint32_t imprate);
-  bool update_stereo(int32_t count, float *impresp, uint32_t imprate);
-  bool compute_stereo(int32_t count, float* input, float* input1, float *output, float *output1);
-  bool compute_stereo(int32_t count, float* buffer, float* buffer1)
-  {
-    return is_runnable() ? compute_stereo(count, buffer, buffer1, buffer, buffer1) : true;
-  }
-  static void run_static(uint32_t n_samples, GxSimpleConvolver *p, float *output);
-  static void run_static(uint32_t n_samples, GxSimpleConvolver *p, float *input, float *output);
-  static void run_static_stereo(uint32_t n_samples, GxSimpleConvolver *p, float *output, float *output1);
+    bool start(int32_t policy, int32_t priority) { return ready;}
+    bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
+                    unsigned int length, unsigned int size, unsigned int bufsize);
+    bool compute(int32_t count, float* input, float *output);
+    bool checkstate() { return true;}
+    inline void set_not_runnable() { ready = false;}
+    inline bool is_runnable() { return ready;}
+    inline void set_buffersize(uint32_t sz) { buffersize = sz;}
+    inline void set_samplerate(uint32_t sr) { samplerate = sr;}
+    int stop_process() {conv.reset(); ready = false; return 0;}
+    int cleanup () {conv.reset(); return 0;}
+    SingleThreadConvolver()
+        : resamp(), conv(), ready(false), samplerate(0) {}
+    ~SingleThreadConvolver() { conv.reset();}
+private:
+    fftconvolver::FFTConvolver conv;
+    gx_resample::BufferResampler resamp;
+    bool ready;
+    uint32_t buffersize;
+    uint32_t samplerate;
+    bool get_buffer(std::string fname, float **buffer, int* rate, int* size);
 };
 
+
+class SelectConvolver
+{
+public:
+    void set_convolver(bool IsPowerOfTwo_) {
+            IsPowerOfTwo = IsPowerOfTwo_;}
+
+    bool start(int32_t policy, int32_t priority) {
+            return IsPowerOfTwo ?
+            conv.start(policy,priority) : 
+            sconv.start(policy,priority);}
+
+    bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
+                            unsigned int length, unsigned int size, unsigned int bufsize) { 
+            return IsPowerOfTwo ?
+            conv.configure(fname, gain, delay, offset, length, size, bufsize) :
+            sconv.configure(fname, gain, delay, offset, length, size, bufsize);}
+
+    bool compute(int32_t count, float* input, float *output) {
+            return IsPowerOfTwo ?
+            conv.compute(count, input, output) :
+            sconv.compute(count, input, output);}
+
+    bool checkstate() {
+            return IsPowerOfTwo ?
+            conv.checkstate() :
+            sconv.checkstate();}
+
+    inline void set_not_runnable() {
+            return IsPowerOfTwo ? 
+            conv.set_not_runnable() :
+            sconv.set_not_runnable();}
+
+    inline bool is_runnable() {
+            return IsPowerOfTwo ?
+            conv.is_runnable() :
+            sconv.is_runnable();}
+
+    inline void set_buffersize(uint32_t sz) {
+            return IsPowerOfTwo ?
+            conv.set_buffersize(sz) :
+            sconv.set_buffersize(sz);}
+
+    inline void set_samplerate(uint32_t sr) {
+            return IsPowerOfTwo ?
+            conv.set_samplerate(sr) :
+            sconv.set_samplerate(sr);}
+
+    int stop_process() {
+            return IsPowerOfTwo ?
+            conv.stop_process() :
+            sconv.stop_process();}
+
+    int cleanup() {
+            return IsPowerOfTwo ?
+            conv.cleanup() :
+            sconv.cleanup();}
+
+    SelectConvolver()
+        : conv(), sconv(), IsPowerOfTwo(false) {}
+
+    ~SelectConvolver() {}
+private:
+    bool IsPowerOfTwo;
+    GxConvolver conv;
+    SingleThreadConvolver sconv;
+};
 
 #endif  // SRC_HEADERS_GX_CONVOLVER_H_

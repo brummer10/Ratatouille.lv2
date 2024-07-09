@@ -131,10 +131,8 @@ private:
     dcblocker::Dsp*              dcb;
     NeuralAmpMulti               rtm;
     RtNeuralMulti                rtnm;
-    gx_resample::StreamingResampler resamp;
-    GxConvolver                  conv;
-    gx_resample::StreamingResampler resamp1;
-    GxConvolver                  conv1;
+    SelectConvolver              conv;
+    SelectConvolver              conv1;
     XratatouilleWorker           xrworker;
     DenormalProtection           MXCSR;
 
@@ -253,8 +251,8 @@ Xratatouille::Xratatouille() :
     dcb(dcblocker::plugin()),
     rtm(&Sync),
     rtnm(&Sync),
-    conv(GxConvolver(resamp)),
-    conv1(GxConvolver(resamp1)),
+    conv(SelectConvolver()),
+    conv1(SelectConvolver()),
     rt_prio(0),
     rt_policy(0),
     input0(NULL),
@@ -1020,6 +1018,10 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
             self->bufsize = bufsize;
             printf("using block size: %d\n", bufsize);
         }
+    }
+    if ((self->bufsize & (self->bufsize - 1)) == 0) {
+        self->conv.set_convolver(true);
+        self->conv1.set_convolver(true);
     }
 
     self->map_uris(self->map);

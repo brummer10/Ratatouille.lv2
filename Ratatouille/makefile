@@ -12,11 +12,11 @@
 # check CPU and supported optimization flags
 ifneq ($(UNAME_S), FreeBSD)
   ifneq ($(shell cat /proc/cpuinfo | grep sse3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
+    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell cat /proc/cpuinfo | grep sse2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr
+    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell cat /proc/cpuinfo | grep sse ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr
+    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell cat /proc/cpuinfo | grep ARM ) , )
     ifneq ($(shell cat /proc/cpuinfo | grep ARMv7 ) , )
       ifneq ($(shell cat /proc/cpuinfo | grep vfpd32 ) , )
@@ -32,11 +32,11 @@ ifneq ($(UNAME_S), FreeBSD)
   endif
 else
   ifneq ($(shell dmidecode -t processor -t cache | grep SSE3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
+    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell dmidecode -t processor -t cache | grep SSE2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr
+    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell dmidecode -t processor -t cache | grep SSE ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr
+    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
   endif
 endif
 
@@ -100,6 +100,11 @@ endif
 	NAM_INCLUDES := -I$(NAM_DIR) -I$(NAM_DEPEND_DIR)eigen/ -I./ -I$(NAM_DEPEND_DIR)nlohmann/
 	NAM_LIB := nam.$(STATIC_LIB_EXT)
 
+	CONV_DIR := ../FFTConvolver/
+	CONV_SOURCES :=  $(wildcard $(CONV_DIR)*.cpp)
+	CONV_OBJ := $(patsubst %.cpp,%.o,$(CONV_SOURCES))
+	CONV_LIB := fftconvolver.$(STATIC_LIB_EXT)
+
 	IMPL_SOURCE := RtNeuralMulti.cc NeuralAmpMulti.cc
 	GUIIMPL_SOURCE := lv2_plugin.cc
 
@@ -115,7 +120,7 @@ ifeq ($(TARGET), Linux)
 
 	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
-	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
+	-fomit-frame-pointer -fstack-protector -fvisibility=hidden -I$(CONV_DIR) \
 	-fdata-sections -I. -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
@@ -134,7 +139,7 @@ ifeq ($(TARGET), Linux)
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11 lilv-0` \
 	-shared -lm -fPIC -Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections
 
-	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -fstack-protector -fvisibility=hidden \
+	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -Wno-unused-result -fstack-protector -fvisibility=hidden \
 	-fdata-sections -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--exclude-libs,ALL -DUSE_ATOM
 
 	TTLUPDATEMODGUI =  sed -i -e '174,189d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
@@ -217,14 +222,24 @@ $(NAM_LIB): $(NAM_OBJ)
 	$(QUIET)$(AR) rcs $(NAM_LIB) $(NAM_OBJ)
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
+$(CONV_OBJ): $(CONV_SOURCES)
+	@$(ECHO) "Building object file $@ $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD -Wall -c $(patsubst %.o,%.cpp,$@) -o $@
+
+$(CONV_LIB): $(CONV_OBJ)
+	@$(B_ECHO) "Build static library $@ $(reset)"
+	$(QUIET)$(AR) rcs $(CONV_LIB) $(CONV_OBJ)
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
 $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
 	$(QUIET)$(CC) $(CFLAGS) '$(NAME).c' -L. $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)
 
-$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_LIB) $(NAM_LIB) $(IMPL_SOURCE)
+$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_LIB) $(NAM_LIB) $(CONV_LIB) $(IMPL_SOURCE)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
-	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp -L. $(RTN_LIB) -L. $(NAM_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp \
+	-L. $(RTN_LIB) -L. $(NAM_LIB) -L. $(CONV_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :
@@ -256,6 +271,7 @@ ifndef EXTRAQUIET
 	@$(ECHO) ". ., clean up$(reset)"
 endif
 	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll 
+	$(QUIET)rm -f $(CONV_DIR)*.a $(CONV_DIR)*.lib $(CONV_DIR)*.o $(CONV_DIR)*.d
 	$(QUIET)rm -f $(NAM_DIR)*.a $(NAM_DIR)*.lib $(NAM_DIR)*.o $(NAM_DIR)*.d
 	$(QUIET)rm -f $(RTN_DIR)*.a $(RTN_DIR)*.lib $(RTN_DIR)*.o $(RTN_DIR)*.d
 	$(QUIET)rm -rf ../bin

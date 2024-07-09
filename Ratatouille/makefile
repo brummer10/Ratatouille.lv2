@@ -147,8 +147,8 @@ ifeq ($(TARGET), Linux)
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
 	-ffast-math -fomit-frame-pointer -fstrength-reduce \
-	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
-	$(SSE_CFLAGS) -fdata-sections -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
+	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(SSE_CFLAGS) \
+	-I$(CONV_DIR) -fdata-sections -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 

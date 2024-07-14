@@ -24,7 +24,7 @@
 #define SRC_HEADERS_GX_CONVOLVER_H_
 
 #include "zita-convolver.h"
-#include "FFTConvolver.h"
+#include "TwoStageFFTConvolver.h"
 #include <stdint.h>
 #include <unistd.h>
 #include "gx_resampler.h"
@@ -154,29 +154,78 @@ public:
 };
 
 
-class SingleThreadConvolver
+class DoubleThreadConvolver;
+
+class ConvolverWorker {
+private:
+    std::atomic<bool> _execute;
+    std::thread _thd;
+    std::mutex m;
+    void set_priority();
+    void run();
+    DoubleThreadConvolver &_xr;
+
+public:
+    ConvolverWorker(DoubleThreadConvolver &xr);
+    ~ConvolverWorker();
+    void stop();
+    void start();
+    bool is_running() const noexcept;
+    std::condition_variable cv;
+};
+
+class DoubleThreadConvolver: public fftconvolver::TwoStageFFTConvolver
 {
 public:
-    bool start(int32_t policy, int32_t priority) { return ready;}
+    std::mutex mo;
+    std::condition_variable co;
+    bool start(int32_t policy, int32_t priority) { 
+        work.start(); 
+        return ready;}
+
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
                     unsigned int length, unsigned int size, unsigned int bufsize);
+
     bool compute(int32_t count, float* input, float *output);
+
     bool checkstate() { return true;}
+
     inline void set_not_runnable() { ready = false;}
+
     inline bool is_runnable() { return ready;}
+
     inline void set_buffersize(uint32_t sz) { buffersize = sz;}
+
     inline void set_samplerate(uint32_t sr) { samplerate = sr;}
-    int stop_process() {conv.reset(); ready = false; return 0;}
-    int cleanup () {conv.reset(); return 0;}
-    SingleThreadConvolver()
-        : resamp(), conv(), ready(false), samplerate(0) {}
-    ~SingleThreadConvolver() { conv.reset();}
+
+    int stop_process() {
+            reset();
+            ready = false;
+            return 0;}
+
+    int cleanup () {
+            reset();
+            return 0;}
+
+    DoubleThreadConvolver()
+        : resamp(), ready(false), samplerate(0), work(*this) {
+            timeoutPeriod = std::chrono::microseconds(2000);}
+
+    ~DoubleThreadConvolver() { reset(); work.stop();}
+
+protected:
+    virtual void startBackgroundProcessing();
+    virtual void waitForBackgroundProcessing();
+
 private:
-    fftconvolver::FFTConvolver conv;
+    friend class ConvolverWorker;
     gx_resample::BufferResampler resamp;
     bool ready;
     uint32_t buffersize;
     uint32_t samplerate;
+    ConvolverWorker work;
+    std::chrono::time_point<std::chrono::steady_clock> timePoint;
+    std::chrono::microseconds timeoutPeriod;
     bool get_buffer(std::string fname, float **buffer, int* rate, int* size);
 };
 
@@ -245,7 +294,7 @@ public:
 private:
     bool IsPowerOfTwo;
     GxConvolver conv;
-    SingleThreadConvolver sconv;
+    DoubleThreadConvolver sconv;
 };
 
 #endif  // SRC_HEADERS_GX_CONVOLVER_H_

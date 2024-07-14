@@ -51,13 +51,13 @@ rata:RTN_Model1
 
 rata:irfile
     a lv2:Parameter ;
-    mod:fileTypes "wav, audio, ir, cabsim" ;
+    mod:fileTypes "wav,audio,ir,cabsim" ;
     rdfs:label "IR File" ;
     rdfs:range atom:Path .
 
 rata:irfile1
     a lv2:Parameter ;
-    mod:fileTypes "wav, audio, ir, cabsim" ;
+    mod:fileTypes "wav,audio,ir,cabsim" ;
     rdfs:label "IR File 1" ;
     rdfs:range atom:Path .
 

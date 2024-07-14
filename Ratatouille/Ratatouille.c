@@ -376,25 +376,25 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
 
     ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 450,  254, 22, 30);
     ps->ma.fbutton->parent_struct = (void*)&ps->ma;
-    combobox_set_pop_position(ps->ma.fbutton, 1);
+    combobox_set_pop_position(ps->ma.fbutton, 0);
     combobox_add_entry(ps->ma.fbutton, "None");
     ps->ma.fbutton->func.value_changed_callback = file_menu_callback;
 
     ps->mb.fbutton = add_lv2_button(ps->mb.fbutton, ui->win, "", ui, 450,  294, 22, 30);
     ps->mb.fbutton->parent_struct = (void*)&ps->mb;
-    combobox_set_pop_position(ps->mb.fbutton, 1);
+    combobox_set_pop_position(ps->mb.fbutton, 0);
     combobox_add_entry(ps->mb.fbutton, "None");
     ps->mb.fbutton->func.value_changed_callback = file_menu_callback;
 
     ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 450,  334, 22, 30);
     ps->ir.fbutton->parent_struct = (void*)&ps->ir;
-    combobox_set_pop_position(ps->ir.fbutton, 1);
+    combobox_set_pop_position(ps->ir.fbutton, 0);
     combobox_add_entry(ps->ir.fbutton, "None");
     ps->ir.fbutton->func.value_changed_callback = file_menu_callback;
 
     ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 450,  374, 22, 30);
     ps->ir1.fbutton->parent_struct = (void*)&ps->ir1;
-    combobox_set_pop_position(ps->ir1.fbutton, 1);
+    combobox_set_pop_position(ps->ir1.fbutton, 0);
     combobox_add_entry(ps->ir1.fbutton, "None");
     ps->ir1.fbutton->func.value_changed_callback = file_menu_callback;
 }

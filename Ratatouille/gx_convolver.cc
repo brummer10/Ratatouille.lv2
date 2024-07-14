@@ -452,10 +452,100 @@ bool GxConvolver::compute(int count, float* input, float *output) {
 }
 
 /****************************************************************
- ** SingleThreadConvolver
+ ** DoubleThreadConvolver
  */
 
-bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, int *rate, int *asize)
+///////////////////////// INTERNAL WORKER CLASS   //////////////////////
+
+ConvolverWorker::ConvolverWorker(DoubleThreadConvolver &xr)
+    : _execute(false),
+    _xr(xr) {
+}
+
+ConvolverWorker::~ConvolverWorker() {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+}
+
+void ConvolverWorker::set_priority() {
+#if defined(__linux__) || defined(_UNIX) || defined(__APPLE__)
+    sched_param sch_params;
+    sch_params.sched_priority = 5;
+    if (pthread_setschedparam(_thd.native_handle(), SCHED_FIFO, &sch_params)) {
+        fprintf(stderr, "ConvolverWorker: fail to set priority\n");
+    }
+#elif defined(_WIN32)
+    // HIGH_PRIORITY_CLASS, THREAD_PRIORITY_TIME_CRITICAL
+    if (SetThreadPriority(_thd.native_handle(), 15)) {
+        fprintf(stderr, "ConvolverWorker: fail to set priority\n");
+    }
+#else
+		//system does not supports thread priority!
+#endif
+}
+
+void ConvolverWorker::stop() {
+    if (is_running()) {
+        _execute.store(false, std::memory_order_release);
+        if (_thd.joinable()) {
+            cv.notify_one();
+            _thd.join();
+        }
+    }
+}
+
+void ConvolverWorker::run() {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+    _execute.store(true, std::memory_order_release);
+    _thd = std::thread([this]() {
+        set_priority();
+        while (_execute.load(std::memory_order_acquire)) {
+            std::unique_lock<std::mutex> lk(m);
+            // wait for signal from dsp that work is to do
+            cv.wait(lk);
+            //do work
+            if (_execute.load(std::memory_order_acquire)) {
+                _xr.doBackgroundProcessing();
+                _xr.co.notify_one();
+            }
+        }
+        // when done
+    });    
+}
+
+void ConvolverWorker::start() {
+    if (!is_running()) run();
+}
+
+bool ConvolverWorker::is_running() const noexcept {
+    return ( _execute.load(std::memory_order_acquire) && 
+             _thd.joinable() );
+}
+
+void DoubleThreadConvolver::startBackgroundProcessing()
+{
+    //fprintf(stderr, "startBackgroundProcessing\n");
+    if (work.is_running()) {
+        work.cv.notify_one();
+        std::unique_lock<std::mutex> lk(mo);
+        if (co.wait_until(lk, timePoint) == std::cv_status::timeout)
+            fprintf(stderr, "Convolver: overrun, time out!!\n");
+    } else {
+        doBackgroundProcessing();
+    }
+}
+
+
+void DoubleThreadConvolver::waitForBackgroundProcessing()
+{
+    timePoint = std::chrono::steady_clock::now() + timeoutPeriod;
+    //fprintf(stderr, "waitForBackgroundProcessing\n");
+}
+
+bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, int *rate, int *asize)
 {
     Audiofile audio;
     if (audio.open_read(fname)) {
@@ -486,7 +576,7 @@ bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, int *r
         return false;
     }
     if (audio.chan() > 1) {
-        fprintf(stderr,"only taking first channel of %i channels in impulse response\n", audio.chan());
+        //fprintf(stderr,"only taking first channel of %i channels in impulse response\n", audio.chan());
         float *abuffer = new float[*asize];
         for (int i = 0; i < *asize; i++) {
             abuffer[i] = cbuffer[i * audio.chan()];
@@ -503,13 +593,13 @@ bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, int *r
             printf("no buffer\n");
             return false;
         }
-        fprintf(stderr, "FFTConvolver: resampled from %i to %i\n", *rate, samplerate);
+        //fprintf(stderr, "FFTConvolver: resampled from %i to %i\n", *rate, samplerate);
     }
     return true;
 }
 
 
-bool SingleThreadConvolver::configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
+bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
 		   unsigned int length, unsigned int size, unsigned int bufsize)
 {
     float* abuf = NULL;
@@ -518,8 +608,15 @@ bool SingleThreadConvolver::configure(std::string fname, float gain, unsigned in
     if (!get_buffer(fname, &abuf, &arate, &asize)) {
         return false;
     }
-
-    if (conv.init(1024, abuf, asize)) {
+    int timeout = max(1000,static_cast<int>((buffersize/(samplerate*0.000001))*0.4));
+    timeoutPeriod = std::chrono::microseconds(timeout);
+    uint32_t _head = 1;
+    while (_head < buffersize) {
+        _head *= 2;
+    }
+    uint32_t _tail = _head > 8192 ? _head : 8192;
+    // fprintf(stderr, "head %i tail %i irlen %i timeout %i microsec\n", _head, _tail, asize, timeout);
+    if (init(_head, _tail, abuf, asize)) {
         ready = true;
         delete[] abuf;
         return true;
@@ -528,8 +625,8 @@ bool SingleThreadConvolver::configure(std::string fname, float gain, unsigned in
     return false;
 }
 
-bool SingleThreadConvolver::compute(int32_t count, float* input, float* output)
+bool DoubleThreadConvolver::compute(int32_t count, float* input, float* output)
 {
-    conv.process(input, output, count);
+    process(input, output, count);
     return true;
 }

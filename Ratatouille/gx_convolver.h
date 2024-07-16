@@ -27,6 +27,10 @@
 #include "TwoStageFFTConvolver.h"
 #include <stdint.h>
 #include <unistd.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
 #include "gx_resampler.h"
 
 #include <sndfile.hh>
@@ -91,7 +95,26 @@ private:
     unsigned int _size;
 };
 
-class GxConvolverBase: protected Convproc
+class ConvolverBase
+{
+public:
+    virtual bool start(int32_t policy, int32_t priority) { return false;};
+    virtual bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
+                    unsigned int length, unsigned int size, unsigned int bufsize) { return false;};
+
+    virtual bool compute(int32_t count, float* input, float *output) { return false;};
+    virtual bool checkstate() { return false;};
+    virtual inline void set_not_runnable() {};
+    virtual inline bool is_runnable() { return false;};
+    virtual inline void set_buffersize(uint32_t sz) {};
+    virtual inline void set_samplerate(uint32_t sr) {};
+    virtual int stop_process() { return 0;};
+    virtual int cleanup() { return 0;};
+    ConvolverBase () {}
+    virtual ~ConvolverBase () {}
+};
+
+class GxConvolverBase: public ConvolverBase, protected Convproc
 {
 protected:
   volatile bool ready;
@@ -131,8 +154,8 @@ public:
     return ready;
   }
   bool start(int32_t policy, int32_t priority);
-  using Convproc::stop_process;
-  using Convproc::cleanup;
+  int stop_process() { return Convproc::stop_process();}
+  int cleanup() { return Convproc::cleanup();}
   inline void set_sync(bool val)
   {
     sync = val;
@@ -174,7 +197,7 @@ public:
     std::condition_variable cv;
 };
 
-class DoubleThreadConvolver: public fftconvolver::TwoStageFFTConvolver
+class DoubleThreadConvolver: public ConvolverBase, public fftconvolver::TwoStageFFTConvolver
 {
 public:
     std::mutex mo;
@@ -220,13 +243,13 @@ protected:
 private:
     friend class ConvolverWorker;
     gx_resample::BufferResampler resamp;
-    bool ready;
+    volatile bool ready;
     uint32_t buffersize;
     uint32_t samplerate;
     ConvolverWorker work;
     std::chrono::time_point<std::chrono::steady_clock> timePoint;
     std::chrono::microseconds timeoutPeriod;
-    bool get_buffer(std::string fname, float **buffer, int* rate, int* size);
+    bool get_buffer(std::string fname, float **buffer, uint32_t* rate, int* size);
 };
 
 
@@ -234,67 +257,51 @@ class SelectConvolver
 {
 public:
     void set_convolver(bool IsPowerOfTwo_) {
-            IsPowerOfTwo = IsPowerOfTwo_;}
+            IsPowerOfTwo = IsPowerOfTwo_;
+            delete conv;
+            conv = IsPowerOfTwo ?
+            dynamic_cast<ConvolverBase*>(new GxConvolver()) : 
+            dynamic_cast<ConvolverBase*>(new DoubleThreadConvolver());
+            }
 
     bool start(int32_t policy, int32_t priority) {
-            return IsPowerOfTwo ?
-            conv.start(policy,priority) : 
-            sconv.start(policy,priority);}
+            return conv->start(policy,priority);}
 
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
                             unsigned int length, unsigned int size, unsigned int bufsize) { 
-            return IsPowerOfTwo ?
-            conv.configure(fname, gain, delay, offset, length, size, bufsize) :
-            sconv.configure(fname, gain, delay, offset, length, size, bufsize);}
+            return conv->configure(fname, gain, delay, offset, length, size, bufsize);}
 
     bool compute(int32_t count, float* input, float *output) {
-            return IsPowerOfTwo ?
-            conv.compute(count, input, output) :
-            sconv.compute(count, input, output);}
+            return conv->compute(count, input, output);}
 
     bool checkstate() {
-            return IsPowerOfTwo ?
-            conv.checkstate() :
-            sconv.checkstate();}
+            return conv->checkstate();}
 
     inline void set_not_runnable() {
-            return IsPowerOfTwo ? 
-            conv.set_not_runnable() :
-            sconv.set_not_runnable();}
+            return conv->set_not_runnable();}
 
     inline bool is_runnable() {
-            return IsPowerOfTwo ?
-            conv.is_runnable() :
-            sconv.is_runnable();}
+            return conv->is_runnable();}
 
     inline void set_buffersize(uint32_t sz) {
-            return IsPowerOfTwo ?
-            conv.set_buffersize(sz) :
-            sconv.set_buffersize(sz);}
+            return conv->set_buffersize(sz);}
 
     inline void set_samplerate(uint32_t sr) {
-            return IsPowerOfTwo ?
-            conv.set_samplerate(sr) :
-            sconv.set_samplerate(sr);}
+            return conv->set_samplerate(sr);}
 
     int stop_process() {
-            return IsPowerOfTwo ?
-            conv.stop_process() :
-            sconv.stop_process();}
+            return conv->stop_process();}
 
     int cleanup() {
-            return IsPowerOfTwo ?
-            conv.cleanup() :
-            sconv.cleanup();}
+            return conv->cleanup();}
 
     SelectConvolver()
-        : conv(), sconv(), IsPowerOfTwo(false) {}
+        : IsPowerOfTwo(false) { conv = new ConvolverBase();}
 
-    ~SelectConvolver() {}
+    ~SelectConvolver() { delete conv;}
 private:
     bool IsPowerOfTwo;
-    GxConvolver conv;
-    DoubleThreadConvolver sconv;
+    ConvolverBase *conv;
 };
 
 #endif  // SRC_HEADERS_GX_CONVOLVER_H_

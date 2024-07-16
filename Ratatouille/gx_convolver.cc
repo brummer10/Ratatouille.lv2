@@ -545,7 +545,7 @@ void DoubleThreadConvolver::waitForBackgroundProcessing()
     //fprintf(stderr, "waitForBackgroundProcessing\n");
 }
 
-bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, int *rate, int *asize)
+bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32_t *rate, int *asize)
 {
     Audiofile audio;
     if (audio.open_read(fname)) {
@@ -603,7 +603,7 @@ bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned in
 		   unsigned int length, unsigned int size, unsigned int bufsize)
 {
     float* abuf = NULL;
-    int arate = 0;
+    uint32_t arate = 0;
     int asize = 0;
     if (!get_buffer(fname, &abuf, &arate, &asize)) {
         return false;

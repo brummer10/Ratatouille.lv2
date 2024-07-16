@@ -1022,6 +1022,9 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
     if ((self->bufsize & (self->bufsize - 1)) == 0) {
         self->conv.set_convolver(true);
         self->conv1.set_convolver(true);
+    } else {
+        self->conv.set_convolver(false);
+        self->conv1.set_convolver(false);
     }
 
     self->map_uris(self->map);

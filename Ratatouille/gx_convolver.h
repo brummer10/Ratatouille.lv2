@@ -232,7 +232,8 @@ public:
 
     DoubleThreadConvolver()
         : resamp(), ready(false), samplerate(0), work(*this) {
-            timeoutPeriod = std::chrono::microseconds(2000);}
+            timeoutPeriod = std::chrono::microseconds(2000);
+            setWait.store(false, std::memory_order_release);}
 
     ~DoubleThreadConvolver() { reset(); work.stop();}
 
@@ -247,6 +248,7 @@ private:
     uint32_t buffersize;
     uint32_t samplerate;
     ConvolverWorker work;
+    std::atomic<bool> setWait;
     std::chrono::time_point<std::chrono::steady_clock> timePoint;
     std::chrono::microseconds timeoutPeriod;
     bool get_buffer(std::string fname, float **buffer, uint32_t* rate, int* size);

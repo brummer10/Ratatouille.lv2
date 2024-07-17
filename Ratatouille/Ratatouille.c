@@ -333,19 +333,19 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     asprintf(&ps->ir1.filepicker->filter ,"%s", ".wav");
     ps->ir1.filepicker->use_filter = 1;
 
-    ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 25,  254, 60, 30);
+    ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 40,  258, 25, 25);
     ps->ma.filebutton->parent_struct = (void*)&ps->ma;
     ps->ma.filebutton->func.user_callback = file_load_response;
 
-    ps->mb.filebutton = add_lv2_file_button (ps->mb.filebutton, ui->win, -2, "Neural Model", ui, 25,  294, 60, 30);
+    ps->mb.filebutton = add_lv2_file_button (ps->mb.filebutton, ui->win, -2, "Neural Model", ui, 40,  298, 25, 25);
     ps->mb.filebutton->parent_struct = (void*)&ps->mb;
     ps->mb.filebutton->func.user_callback = file_load_response;
 
-    ps->ir.filebutton = add_lv2_irfile_button (ps->ir.filebutton, ui->win, -3, "IR File", ui, 25,  334, 60, 30);
+    ps->ir.filebutton = add_lv2_irfile_button (ps->ir.filebutton, ui->win, -3, "IR File", ui, 40,  338, 25, 25);
     ps->ir.filebutton->parent_struct = (void*)&ps->ir;
     ps->ir.filebutton->func.user_callback = file_load_response;
 
-    ps->ir1.filebutton = add_lv2_irfile_button (ps->ir1.filebutton, ui->win, -4, "IR File", ui, 25,  374, 60, 30);
+    ps->ir1.filebutton = add_lv2_irfile_button (ps->ir1.filebutton, ui->win, -4, "IR File", ui, 40,  378, 25, 25);
     ps->ir1.filebutton->parent_struct = (void*)&ps->ir1;
     ps->ir1.filebutton->func.user_callback = file_load_response;
 
@@ -374,25 +374,25 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     set_widget_color(ui->widget[1], 0, 0, 0.259, 0.518, 0.894, 1.0);
     set_widget_color(ui->widget[1], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
-    ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 450,  254, 22, 30);
+    ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 435,  254, 22, 30);
     ps->ma.fbutton->parent_struct = (void*)&ps->ma;
     combobox_set_pop_position(ps->ma.fbutton, 0);
     combobox_add_entry(ps->ma.fbutton, "None");
     ps->ma.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->mb.fbutton = add_lv2_button(ps->mb.fbutton, ui->win, "", ui, 450,  294, 22, 30);
+    ps->mb.fbutton = add_lv2_button(ps->mb.fbutton, ui->win, "", ui, 435,  294, 22, 30);
     ps->mb.fbutton->parent_struct = (void*)&ps->mb;
     combobox_set_pop_position(ps->mb.fbutton, 0);
     combobox_add_entry(ps->mb.fbutton, "None");
     ps->mb.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 450,  334, 22, 30);
+    ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 435,  334, 22, 30);
     ps->ir.fbutton->parent_struct = (void*)&ps->ir;
     combobox_set_pop_position(ps->ir.fbutton, 0);
     combobox_add_entry(ps->ir.fbutton, "None");
     ps->ir.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 450,  374, 22, 30);
+    ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 435,  374, 22, 30);
     ps->ir1.fbutton->parent_struct = (void*)&ps->ir1;
     combobox_set_pop_position(ps->ir1.fbutton, 0);
     combobox_add_entry(ps->ir1.fbutton, "None");

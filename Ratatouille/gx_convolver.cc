@@ -481,7 +481,7 @@ void ConvolverWorker::set_priority() {
         fprintf(stderr, "ConvolverWorker: fail to set priority\n");
     }
 #else
-		//system does not supports thread priority!
+    //system does not supports thread priority!
 #endif
 }
 
@@ -510,6 +510,7 @@ void ConvolverWorker::run() {
             if (_execute.load(std::memory_order_acquire)) {
                 _xr.doBackgroundProcessing();
                 _xr.co.notify_one();
+                _xr.setWait.store(false, std::memory_order_release);
             }
         }
         // when done
@@ -527,12 +528,10 @@ bool ConvolverWorker::is_running() const noexcept {
 
 void DoubleThreadConvolver::startBackgroundProcessing()
 {
-    //fprintf(stderr, "startBackgroundProcessing\n");
     if (work.is_running()) {
+        timePoint = std::chrono::steady_clock::now() + timeoutPeriod;
+        setWait.store(true, std::memory_order_release);
         work.cv.notify_one();
-        std::unique_lock<std::mutex> lk(mo);
-        if (co.wait_until(lk, timePoint) == std::cv_status::timeout)
-            fprintf(stderr, "Convolver: overrun, time out!!\n");
     } else {
         doBackgroundProcessing();
     }
@@ -541,8 +540,13 @@ void DoubleThreadConvolver::startBackgroundProcessing()
 
 void DoubleThreadConvolver::waitForBackgroundProcessing()
 {
-    timePoint = std::chrono::steady_clock::now() + timeoutPeriod;
-    //fprintf(stderr, "waitForBackgroundProcessing\n");
+    if (setWait.load(std::memory_order_acquire)) {
+        if (work.is_running()) {
+            std::unique_lock<std::mutex> lk(mo);
+            if (co.wait_until(lk, timePoint) == std::cv_status::timeout)
+                fprintf(stderr, "Convolver: overrun, time out!!\n");
+        }
+    }
 }
 
 bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32_t *rate, int *asize)
@@ -600,7 +604,7 @@ bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 
 
 bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
-		   unsigned int length, unsigned int size, unsigned int bufsize)
+            unsigned int length, unsigned int size, unsigned int bufsize)
 {
     float* abuf = NULL;
     uint32_t arate = 0;

@@ -27,25 +27,25 @@
 
 rata:Neural_Model
     a lv2:Parameter ;
-    mod:fileTypes "nam,nammodel,aidiax,json,aidadspmodel" ;
+    mod:fileTypes "nammodel,aidadspmodel,nam,aidiax,json" ;
     rdfs:label "Neural Model A" ;
     rdfs:range atom:Path .
 
 rata:Neural_Model1
     a lv2:Parameter ;
-    mod:fileTypes "nam,nammodel,aidiax,json,aidadspmodel" ;
+    mod:fileTypes "nammodel,aidadspmodel,nam,aidiax,json" ;
     rdfs:label "Neural Model B" ;
     rdfs:range atom:Path .
 
 rata:irfile
     a lv2:Parameter ;
-    mod:fileTypes "wav,audio,ir,cabsim" ;
+    mod:fileTypes "cabsim,ir,wav,audio" ;
     rdfs:label "IR File" ;
     rdfs:range atom:Path .
 
 rata:irfile1
     a lv2:Parameter ;
-    mod:fileTypes "wav,audio,ir,cabsim" ;
+    mod:fileTypes "cabsim,ir,wav,audio" ;
     rdfs:label "IR File 1" ;
     rdfs:range atom:Path .
 

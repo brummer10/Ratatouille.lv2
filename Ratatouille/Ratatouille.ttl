@@ -25,28 +25,16 @@
    a foaf:Person ;
    foaf:name "brummer" .
 
-rata:NAM_Model
+rata:Neural_Model
     a lv2:Parameter ;
-    mod:fileTypes "nam,nammodel" ;
-    rdfs:label "NAM Model A" ;
+    mod:fileTypes "nam,nammodel,aidiax,json,aidadspmodel" ;
+    rdfs:label "Neural Model A" ;
     rdfs:range atom:Path .
 
-rata:NAM_Model1
+rata:Neural_Model1
     a lv2:Parameter ;
-    mod:fileTypes "nam,nammodel" ;
-    rdfs:label "NAM Model B" ;
-    rdfs:range atom:Path .
-
-rata:RTN_Model
-    a lv2:Parameter ;
-    mod:fileTypes "aidiax,json,aidadspmodel" ;
-    rdfs:label "RTN Model A" ;
-    rdfs:range atom:Path .
-
-rata:RTN_Model1
-    a lv2:Parameter ;
-    mod:fileTypes "aidax,json,aidadspmodel" ;
-    rdfs:label "RTN Model B" ;
+    mod:fileTypes "nam,nammodel,aidiax,json,aidadspmodel" ;
+    rdfs:label "Neural Model B" ;
     rdfs:range atom:Path .
 
 rata:irfile
@@ -76,15 +64,14 @@ rata:irfile1
        work:schedule ;
    lv2:extensionData work:interface ,
                     state:interface ;
-   lv2:minorVersion 4 ;
+   lv2:minorVersion 7 ;
    lv2:microVersion 0 ;
 
 guiext:ui <urn:brummer:ratatouille_ui> ;
 
-patch:writable rata:NAM_Model ;
-patch:writable rata:NAM_Model1 ;
-patch:writable rata:RTN_Model ;
-patch:writable rata:RTN_Model1 ;
+patch:writable rata:Neural_Model ;
+patch:writable rata:Neural_Model1 ;
+
 patch:writable rata:irfile ;
 patch:writable rata:irfile1 ;
 
@@ -171,6 +158,26 @@ A Neural Model loader and mixer
       lv2:default 0.000000 ;
       lv2:minimum 0.000000 ;
       lv2:maximum 4096.000000 ;
+   ], [
+      a lv2:InputPort ,
+          lv2:ControlPort ;
+      lv2:index 9 ;
+      lv2:portProperty lv2:toggled ;
+      lv2:symbol "NormalizeA" ;
+      lv2:name "Normalize A" ;
+      lv2:default 0.0 ;
+      lv2:minimum 0.0 ;
+      lv2:maximum 1.0 ;
+   ], [
+      a lv2:InputPort ,
+          lv2:ControlPort ;
+      lv2:index 10 ;
+      lv2:portProperty lv2:toggled ;
+      lv2:symbol "NormalizeB" ;
+      lv2:name "Normalize B" ;
+      lv2:default 0.0 ;
+      lv2:minimum 0.0 ;
+      lv2:maximum 1.0 ;
    ] .
 
 <urn:brummer:ratatouille_ui>

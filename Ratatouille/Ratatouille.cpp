@@ -6,6 +6,10 @@
  * Copyright (C) 2024 brummer <brummer@web.de>
  */
 
+#ifdef _WIN32
+#define MINGW_STDTHREAD_REDUNDANCY_WARNING
+#endif
+
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
@@ -15,11 +19,6 @@
 #include <cstring>
 #include <thread>
 #include <unistd.h>
-
-#include "resampler.cc"
-#include "resampler-table.cc"
-#include "zita-resampler/resampler.h"
-#include "gx_resampler.cc"
 
 #include <lv2/core/lv2.h>
 #include <lv2/atom/atom.h>
@@ -36,28 +35,26 @@
 ///////////////////////// MACRO SUPPORT ////////////////////////////////
 
 #define PLUGIN_URI "urn:brummer:ratatouille"
-#define XLV2__MODELFILE "urn:brummer:ratatouille#NAM_Model"
-#define XLV2__MODELFILE1 "urn:brummer:ratatouille#NAM_Model1"
-#define XLV2__RTMODELFILE "urn:brummer:ratatouille#RTN_Model"
-#define XLV2__RTMODELFILE1 "urn:brummer:ratatouille#RTN_Model1"
+#define XLV2__MODELFILE "urn:brummer:ratatouille#Neural_Model"
+#define XLV2__MODELFILE1 "urn:brummer:ratatouille#Neural_Model1"
 #define XLV2__IRFILE "urn:brummer:ratatouille#irfile"
 #define XLV2__IRFILE1 "urn:brummer:ratatouille#irfile1"
 
 #define XLV2__GUI "urn:brummer:ratatouille#gui"
 
-using std::min;
-using std::max;
+
+#include "resampler.cc"
+#include "resampler-table.cc"
+#include "zita-resampler/resampler.h"
+#include "gx_resampler.cc"
 
 #include "dcblocker.cc"
 #include "cdelay.cc"
 
-#include "NeuralAmpMulti.cc"
-#include "RtNeuralMulti.cc"
+#include "ModelerSelector.h"
 
-#include "zita-convolver.cc"
-#include "zita-convolver.h"
-#include "gx_convolver.cc"
-#include "gx_convolver.h"
+#include "fftconvolver.cc"
+#include "fftconvolver.h"
 
 
 namespace ratatouille {
@@ -123,16 +120,37 @@ public:
     std::condition_variable cv;
 };
 
+///////////////////////// INTERNAL PROCESSOR CLASS   //////////////////////
+
+class Xprocessor {
+private:
+    std::atomic<bool> _execute;
+    std::thread _thd;
+    std::mutex m;
+    void set_priority();
+    void run();
+    Xratatouille &_xr;
+
+public:
+    Xprocessor(Xratatouille &xr);
+    ~Xprocessor();
+    void stop();
+    void start();
+    bool is_running() const noexcept;
+    std::condition_variable cv;
+};
+
 ////////////////////////////// PLUG-IN CLASS ///////////////////////////
 
 class Xratatouille
 {
 private:
     dcblocker::Dsp*              dcb;
-    NeuralAmpMulti               rtm;
-    RtNeuralMulti                rtnm;
-    SelectConvolver              conv;
-    SelectConvolver              conv1;
+    cdeleay::Dsp*                cdelay;
+    ModelerSelector              slotA;
+    ModelerSelector              slotB;
+    DoubleThreadConvolver        conv;
+    DoubleThreadConvolver        conv1;
     XratatouilleWorker           xrworker;
     DenormalProtection           MXCSR;
 
@@ -140,8 +158,17 @@ private:
     int32_t                      rt_policy;
     float*                       input0;
     float*                       output0;
+    float*                       _inputGain;
+    float*                       _outputGain;
     float*                       _blend;
     float*                       _mix;
+    float*                       _bufb;
+    float*                       _normA;
+    float*                       _normB;
+    uint32_t                     normA;
+    uint32_t                     normB;
+    double                       fRec0[2];
+    double                       fRec3[2];
     double                       fRec2[2];
     double                       fRec1[2];
     uint32_t                     bufsize;
@@ -150,8 +177,7 @@ private:
 
     std::string                  model_file;
     std::string                  model_file1;
-    std::string                  rtmodel_file;
-    std::string                  rtmodel_file1;
+
     std::string                  ir_file;
     std::string                  ir_file1;
 
@@ -159,13 +185,15 @@ private:
     std::atomic<bool>            _notify_ui;
     std::atomic<bool>            _restore;
     std::atomic<int>             _ab;
-    std::atomic<bool>            _namA;
-    std::atomic<bool>            _namB;
-    std::atomic<bool>            _rtnA;
-    std::atomic<bool>            _rtnB;
+    std::atomic<bool>            _neuralA;
+    std::atomic<bool>            _neuralB;
 
     std::condition_variable      Sync;
 
+
+    Xprocessor pro;
+    std::atomic<bool> setWait;
+    std::chrono::microseconds timeoutPeriod;
     // LV2 stuff
     LV2_URID_Map*                map;
     LV2_Worker_Schedule*         schedule;
@@ -176,8 +204,6 @@ private:
 
     LV2_URID                     xlv2_model_file;
     LV2_URID                     xlv2_model_file1;
-    LV2_URID                     xlv2_rtmodel_file;
-    LV2_URID                     xlv2_rtmodel_file1;
     LV2_URID                     xlv2_ir_file;
     LV2_URID                     xlv2_ir_file1;
     LV2_URID                     xlv2_gui;
@@ -205,6 +231,11 @@ private:
     inline void do_work_mono();
     inline void deactivate_f();
 public:
+    friend class Xprocessor;
+    std::mutex mo;
+    std::condition_variable co;
+    inline void process();
+    inline void processWait();
     inline void do_non_rt_work(Xratatouille* xr) {return xr->do_work_mono();};
     inline void map_uris(LV2_URID_Map* map);
     inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
@@ -249,25 +280,38 @@ public:
 // constructor
 Xratatouille::Xratatouille() :
     dcb(dcblocker::plugin()),
-    rtm(&Sync),
-    rtnm(&Sync),
-    conv(SelectConvolver()),
-    conv1(SelectConvolver()),
+    cdelay(cdeleay::plugin()),
+    slotA(&Sync),
+    slotB(&Sync),
+    //rtm(&Sync),
+    //rtnm(&Sync),
+    conv(DoubleThreadConvolver()),
+    conv1(DoubleThreadConvolver()),
     rt_prio(0),
     rt_policy(0),
     input0(NULL),
     output0(NULL),
     _blend(0),
-    _mix(0) {xrworker.start(this);};
+    _mix(0),
+    _normA(0),
+    _normB(0),
+    pro(*this) {
+        xrworker.start(this);
+        pro.start();
+        timeoutPeriod = std::chrono::microseconds(2000);
+        setWait.store(false, std::memory_order_release);
+        };
 
 // destructor
 Xratatouille::~Xratatouille() {
     dcb->del_instance(dcb);
+    cdelay->del_instance(cdelay);
     conv.stop_process();
     conv.cleanup();
     conv1.stop_process();
     conv1.cleanup();
     xrworker.stop();
+    pro.stop();
 };
 
 ///////////////////////// INTERNAL WORKER CLASS   //////////////////////
@@ -315,13 +359,85 @@ bool XratatouilleWorker::is_running() const noexcept {
              _thd.joinable() );
 }
 
+///////////////////////// INTERNAL PROCESSOR CLASS   //////////////////////
+
+Xprocessor::Xprocessor(Xratatouille &xr)
+    : _execute(false),
+    _xr(xr) {
+}
+
+Xprocessor::~Xprocessor() {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+}
+
+void Xprocessor::set_priority() {
+#if defined(__linux__) || defined(_UNIX) || defined(__APPLE__)
+    sched_param sch_params;
+    if (_xr.rt_prio == 0) {
+        _xr.rt_prio = sched_get_priority_max(SCHED_FIFO);
+    }
+    if ((_xr.rt_prio/5) > 0) _xr.rt_prio = _xr.rt_prio/5;
+    sch_params.sched_priority = _xr.rt_prio;
+    if (pthread_setschedparam(_thd.native_handle(), SCHED_FIFO, &sch_params)) {
+        fprintf(stderr, "Xprocessor: fail to set priority\n");
+    }
+#elif defined(_WIN32)
+    // HIGH_PRIORITY_CLASS, THREAD_PRIORITY_TIME_CRITICAL
+    if (SetThreadPriority(_thd.native_handle(), 15)) {
+        fprintf(stderr, "Xprocessor: fail to set priority\n");
+    }
+#else
+    //system does not supports thread priority!
+#endif
+}
+
+void Xprocessor::stop() {
+    if (is_running()) {
+        _execute.store(false, std::memory_order_release);
+        if (_thd.joinable()) {
+            cv.notify_one();
+            _thd.join();
+        }
+    }
+}
+
+void Xprocessor::run() {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+    _execute.store(true, std::memory_order_release);
+    _thd = std::thread([this]() {
+        set_priority();
+        while (_execute.load(std::memory_order_acquire)) {
+            std::unique_lock<std::mutex> lk(m);
+            // wait for signal from dsp that work is to do
+            cv.wait(lk);
+            //do work
+            if (_execute.load(std::memory_order_acquire)) {
+                _xr.process();
+                _xr.co.notify_one();
+            }
+        }
+        // when done
+    });    
+}
+
+void Xprocessor::start() {
+    if (!is_running()) run();
+}
+
+bool Xprocessor::is_running() const noexcept {
+    return ( _execute.load(std::memory_order_acquire) && 
+             _thd.joinable() );
+}
+
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
 
 inline void Xratatouille::map_uris(LV2_URID_Map* map) {
     xlv2_model_file =       map->map(map->handle, XLV2__MODELFILE);
     xlv2_model_file1 =      map->map(map->handle, XLV2__MODELFILE1);
-    xlv2_rtmodel_file =     map->map(map->handle, XLV2__RTMODELFILE);
-    xlv2_rtmodel_file1 =    map->map(map->handle, XLV2__RTMODELFILE1);
     xlv2_ir_file =          map->map(map->handle, XLV2__IRFILE);
     xlv2_ir_file1 =         map->map(map->handle, XLV2__IRFILE1);
     xlv2_gui =              map->map(map->handle, XLV2__GUI);
@@ -345,14 +461,16 @@ void Xratatouille::init_dsp_(uint32_t rate)
 {
     s_rate = rate;
     dcb->init(rate);
-    rtm.init(rate);
-    rtnm.init(rate);
+    cdelay->init(rate);
+    slotA.init(rate);
+    slotB.init(rate);
+    //rtm.init(rate);
+    //rtnm.init(rate);
     if (!rt_policy) rt_policy = SCHED_FIFO;
 
     model_file = "None";
     model_file1 = "None";
-    rtmodel_file = "None";
-    rtmodel_file1 = "None";
+
     ir_file = "None";
     ir_file1 = "None";
     bufsize = 0;
@@ -361,11 +479,11 @@ void Xratatouille::init_dsp_(uint32_t rate)
     _notify_ui.store(false, std::memory_order_release);
     _restore.store(false, std::memory_order_release);
     _ab.store(0, std::memory_order_release);
-    _namA.store(false, std::memory_order_release);
-    _namB.store(false, std::memory_order_release);
-    _rtnA.store(false, std::memory_order_release);
-    _rtnB.store(false, std::memory_order_release);
+    _neuralA.store(false, std::memory_order_release);
+    _neuralB.store(false, std::memory_order_release);
 
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec0[l0] = 0.0;
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec3[l0] = 0.0;
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec2[l0] = 0.0;
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec1[l0] = 0.0;
 }
@@ -381,6 +499,12 @@ void Xratatouille::connect_(uint32_t port,void* data)
         case 1:
             output0 = static_cast<float*>(data);
             break;
+        case 2:
+            _inputGain = static_cast<float*>(data);
+            break;
+        case 3:
+            _outputGain = static_cast<float*>(data);
+            break;
         case 4:
             _blend = static_cast<float*>(data);
             break;
@@ -392,6 +516,12 @@ void Xratatouille::connect_(uint32_t port,void* data)
             break;
         case 7:
             _mix = static_cast<float*>(data);
+            break;
+        case 9:
+            _normA = static_cast<float*>(data);
+            break;
+        case 10:
+            _normB = static_cast<float*>(data);
             break;
         default:
             break;
@@ -417,141 +547,95 @@ void Xratatouille::deactivate_f()
 
 void Xratatouille::do_work_mono()
 {
+    // load Model in slot A
     if (_ab.load(std::memory_order_acquire) == 1) {
-        rtm.load_afile = model_file;
-        if (!rtm.load_nam_afile()) {
+        slotA.setModelFile(model_file);
+        if (!slotA.loadModel()) {
             model_file = "None";
-            _namA.store(false, std::memory_order_release);
+            _neuralA.store(false, std::memory_order_release);
         } else {
-            _namA.store(true, std::memory_order_release);
+            _neuralA.store(true, std::memory_order_release);
         }
-        rtnm.unload_json_afile();
-        rtmodel_file = "None";
-        _rtnA.store(false, std::memory_order_release);
+    // load Model in slot B
     } else if (_ab.load(std::memory_order_acquire) == 2) {
-        rtm.load_bfile = model_file1;
-        if (!rtm.load_nam_bfile()) {
+        slotB.setModelFile(model_file1);
+        if (!slotB.loadModel()) {
             model_file1 = "None";
-            _namB.store(false, std::memory_order_release);
+            _neuralB.store(false, std::memory_order_release);
         } else {
-            _namB.store(true, std::memory_order_release);
+            _neuralB.store(true, std::memory_order_release);
         }
-        rtnm.unload_json_bfile();
-        rtmodel_file1 = "None";
-        _rtnB.store(false, std::memory_order_release);
+    // load Models in slots a and B
     } else if (_ab.load(std::memory_order_acquire) == 3) {
-        rtm.load_afile = model_file;
-        if (!rtm.load_nam_afile()) {
+        slotA.setModelFile(model_file);
+        if (!slotA.loadModel()) {
             model_file = "None";
-            _namA.store(false, std::memory_order_release);
+            _neuralA.store(false, std::memory_order_release);
         } else {
-            _namA.store(true, std::memory_order_release);
+            _neuralA.store(true, std::memory_order_release);
         }
-        rtm.load_bfile = model_file1;
-        if (!rtm.load_nam_bfile()) {
+        slotB.setModelFile(model_file1);
+        if (!slotB.loadModel()) {
             model_file1 = "None";
-            _namB.store(false, std::memory_order_release);
+            _neuralB.store(false, std::memory_order_release);
         } else {
-            _namB.store(true, std::memory_order_release);
+            _neuralB.store(true, std::memory_order_release);
         }
-        rtnm.unload_json_afile();
-        rtnm.unload_json_bfile();
-        rtmodel_file = "None";
-        rtmodel_file1 = "None";
-        _rtnA.store(false, std::memory_order_release);
-        _rtnB.store(false, std::memory_order_release);
-    } else if (_ab.load(std::memory_order_acquire) == 4) {
-        rtnm.load_afile = rtmodel_file;
-        if (!rtnm.load_json_afile()) {
-            rtmodel_file = "None";
-            _rtnA.store(false, std::memory_order_release);
-        } else {
-            _rtnA.store(true, std::memory_order_release);
+    // load IR file in first convolver
+    } else if (_ab.load(std::memory_order_acquire) == 7) {
+        if (conv.is_runnable()) {
+            conv.set_not_runnable();
+            conv.stop_process();
         }
-        rtm.unload_nam_afile();
-        model_file = "None";
-        _namA.store(false, std::memory_order_release);
-    } else if (_ab.load(std::memory_order_acquire) == 5) {
-        rtnm.load_bfile = rtmodel_file1;
-        if (!rtnm.load_json_bfile()) {
-            rtmodel_file1 = "None";
-            _rtnB.store(false, std::memory_order_release);
-        } else {
-            _rtnB.store(true, std::memory_order_release);
+
+        conv.cleanup();
+        conv.set_samplerate(s_rate);
+        conv.set_buffersize(bufsize);
+
+        conv.configure(ir_file, 1.0, 0, 0, 0, 0, 0);
+        while (!conv.checkstate());
+        if(!conv.start(rt_prio, rt_policy)) {
+            ir_file = "None";
+            printf("impulse convolver update fail\n");
         }
-        rtm.unload_nam_bfile();
-        model_file1 = "None";
-        _namB.store(false, std::memory_order_release);
-    } else if (_ab.load(std::memory_order_acquire) == 6) {
-        rtnm.load_afile = rtmodel_file;
-        if (!rtnm.load_json_afile()) {
-            rtmodel_file = "None";
-            _rtnA.store(false, std::memory_order_release);
-        } else {
-            _rtnA.store(true, std::memory_order_release);
+    // load IR file in second convolver
+    } else if (_ab.load(std::memory_order_acquire) == 8) {
+        if (conv1.is_runnable()) {
+            conv1.set_not_runnable();
+            conv1.stop_process();
         }
-        rtnm.load_bfile = rtmodel_file1;
-        if (!rtnm.load_json_bfile()) {
-            rtmodel_file1 = "None";
-             _rtnB.store(false, std::memory_order_release);
-        } else {
-            _rtnB.store(true, std::memory_order_release);
+
+        conv1.cleanup();
+        conv1.set_samplerate(s_rate);
+        conv1.set_buffersize(bufsize);
+
+        conv1.configure(ir_file1, 1.0, 0, 0, 0, 0, 0);
+        while (!conv1.checkstate());
+        if(!conv1.start(rt_prio, rt_policy)) {
+            ir_file1 = "None";
+            printf("impulse convolver1 update fail\n");
         }
-        rtm.unload_nam_afile();
-        rtm.unload_nam_bfile();
-        model_file = "None";
-        model_file1 = "None";
-        _namA.store(false, std::memory_order_release);
-        _namB.store(false, std::memory_order_release);
+    // load all models and IR files new
     } else if (_ab.load(std::memory_order_acquire) > 10) {
         if (model_file != "None") {
-            rtm.load_afile = model_file;
-            if (!rtm.load_nam_afile()) {
+            slotA.setModelFile(model_file);
+            if (!slotA.loadModel()) {
                 model_file = "None";
-                _namA.store(false, std::memory_order_release);
+                _neuralA.store(false, std::memory_order_release);
             } else {
-                _namA.store(true, std::memory_order_release);
+                _neuralA.store(true, std::memory_order_release);
             }
-            rtnm.unload_json_afile();
-            rtmodel_file = "None";
-            _rtnA.store(false, std::memory_order_release);
         } 
         if (model_file1 != "None") {
-            rtm.load_bfile = model_file1;
-            if (!rtm.load_nam_bfile()) {
+            slotB.setModelFile(model_file1);
+            if (!slotB.loadModel()) {
                 model_file1 = "None";
-                _namB.store(false, std::memory_order_release);
+                _neuralB.store(false, std::memory_order_release);
             } else {
-                _namB.store(true, std::memory_order_release);
+                _neuralB.store(true, std::memory_order_release);
             }
-            rtnm.unload_json_bfile();
-            rtmodel_file1 = "None";
-            _rtnB.store(false, std::memory_order_release);
         } 
-        if (rtmodel_file != "None") {
-            rtnm.load_afile = rtmodel_file;
-            if (!rtnm.load_json_afile()) {
-                rtmodel_file = "None";
-                _rtnA.store(false, std::memory_order_release);
-            } else {
-                _rtnA.store(true, std::memory_order_release);
-            }
-            rtm.unload_nam_afile();
-            model_file = "None";
-            _namA.store(false, std::memory_order_release);
-        }
-        if (rtmodel_file1 != "None") {
-            rtnm.load_bfile = rtmodel_file1;
-            if (!rtnm.load_json_bfile()) {
-                rtmodel_file1 = "None";
-                _rtnB.store(false, std::memory_order_release);
-            } else {
-                _rtnB.store(true, std::memory_order_release);
-            }
-            rtm.unload_nam_bfile();
-            model_file1 = "None";
-            _namB.store(false, std::memory_order_release);
-        }
+
         if (ir_file != "None") {
             if (conv.is_runnable()) {
                 conv.set_not_runnable();
@@ -596,39 +680,9 @@ void Xratatouille::do_work_mono()
                 conv1.stop_process();
             }            
         }
-    } else if (_ab.load(std::memory_order_acquire) == 7) {
-        if (conv.is_runnable()) {
-            conv.set_not_runnable();
-            conv.stop_process();
-        }
-
-        conv.cleanup();
-        conv.set_samplerate(s_rate);
-        conv.set_buffersize(bufsize);
-
-        conv.configure(ir_file, 1.0, 0, 0, 0, 0, 0);
-        while (!conv.checkstate());
-        if(!conv.start(rt_prio, rt_policy)) {
-            ir_file = "None";
-            printf("impulse convolver update fail\n");
-        }
-    } else if (_ab.load(std::memory_order_acquire) == 8) {
-        if (conv1.is_runnable()) {
-            conv1.set_not_runnable();
-            conv1.stop_process();
-        }
-
-        conv1.cleanup();
-        conv1.set_samplerate(s_rate);
-        conv1.set_buffersize(bufsize);
-
-        conv1.configure(ir_file1, 1.0, 0, 0, 0, 0, 0);
-        while (!conv1.checkstate());
-        if(!conv1.start(rt_prio, rt_policy)) {
-            ir_file1 = "None";
-            printf("impulse convolver1 update fail\n");
-        }
     }
+    int timeout = std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1));
+    timeoutPeriod = std::chrono::microseconds(timeout);
     _execute.store(false, std::memory_order_release);
     _notify_ui.store(true, std::memory_order_release);
 }
@@ -663,10 +717,6 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
             _ab.store(1, std::memory_order_release);
         else if (((LV2_Atom_URID*)property)->body == xlv2_model_file1)
             _ab.store(2, std::memory_order_release);
-        else if (((LV2_Atom_URID*)property)->body == xlv2_rtmodel_file)
-            _ab.store(4, std::memory_order_release);
-        else if (((LV2_Atom_URID*)property)->body == xlv2_rtmodel_file1)
-            _ab.store(5, std::memory_order_release);
         else if (((LV2_Atom_URID*)property)->body == xlv2_ir_file)
             _ab.store(7, std::memory_order_release);
         else if (((LV2_Atom_URID*)property)->body == xlv2_ir_file1)
@@ -681,6 +731,19 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
     }
 
     return file_path;
+}
+
+inline void Xratatouille::process() {
+    slotB.compute(bufsize, _bufb, _bufb);
+    setWait.store(false, std::memory_order_release);
+}
+
+inline void Xratatouille::processWait() {
+    if (pro.is_running() && setWait.load(std::memory_order_acquire)) {
+        std::unique_lock<std::mutex> lk(mo);
+        while (setWait.load(std::memory_order_acquire))
+            co.wait_for(lk, timeoutPeriod);
+    }   
 }
 
 void Xratatouille::run_dsp_(uint32_t n_samples)
@@ -699,10 +762,6 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
                     write_set_file(&forge, xlv2_model_file, model_file.data());
                 if (model_file1 != "None")
                     write_set_file(&forge, xlv2_model_file1, model_file1.data());
-                if (rtmodel_file != "None")
-                    write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
-                if (rtmodel_file1 != "None")
-                    write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
                 if (ir_file != "None")
                     write_set_file(&forge, xlv2_ir_file, ir_file.data());
                 if (ir_file1 != "None")
@@ -714,10 +773,6 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
                         model_file = (const char*)(file_path+1);
                     else if (_ab.load(std::memory_order_acquire) == 2)
                         model_file1 = (const char*)(file_path+1);
-                    else if (_ab.load(std::memory_order_acquire) == 4)
-                        rtmodel_file = (const char*)(file_path+1);
-                    else if (_ab.load(std::memory_order_acquire) == 5)
-                        rtmodel_file1 = (const char*)(file_path+1);
                     else if (_ab.load(std::memory_order_acquire) == 7)
                         ir_file = (const char*)(file_path+1);
                     else if (_ab.load(std::memory_order_acquire) == 8)
@@ -740,42 +795,94 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
         _restore.store(false, std::memory_order_release);
     }
+    // check if normalisation is pressed for conv
+    if (normA != static_cast<uint32_t>(*(_normA)) && !_execute.load(std::memory_order_acquire)) {
+        normA = static_cast<uint32_t>(*(_normA));
+        bufsize = n_samples;
+        _ab.store(7, std::memory_order_release);
+        conv.set_normalisation(normA);
+        if (ir_file.compare("None") != 0) {
+            _execute.store(true, std::memory_order_release);
+            schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+            _restore.store(false, std::memory_order_release);
+        }
+    }
+    // check if normalisation is pressed for conv1
+    if (normB != static_cast<uint32_t>(*(_normB)) && !_execute.load(std::memory_order_acquire)) {
+        normB = static_cast<uint32_t>(*(_normB));
+        bufsize = n_samples;
+        _ab.store(8, std::memory_order_release);
+        conv1.set_normalisation(normB);
+        if (ir_file.compare("None") != 0) {
+            _execute.store(true, std::memory_order_release);
+            schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+            _restore.store(false, std::memory_order_release);
+        }
+    }
 
     // do inplace processing on default
     if(output0 != input0)
         memcpy(output0, input0, n_samples*sizeof(float));
 
+    // get controller values from host
+    double fSlow0 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_inputGain)));
+    double fSlow3 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_outputGain)));
+    double fSlow2 = 0.0010000000000000009 * double(*(_blend));
+    double fSlow1 = 0.0010000000000000009 * double(*(_mix));
+
+    if (_neuralA.load(std::memory_order_acquire) || _neuralB.load(std::memory_order_acquire)) {
+        // input volume
+        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+            fRec0[0] = fSlow0 + 0.999 * fRec0[1];
+            output0[i0] = float(double(output0[i0]) * fRec0[0]);
+            fRec0[1] = fRec0[0];
+        }
+    }
+
     float bufa[n_samples];
     memcpy(bufa, output0, n_samples*sizeof(float));
     float bufb[n_samples];
     memcpy(bufb, output0, n_samples*sizeof(float));
+    _bufb = bufb;
+    bufsize = n_samples;
 
-    double fSlow2 = 0.0010000000000000009 * double(*(_blend));
-    double fSlow1 = 0.0010000000000000009 * double(*(_mix));
-
-    // set buffer order for blend control
-    if (_namA.load(std::memory_order_acquire)) {
-        rtm.compute(n_samples, bufa, bufa);
-        rtnm.compute(n_samples, bufb, bufb);
+    // process slot B in background
+    if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
+        setWait.store(true, std::memory_order_release);
+        pro.cv.notify_one();
     } else {
-        rtm.compute(n_samples, bufb, bufb);
-        rtnm.compute(n_samples, bufa, bufa);        
+        process();
     }
 
+    // process slot A
+    slotA.compute(n_samples, bufa, bufa);
+
+    //wait for slot B when needed
+    if (pro.is_running() && _neuralB.load(std::memory_order_acquire))
+        processWait();
+
+    cdelay->compute(n_samples, bufb, bufb);
+
     // mix output when needed
-    if ((_namA.load(std::memory_order_acquire) && _rtnB.load(std::memory_order_acquire)) ||
-        (_namB.load(std::memory_order_acquire) && _rtnA.load(std::memory_order_acquire))) {
+    if (_neuralA.load(std::memory_order_acquire) && _neuralB.load(std::memory_order_acquire)) {
         for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec2[0] = fSlow2 + 0.999 * fRec2[1];
             output0[i0] = bufa[i0] * (1.0 - fRec2[0]) + bufb[i0] * fRec2[0];
             fRec2[1] = fRec2[0];
         }
-    } else if (_namA.load(std::memory_order_acquire) || _rtnA.load(std::memory_order_acquire)) {
+    } else if (_neuralA.load(std::memory_order_acquire)) {
         memcpy(output0, bufa, n_samples*sizeof(float));
-    } else if (_namB.load(std::memory_order_acquire)) {
+    } else if (_neuralB.load(std::memory_order_acquire)) {
         memcpy(output0, bufb, n_samples*sizeof(float));
-    } else if (_rtnB.load(std::memory_order_acquire)) {
-        memcpy(output0, bufa, n_samples*sizeof(float));
+    }
+
+    if (_neuralA.load(std::memory_order_acquire) || _neuralB.load(std::memory_order_acquire)) {
+        // output volume
+        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+            fRec3[0] = fSlow3 + 0.999 * fRec3[1];
+            output0[i0] = float(double(output0[i0]) * fRec3[0]);
+            fRec3[1] = fRec3[0];
+        }
     }
 
     // run dcblocker
@@ -808,31 +915,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     if (_notify_ui.load(std::memory_order_acquire)) {
         _notify_ui.store(false, std::memory_order_release);
         // notify for removed files
-        if (model_file == "None") {
-            write_set_file(&forge, xlv2_model_file, model_file.data());
-        }
-        if (model_file1 == "None") {
-            write_set_file(&forge, xlv2_model_file1, model_file1.data());
-        }
-        if (rtmodel_file == "None") {
-            write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
-        }
-        if (rtmodel_file1 == "None") {
-            write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
-        }
-        // notify for loaded files
-        if (model_file != "None") {
-            write_set_file(&forge, xlv2_model_file, model_file.data());
-        }
-        if (model_file1 != "None") {
-            write_set_file(&forge, xlv2_model_file1, model_file1.data());
-        }
-        if (rtmodel_file != "None") {
-            write_set_file(&forge, xlv2_rtmodel_file, rtmodel_file.data());
-        }
-        if (rtmodel_file1 != "None") {
-            write_set_file(&forge, xlv2_rtmodel_file1, rtmodel_file1.data());
-        }
+        write_set_file(&forge, xlv2_model_file, model_file.data());
+        write_set_file(&forge, xlv2_model_file1, model_file1.data());
 
         write_set_file(&forge, xlv2_ir_file, ir_file.data());
         write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
@@ -847,8 +931,9 @@ void Xratatouille::connect_all__ports(uint32_t port, void* data)
 {
     // connect the Ports used by the plug-in class
     connect_(port,data);
-    rtm.connect(port,data);
-    rtnm.connect(port,data);
+    slotA.connect(port,data);
+    slotB.connect(port,data);
+    cdelay->connect(port, data);
 }
 
 ////////////////////// STATIC CLASS  FUNCTIONS  ////////////////////////
@@ -864,12 +949,6 @@ LV2_State_Status Xratatouille::save_state(LV2_Handle instance,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
     store(handle,self->xlv2_model_file1,self->model_file1.data(), strlen(self->model_file1.data()) + 1,
-          self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
-
-    store(handle,self->xlv2_rtmodel_file,self->rtmodel_file.data(), strlen(self->rtmodel_file.data()) + 1,
-          self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
-
-    store(handle,self->xlv2_rtmodel_file1,self->rtmodel_file1.data(), strlen(self->rtmodel_file1.data()) + 1,
           self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
 
     store(handle,self->xlv2_ir_file,self->ir_file.data(), strlen(self->ir_file.data()) + 1,
@@ -908,24 +987,6 @@ LV2_State_Status Xratatouille::restore_state(LV2_Handle instance,
         self->model_file1 = (const char*)(name);
         if (!self->model_file1.empty() && (self->model_file1 != "None")) {
             self->_ab.fetch_add(2, std::memory_order_relaxed);
-        }
-    }
-
-    name = retrieve(handle, self->xlv2_rtmodel_file, &size, &type, &fflags);
-
-    if (name) {
-        self->rtmodel_file = (const char*)(name);
-        if (!self->rtmodel_file.empty() && (self->rtmodel_file != "None")) {
-            self->_ab.fetch_add(12, std::memory_order_relaxed);
-        }
-    }
-
-    name = retrieve(handle, self->xlv2_rtmodel_file1, &size, &type, &fflags);
-
-    if (name) {
-        self->rtmodel_file1 = (const char*)(name);
-        if (!self->rtmodel_file1.empty() && (self->rtmodel_file1 != "None")) {
-            self->_ab.fetch_add(12, std::memory_order_relaxed);
         }
     }
 
@@ -1019,13 +1080,13 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
             printf("using block size: %d\n", bufsize);
         }
     }
-    if ((self->bufsize & (self->bufsize - 1)) == 0) {
-        self->conv.set_convolver(true);
-        self->conv1.set_convolver(true);
-    } else {
-        self->conv.set_convolver(false);
-        self->conv1.set_convolver(false);
-    }
+    //if ((self->bufsize & (self->bufsize - 1)) == 0) {
+    //    self->conv.set_convolver(true);
+    //    self->conv1.set_convolver(true);
+    //} else {
+    //    self->conv.set_convolver(false);
+    //    self->conv1.set_convolver(false);
+    //}
 
     self->map_uris(self->map);
     lv2_atom_forge_init(&self->forge, self->map);

@@ -40,5 +40,6 @@ clean:
 	@rm -f ./libxputty/xputty/resources/texture.png
 	@rm -f ./libxputty/xputty/resources/wavdir.png
 	@rm -f ./libxputty/xputty/resources/neuraldir.png
+	@rm -f ./libxputty/xputty/resources/norm.png
 
 features:

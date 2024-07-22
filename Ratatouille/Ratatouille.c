@@ -7,7 +7,7 @@
  */
 
 
-#define CONTROLS 5
+#define CONTROLS 7
 
 #define GUI_ELEMENTS 0
 
@@ -20,10 +20,8 @@
 #include "lv2_plugin.h"
 
 
-#define XLV2__neural_model "urn:brummer:ratatouille#NAM_Model"
-#define XLV2__neural_model1 "urn:brummer:ratatouille#NAM_Model1"
-#define XLV2__rtneural_model "urn:brummer:ratatouille#RTN_Model"
-#define XLV2__rtneural_model1 "urn:brummer:ratatouille#RTN_Model1"
+#define XLV2__neural_model "urn:brummer:ratatouille#Neural_Model"
+#define XLV2__neural_model1 "urn:brummer:ratatouille#Neural_Model1"
 #define XLV2__IRFILE "urn:brummer:ratatouille#irfile"
 #define XLV2__IRFILE1 "urn:brummer:ratatouille#irfile1"
 
@@ -33,8 +31,6 @@
 typedef struct {
     LV2_URID neural_model;
     LV2_URID neural_model1;
-    LV2_URID rtneural_model;
-    LV2_URID rtneural_model1;
     LV2_URID conv_ir_file;
     LV2_URID conv_ir_file1;
     LV2_URID atom_Object;
@@ -74,8 +70,6 @@ typedef struct {
 static inline void map_x11ui_uris(LV2_URID_Map* map, X11LV2URIs* uris) {
     uris->neural_model = map->map(map->handle, XLV2__neural_model);
     uris->neural_model1 = map->map(map->handle, XLV2__neural_model1);
-    uris->rtneural_model = map->map(map->handle, XLV2__rtneural_model);
-    uris->rtneural_model1 = map->map(map->handle, XLV2__rtneural_model1);
     uris->conv_ir_file = map->map(map->handle, XLV2__IRFILE);
     uris->conv_ir_file1 = map->map(map->handle, XLV2__IRFILE1);
     uris->atom_Object = map->map(map->handle, LV2_ATOM__Object);
@@ -196,7 +190,9 @@ static void file_load_response(void *w_, void* user_data) {
     X11_UI *ui = (X11_UI*) p->parent_struct;
     X11_UI_Private_t *ps = (X11_UI_Private_t*)ui->private_ptr;
     if(user_data !=NULL) {
-        int old = ends_with(m->filename, "nam");
+        int old = (ends_with(m->filename, "nam") ||
+                   ends_with(m->filename, "json") ||
+                   ends_with(m->filename, "aidax"));
         int old1 = ends_with(m->filename, "wav");
         free(m->filename);
         m->filename = NULL;
@@ -209,16 +205,12 @@ static void file_load_response(void *w_, void* user_data) {
             } else if (old1) {
                 if ( m == &ps->ir) urid = ps->uris.conv_ir_file;
                 else urid = ps->uris.conv_ir_file1;
-            } else {
-                if ( m == &ps->ma) urid = ps->uris.rtneural_model;
-                else urid = ps->uris.rtneural_model1;
-            }
-        } else if (ends_with(m->filename, "nam")) {
+            } else return;
+        } else if (ends_with(m->filename, "nam") ||
+                   ends_with(m->filename, "json") ||
+                   ends_with(m->filename, "aidax")) {
             if ( m == &ps->ma) urid = ps->uris.neural_model;
             else  urid = ps->uris.neural_model1;
-        } else if (ends_with(m->filename, "json") || ends_with(m->filename, "aidax")){
-            if ( m == &ps->ma) urid = ps->uris.rtneural_model;
-            else urid = ps->uris.rtneural_model1;
         } else if (ends_with(m->filename, "wav")) {
             if ( m == &ps->ir) urid = ps->uris.conv_ir_file;
             else urid = ps->uris.conv_ir_file1;
@@ -397,6 +389,9 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     combobox_set_pop_position(ps->ir1.fbutton, 0);
     combobox_add_entry(ps->ir1.fbutton, "None");
     ps->ir1.fbutton->func.value_changed_callback = file_menu_callback;
+
+    ui->widget[5] = add_lv2_toggle_button (ui->widget[5], ui->win, 9, "", ui, 70,  338, 25, 25);
+    ui->widget[6] = add_lv2_toggle_button (ui->widget[6], ui->win, 10, "", ui, 70,  378, 25, 25);
 }
 
 void plugin_cleanup(X11_UI *ui) {
@@ -423,9 +418,9 @@ void plugin_cleanup(X11_UI *ui) {
 
 Widget_t *get_widget_from_urid(X11_UI *ui, const LV2_URID urid) {
     X11_UI_Private_t *ps = (X11_UI_Private_t*)ui->private_ptr;
-    if (urid == ps->uris.neural_model || urid == ps->uris.rtneural_model)
+    if (urid == ps->uris.neural_model)
         return ps->ma.filebutton;
-    else if (urid == ps->uris.neural_model1 || urid == ps->uris.rtneural_model1)
+    else if (urid == ps->uris.neural_model1)
         return ps->mb.filebutton;
     else if (urid == ps->uris.conv_ir_file)
         return ps->ir.filebutton;

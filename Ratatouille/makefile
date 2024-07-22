@@ -91,21 +91,27 @@ endif
 	RTN_SOURCES := $(wildcard $(RTN_DIR)*.cpp)
 	RTN_OBJ := $(patsubst %.cpp,%.o,$(RTN_SOURCES))
 	RTN_INCLUDES := -I$(RTN_DIR) -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/ 
-	RTN_LIB := rtneural.$(STATIC_LIB_EXT)
+	RTN_LIB := librtneural.$(STATIC_LIB_EXT)
 
 	NAM_DIR := ../NeuralAmpModelerCore/NAM/
 	NAM_DEPEND_DIR := ../NeuralAmpModelerCore/Dependencies/
 	NAM_SOURCES := $(wildcard $(NAM_DIR)*.cpp)
 	NAM_OBJ := $(patsubst %.cpp,%.o,$(NAM_SOURCES))
 	NAM_INCLUDES := -I$(NAM_DIR) -I$(NAM_DEPEND_DIR)eigen/ -I./ -I$(NAM_DEPEND_DIR)nlohmann/
-	NAM_LIB := nam.$(STATIC_LIB_EXT)
+	NAM_LIB := libnam.$(STATIC_LIB_EXT)
+
+	MODELER_SOURCES := RtNeuralModel.cpp NeuralModel.cpp
+	MODELER_OBJ := $(patsubst %.cpp,%.o,$(MODELER_SOURCES))
+	MODELER_LIB := libmodeler.$(STATIC_LIB_EXT)
+
+	NEURAL_OBJ := $(NAM_OBJ) $(RTN_OBJ) $(MODELER_OBJ)
+	NEURAL_LIB := libneural.$(STATIC_LIB_EXT)
 
 	CONV_DIR := ../FFTConvolver/
 	CONV_SOURCES :=  $(wildcard $(CONV_DIR)*.cpp)
 	CONV_OBJ := $(patsubst %.cpp,%.o,$(CONV_SOURCES))
-	CONV_LIB := fftconvolver.$(STATIC_LIB_EXT)
+	CONV_LIB := libfftconvolver.$(STATIC_LIB_EXT)
 
-	IMPL_SOURCE := RtNeuralMulti.cc NeuralAmpMulti.cc
 	GUIIMPL_SOURCE := lv2_plugin.cc
 
 	DEPS = $(RTN_OBJ:%.o=%.d) $(NAM_OBJ:%.o=%.d) Ratatouille.d
@@ -120,8 +126,8 @@ ifeq ($(TARGET), Linux)
 
 	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
-	-fomit-frame-pointer -fstack-protector -fvisibility=hidden -I$(CONV_DIR) \
-	-fdata-sections -I. -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
+	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
+	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
@@ -142,13 +148,13 @@ ifeq ($(TARGET), Linux)
 	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -Wno-unused-result -fstack-protector -fvisibility=hidden \
 	-fdata-sections -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--exclude-libs,ALL -DUSE_ATOM
 
-	TTLUPDATEMODGUI =  sed -i -e '174,189d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '183,197d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
 	-ffast-math -fomit-frame-pointer -fstrength-reduce \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(SSE_CFLAGS) \
-	-I$(CONV_DIR) -fdata-sections -I./ -I./zita-convolver -I./zita-resampler-1.1.0 \
+	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
@@ -164,7 +170,7 @@ else ifeq ($(TARGET), Windows)
 
 	TTLUPDATE = sed -i '/lv2:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/manifest.ttl
 	TTLUPDATEGUI = sed -i '/a guiext:X11UI/ s/X11UI/WindowsUI/ ; /guiext:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/$(NAME).ttl
-	TTLUPDATEMODGUI =  sed -i -e '174,189d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '183,197d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 endif
 
@@ -231,15 +237,29 @@ $(CONV_LIB): $(CONV_OBJ)
 	$(QUIET)$(AR) rcs $(CONV_LIB) $(CONV_OBJ)
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
+$(MODELER_OBJ): $(MODELER_SOURCES)
+	@$(ECHO) "Building object file $@ $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD  -c $(patsubst %.o,%.cpp,$@) -o $@ $(NAM_INCLUDES) $(RTN_INCLUDES)
+
+$(MODELER_LIB): $(MODELER_OBJ)
+	@$(B_ECHO) "Build static library $@ $(reset)"
+	$(QUIET)$(AR) rcs $(MODELER_LIB) $(MODELER_OBJ)
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
+$(NEURAL_LIB): $(NEURAL_OBJ)
+	@$(B_ECHO) "Build static library $@ $(reset)"
+	$(QUIET)$(AR) rcs $(NEURAL_LIB) $(NEURAL_OBJ)
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
 $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
 	$(QUIET)$(CC) $(CFLAGS) '$(NAME).c' -L. $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)
 
-$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(RTN_LIB) $(NAM_LIB) $(CONV_LIB) $(IMPL_SOURCE)
+$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(NEURAL_LIB) $(CONV_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
-	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp \
-	-L. $(RTN_LIB) -L. $(NAM_LIB) -L. $(CONV_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp  \
+	-L. $(NEURAL_LIB) -L. $(CONV_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :

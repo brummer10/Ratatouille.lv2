@@ -718,6 +718,11 @@ void draw_image_(Widget_t *w, int width_t, int height_t, float offset) {
     double y1 = (double)(width)/(double)width_t;
     double off_set = offset*x1;
     cairo_scale(w->crb, x,y);
+    if((int)w->adj_y->value) {
+        roundrec(w->crb,0, 0, width, height, height* 0.22);
+        cairo_set_source_rgba(w->crb, 0.3, 0.3, 0.3, 0.4);
+        cairo_fill(w->crb);
+    }
     cairo_set_source_surface (w->crb, w->image, off_set, off_set);
     cairo_rectangle(w->crb,0, 0, height, height);
     cairo_fill(w->crb);
@@ -781,6 +786,17 @@ Widget_t* add_lv2_irfile_button(Widget_t *w, Widget_t *p, PortIndex index, const
     w = add_my_file_button(p, x, y, width, height, "IR File", "", ".wav");
     widget_get_png(w, LDVAR(wavdir_png));
     w->data = index;
+    return w;
+}
+
+Widget_t* add_lv2_toggle_button(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height) {
+    w = add_image_toggle_button(p, "", x, y, width, height);
+    w->parent_struct = ui;
+    w->data = index;
+    widget_get_png(w, LDVAR(norm_png));
+    w->func.expose_callback = draw_i_button;
+    w->func.value_changed_callback = value_changed;
     return w;
 }
 

@@ -234,7 +234,9 @@ public:
     friend class Xprocessor;
     std::mutex mo;
     std::condition_variable co;
-    inline void process();
+    void (Xratatouille::*processPtr)();
+    inline void processSlotB();
+    inline void processConv1();
     inline void processWait();
     inline void do_non_rt_work(Xratatouille* xr) {return xr->do_work_mono();};
     inline void map_uris(LV2_URID_Map* map);
@@ -416,7 +418,7 @@ void Xprocessor::run() {
             cv.wait(lk);
             //do work
             if (_execute.load(std::memory_order_acquire)) {
-                _xr.process();
+                (_xr.*(_xr.processPtr))();
                 _xr.co.notify_one();
             }
         }
@@ -733,8 +735,13 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
     return file_path;
 }
 
-inline void Xratatouille::process() {
+inline void Xratatouille::processSlotB() {
     slotB.compute(bufsize, _bufb, _bufb);
+    setWait.store(false, std::memory_order_release);
+}
+
+inline void Xratatouille::processConv1() {
+    conv1.compute(bufsize, _bufb, _bufb);
     setWait.store(false, std::memory_order_release);
 }
 
@@ -849,9 +856,10 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // process slot B in background
     if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
         setWait.store(true, std::memory_order_release);
+        processPtr = &Xratatouille::processSlotB;
         pro.cv.notify_one();
     } else {
-        process();
+        processSlotB();
     }
 
     // process slot A
@@ -893,10 +901,23 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufb, output0, n_samples*sizeof(float));
 
     // impulse response convolution
+    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
+        if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
+            setWait.store(true, std::memory_order_release);
+            processPtr = &Xratatouille::processConv1;
+            _bufb = bufb;
+            pro.cv.notify_one();
+        } else {
+            processConv1();
+        }
+    }
+
     if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
         conv.compute(n_samples, bufa, bufa);
-    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable())
-        conv1.compute(n_samples, bufb, bufb);
+
+    //wait for conv1 when needed
+    if (pro.is_running() && conv1.is_runnable())
+        processWait();
 
     // mix output when needed
     if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {

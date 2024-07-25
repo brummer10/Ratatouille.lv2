@@ -52,6 +52,7 @@
 #include "cdelay.cc"
 
 #include "ModelerSelector.h"
+#include "ParallelThread.h"
 
 #include "fftconvolver.cc"
 #include "fftconvolver.h"
@@ -100,46 +101,6 @@ public:
     inline ~DenormalProtection() {};
 };
 
-class Xratatouille;
-
-///////////////////////// INTERNAL WORKER CLASS   //////////////////////
-
-class XratatouilleWorker {
-private:
-    std::atomic<bool> _execute;
-    std::thread _thd;
-    std::mutex m;
-
-public:
-    XratatouilleWorker();
-    ~XratatouilleWorker();
-    void stop();
-    void start(Xratatouille *xr);
-    std::atomic<bool> is_done;
-    bool is_running() const noexcept;
-    std::condition_variable cv;
-};
-
-///////////////////////// INTERNAL PROCESSOR CLASS   //////////////////////
-
-class Xprocessor {
-private:
-    std::atomic<bool> _execute;
-    std::thread _thd;
-    std::mutex m;
-    void set_priority();
-    void run();
-    Xratatouille &_xr;
-
-public:
-    Xprocessor(Xratatouille &xr);
-    ~Xprocessor();
-    void stop();
-    void start();
-    bool is_running() const noexcept;
-    std::condition_variable cv;
-};
-
 ////////////////////////////// PLUG-IN CLASS ///////////////////////////
 
 class Xratatouille
@@ -151,7 +112,8 @@ private:
     ModelerSelector              slotB;
     DoubleThreadConvolver        conv;
     DoubleThreadConvolver        conv1;
-    XratatouilleWorker           xrworker;
+    ParallelThread               xrworker;
+    ParallelThread               pro;
     DenormalProtection           MXCSR;
 
     int32_t                      rt_prio;
@@ -191,9 +153,6 @@ private:
     std::condition_variable      Sync;
 
 
-    Xprocessor pro;
-    std::atomic<bool> setWait;
-    std::chrono::microseconds timeoutPeriod;
     // LV2 stuff
     LV2_URID_Map*                map;
     LV2_Worker_Schedule*         schedule;
@@ -230,15 +189,10 @@ private:
     inline void clean_up();
     inline void do_work_mono();
     inline void deactivate_f();
-public:
-    friend class Xprocessor;
-    std::mutex mo;
-    std::condition_variable co;
-    void (Xratatouille::*processPtr)();
     inline void processSlotB();
     inline void processConv1();
-    inline void processWait();
-    inline void do_non_rt_work(Xratatouille* xr) {return xr->do_work_mono();};
+    friend class ParallelThread;
+public:
     inline void map_uris(LV2_URID_Map* map);
     inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
             const LV2_URID xlv2_model, const char* filename);
@@ -285,8 +239,6 @@ Xratatouille::Xratatouille() :
     cdelay(cdeleay::plugin()),
     slotA(&Sync),
     slotB(&Sync),
-    //rtm(&Sync),
-    //rtnm(&Sync),
     conv(DoubleThreadConvolver()),
     conv1(DoubleThreadConvolver()),
     rt_prio(0),
@@ -296,12 +248,10 @@ Xratatouille::Xratatouille() :
     _blend(0),
     _mix(0),
     _normA(0),
-    _normB(0),
-    pro(*this) {
-        xrworker.start(this);
+    _normB(0) {
+        xrworker.start();
+        xrworker.process = [this] () {this->do_work_mono();};
         pro.start();
-        timeoutPeriod = std::chrono::microseconds(2000);
-        setWait.store(false, std::memory_order_release);
         };
 
 // destructor
@@ -315,125 +265,6 @@ Xratatouille::~Xratatouille() {
     xrworker.stop();
     pro.stop();
 };
-
-///////////////////////// INTERNAL WORKER CLASS   //////////////////////
-
-XratatouilleWorker::XratatouilleWorker()
-    : _execute(false),
-    is_done(false) {
-}
-
-XratatouilleWorker::~XratatouilleWorker() {
-    if( _execute.load(std::memory_order_acquire) ) {
-        stop();
-    };
-}
-
-void XratatouilleWorker::stop() {
-    _execute.store(false, std::memory_order_release);
-    if (_thd.joinable()) {
-        cv.notify_one();
-        _thd.join();
-    }
-}
-
-void XratatouilleWorker::start(Xratatouille *xr) {
-    if( _execute.load(std::memory_order_acquire) ) {
-        stop();
-    };
-    _execute.store(true, std::memory_order_release);
-    _thd = std::thread([this, xr]() {
-        while (_execute.load(std::memory_order_acquire)) {
-            std::unique_lock<std::mutex> lk(m);
-            // wait for signal from dsp that work is to do
-            cv.wait(lk);
-            //do work
-            if (_execute.load(std::memory_order_acquire)) {
-                xr->do_non_rt_work(xr);
-            }
-        }
-        // when done
-    });
-}
-
-bool XratatouilleWorker::is_running() const noexcept {
-    return ( _execute.load(std::memory_order_acquire) && 
-             _thd.joinable() );
-}
-
-///////////////////////// INTERNAL PROCESSOR CLASS   //////////////////////
-
-Xprocessor::Xprocessor(Xratatouille &xr)
-    : _execute(false),
-    _xr(xr) {
-}
-
-Xprocessor::~Xprocessor() {
-    if( _execute.load(std::memory_order_acquire) ) {
-        stop();
-    };
-}
-
-void Xprocessor::set_priority() {
-#if defined(__linux__) || defined(_UNIX) || defined(__APPLE__)
-    sched_param sch_params;
-    if (_xr.rt_prio == 0) {
-        _xr.rt_prio = sched_get_priority_max(SCHED_FIFO);
-    }
-    if ((_xr.rt_prio/5) > 0) _xr.rt_prio = _xr.rt_prio/5;
-    sch_params.sched_priority = _xr.rt_prio;
-    if (pthread_setschedparam(_thd.native_handle(), SCHED_FIFO, &sch_params)) {
-        fprintf(stderr, "Xprocessor: fail to set priority\n");
-    }
-#elif defined(_WIN32)
-    // HIGH_PRIORITY_CLASS, THREAD_PRIORITY_TIME_CRITICAL
-    if (SetThreadPriority(_thd.native_handle(), 15)) {
-        fprintf(stderr, "Xprocessor: fail to set priority\n");
-    }
-#else
-    //system does not supports thread priority!
-#endif
-}
-
-void Xprocessor::stop() {
-    if (is_running()) {
-        _execute.store(false, std::memory_order_release);
-        if (_thd.joinable()) {
-            cv.notify_one();
-            _thd.join();
-        }
-    }
-}
-
-void Xprocessor::run() {
-    if( _execute.load(std::memory_order_acquire) ) {
-        stop();
-    };
-    _execute.store(true, std::memory_order_release);
-    _thd = std::thread([this]() {
-        set_priority();
-        while (_execute.load(std::memory_order_acquire)) {
-            std::unique_lock<std::mutex> lk(m);
-            // wait for signal from dsp that work is to do
-            cv.wait(lk);
-            //do work
-            if (_execute.load(std::memory_order_acquire)) {
-                (_xr.*(_xr.processPtr))();
-                _xr.co.notify_one();
-            }
-        }
-        // when done
-    });    
-}
-
-void Xprocessor::start() {
-    if (!is_running()) run();
-}
-
-bool Xprocessor::is_running() const noexcept {
-    return ( _execute.load(std::memory_order_acquire) && 
-             _thd.joinable() );
-}
 
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
 
@@ -466,9 +297,9 @@ void Xratatouille::init_dsp_(uint32_t rate)
     cdelay->init(rate);
     slotA.init(rate);
     slotB.init(rate);
-    //rtm.init(rate);
-    //rtnm.init(rate);
-    if (!rt_policy) rt_policy = SCHED_FIFO;
+
+    if (!rt_policy) rt_policy = 1; //SCHED_FIFO;
+    pro.set_priority(rt_prio, rt_policy);
 
     model_file = "None";
     model_file1 = "None";
@@ -683,8 +514,7 @@ void Xratatouille::do_work_mono()
             }            
         }
     }
-    int timeout = std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1));
-    timeoutPeriod = std::chrono::microseconds(timeout);
+    pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
     _execute.store(false, std::memory_order_release);
     _notify_ui.store(true, std::memory_order_release);
 }
@@ -737,20 +567,10 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
 
 inline void Xratatouille::processSlotB() {
     slotB.compute(bufsize, _bufb, _bufb);
-    setWait.store(false, std::memory_order_release);
 }
 
 inline void Xratatouille::processConv1() {
     conv1.compute(bufsize, _bufb, _bufb);
-    setWait.store(false, std::memory_order_release);
-}
-
-inline void Xratatouille::processWait() {
-    if (pro.is_running() && setWait.load(std::memory_order_acquire)) {
-        std::unique_lock<std::mutex> lk(mo);
-        while (setWait.load(std::memory_order_acquire))
-            co.wait_for(lk, timeoutPeriod);
-    }   
 }
 
 void Xratatouille::run_dsp_(uint32_t n_samples)
@@ -810,7 +630,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         conv.set_normalisation(normA);
         if (ir_file.compare("None") != 0) {
             _execute.store(true, std::memory_order_release);
-            schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+            xrworker.cv.notify_one();
+            //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
             _restore.store(false, std::memory_order_release);
         }
     }
@@ -822,7 +643,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         conv1.set_normalisation(normB);
         if (ir_file.compare("None") != 0) {
             _execute.store(true, std::memory_order_release);
-            schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+            xrworker.cv.notify_one();
+            //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
             _restore.store(false, std::memory_order_release);
         }
     }
@@ -853,10 +675,10 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     _bufb = bufb;
     bufsize = n_samples;
 
-    // process slot B in background
+    // process slot B in parallel
     if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
-        setWait.store(true, std::memory_order_release);
-        processPtr = &Xratatouille::processSlotB;
+        pro.setWait();
+        pro.process = [this] () {this->processSlotB();};
         pro.cv.notify_one();
     } else {
         processSlotB();
@@ -867,7 +689,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
 
     //wait for slot B when needed
     if (pro.is_running() && _neuralB.load(std::memory_order_acquire))
-        processWait();
+        pro.processWait();
 
     cdelay->compute(n_samples, bufb, bufb);
 
@@ -900,12 +722,12 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufa, output0, n_samples*sizeof(float));
     memcpy(bufb, output0, n_samples*sizeof(float));
 
-    // impulse response convolution
+    // process conv1 in parallel
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
         if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
-            setWait.store(true, std::memory_order_release);
-            processPtr = &Xratatouille::processConv1;
+            pro.setWait();
             _bufb = bufb;
+            pro.process = [this] () {this->processConv1();};
             pro.cv.notify_one();
         } else {
             processConv1();
@@ -917,7 +739,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
 
     //wait for conv1 when needed
     if (pro.is_running() && conv1.is_runnable())
-        processWait();
+        pro.processWait();
 
     // mix output when needed
     if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {
@@ -935,7 +757,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // notify UI on changed model files
     if (_notify_ui.load(std::memory_order_acquire)) {
         _notify_ui.store(false, std::memory_order_release);
-        // notify for removed files
+
         write_set_file(&forge, xlv2_model_file, model_file.data());
         write_set_file(&forge, xlv2_model_file1, model_file1.data());
 
@@ -1101,13 +923,6 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
             printf("using block size: %d\n", bufsize);
         }
     }
-    //if ((self->bufsize & (self->bufsize - 1)) == 0) {
-    //    self->conv.set_convolver(true);
-    //    self->conv1.set_convolver(true);
-    //} else {
-    //    self->conv.set_convolver(false);
-    //    self->conv1.set_convolver(false);
-    //}
 
     self->map_uris(self->map);
     lv2_atom_forge_init(&self->forge, self->map);

@@ -19,9 +19,10 @@
 #include <mutex>
 #include <condition_variable>
 #include <chrono>
-#include "gx_resampler.h"
-
 #include <sndfile.hh>
+
+#include "ParallelThread.h"
+#include "gx_resampler.h"
 
 
 class Audiofile {
@@ -83,34 +84,16 @@ private:
 };
 
 
-class DoubleThreadConvolver;
-
-class ConvolverWorker {
-private:
-    std::atomic<bool> _execute;
-    std::thread _thd;
-    std::mutex m;
-    void set_priority();
-    void run();
-    DoubleThreadConvolver &_xr;
-
-public:
-    ConvolverWorker(DoubleThreadConvolver &xr);
-    ~ConvolverWorker();
-    void stop();
-    void start();
-    bool is_running() const noexcept;
-    std::condition_variable cv;
-};
-
-
 class DoubleThreadConvolver:  public fftconvolver::TwoStageFFTConvolver
 {
 public:
     std::mutex mo;
     std::condition_variable co;
-    bool start(int32_t policy, int32_t priority) { 
-        work.start(); 
+    bool start(int32_t policy, int32_t priority) {
+        if (!pro.is_running()) {
+            pro.start(); 
+            pro.set_priority(25, 1); //SCHED_FIFO
+        }
         return ready;}
 
     void set_normalisation(uint32_t norm);
@@ -139,26 +122,26 @@ public:
             return 0;}
 
     DoubleThreadConvolver()
-        : resamp(), ready(false), samplerate(0), work(*this) {
-            timeoutPeriod = std::chrono::microseconds(200);
-            setWait.store(false, std::memory_order_release);
+        : resamp(), ready(false), samplerate(0), pro() {
+            pro.setTimeOut(200);
+            pro.process = [this] () {this->doBackgroundProcessing();};
             norm = 0;}
 
-    ~DoubleThreadConvolver() { reset(); work.stop();}
+    ~DoubleThreadConvolver() { reset(); pro.stop();}
 
 protected:
     virtual void startBackgroundProcessing();
     virtual void waitForBackgroundProcessing();
 
 private:
-    friend class ConvolverWorker;
+    friend class ParallelThread;
     gx_resample::BufferResampler resamp;
     volatile bool ready;
     uint32_t buffersize;
     uint32_t samplerate;
     uint32_t norm;
     std::string filename;
-    ConvolverWorker work;
+    ParallelThread pro;
     std::atomic<bool> setWait;
     std::chrono::microseconds timeoutPeriod;
     bool get_buffer(std::string fname, float **buffer, uint32_t* rate, int* size);

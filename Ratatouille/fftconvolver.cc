@@ -106,82 +106,11 @@ int Audiofile::read(float *data, uint32_t frames) {
  ** DoubleThreadConvolver
  */
 
-///////////////////////// INTERNAL WORKER CLASS   //////////////////////
-
-ConvolverWorker::ConvolverWorker(DoubleThreadConvolver &xr)
-    : _execute(false),
-    _xr(xr) {
-}
-
-ConvolverWorker::~ConvolverWorker() {
-    if( _execute.load(std::memory_order_acquire) ) {
-        stop();
-    };
-}
-
-void ConvolverWorker::set_priority() {
-#if defined(__linux__) || defined(_UNIX) || defined(__APPLE__)
-    sched_param sch_params;
-    sch_params.sched_priority = 5;
-    if (pthread_setschedparam(_thd.native_handle(), SCHED_FIFO, &sch_params)) {
-        fprintf(stderr, "ConvolverWorker: fail to set priority\n");
-    }
-#elif defined(_WIN32)
-    // HIGH_PRIORITY_CLASS, THREAD_PRIORITY_TIME_CRITICAL
-    if (SetThreadPriority(_thd.native_handle(), 15)) {
-        fprintf(stderr, "ConvolverWorker: fail to set priority\n");
-    }
-#else
-    //system does not supports thread priority!
-#endif
-}
-
-void ConvolverWorker::stop() {
-    if (is_running()) {
-        _execute.store(false, std::memory_order_release);
-        if (_thd.joinable()) {
-            cv.notify_one();
-            _thd.join();
-        }
-    }
-}
-
-void ConvolverWorker::run() {
-    if( _execute.load(std::memory_order_acquire) ) {
-        stop();
-    };
-    _execute.store(true, std::memory_order_release);
-    _thd = std::thread([this]() {
-        set_priority();
-        while (_execute.load(std::memory_order_acquire)) {
-            std::unique_lock<std::mutex> lk(m);
-            // wait for signal from dsp that work is to do
-            cv.wait(lk);
-            //do work
-            if (_execute.load(std::memory_order_acquire)) {
-                _xr.doBackgroundProcessing();
-                _xr.co.notify_one();
-                _xr.setWait.store(false, std::memory_order_release);
-            }
-        }
-        // when done
-    });    
-}
-
-void ConvolverWorker::start() {
-    if (!is_running()) run();
-}
-
-bool ConvolverWorker::is_running() const noexcept {
-    return ( _execute.load(std::memory_order_acquire) && 
-             _thd.joinable() );
-}
-
 void DoubleThreadConvolver::startBackgroundProcessing()
 {
-    if (work.is_running()) {
-        setWait.store(true, std::memory_order_release);
-        work.cv.notify_one();
+    if (pro.is_running()) {
+        pro.setWait();
+        pro.cv.notify_one();
     } else {
         doBackgroundProcessing();
     }
@@ -190,11 +119,7 @@ void DoubleThreadConvolver::startBackgroundProcessing()
 
 void DoubleThreadConvolver::waitForBackgroundProcessing()
 {
-    if (work.is_running() && setWait.load(std::memory_order_acquire)) {
-        std::unique_lock<std::mutex> lk(mo);
-        while (setWait.load(std::memory_order_acquire))
-            co.wait_for(lk, timeoutPeriod);
-    }
+    pro.processWait();
 }
 
 bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32_t *rate, int *asize)
@@ -283,8 +208,9 @@ bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned in
         return false;
     }
     normalize(abuf, asize);
-    int timeout = std::max(100,static_cast<int>((buffersize/(samplerate*0.000001))*0.1));
-    timeoutPeriod = std::chrono::microseconds(timeout);
+
+    pro.setTimeOut(std::max(100,static_cast<int>((buffersize/(samplerate*0.000001))*0.1)));
+
     uint32_t _head = 1;
     while (_head < buffersize) {
         _head *= 2;

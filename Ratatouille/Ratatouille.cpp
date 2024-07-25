@@ -250,7 +250,7 @@ Xratatouille::Xratatouille() :
     _normA(0),
     _normB(0) {
         xrworker.start();
-        xrworker.process = [this] () {this->do_work_mono();};
+        xrworker.process = [=] () {do_work_mono();};
         pro.start();
         };
 
@@ -678,7 +678,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // process slot B in parallel
     if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
         pro.setWait();
-        pro.process = [this] () {this->processSlotB();};
+        pro.process = [=] () {processSlotB();};
         pro.cv.notify_one();
     } else {
         processSlotB();
@@ -724,10 +724,10 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
 
     // process conv1 in parallel
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
-        if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
+        if (pro.is_running()) {
             pro.setWait();
             _bufb = bufb;
-            pro.process = [this] () {this->processConv1();};
+            pro.process = [=] () {processConv1();};
             pro.cv.notify_one();
         } else {
             processConv1();

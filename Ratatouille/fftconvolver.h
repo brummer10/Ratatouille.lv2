@@ -124,7 +124,7 @@ public:
     DoubleThreadConvolver()
         : resamp(), ready(false), samplerate(0), pro() {
             pro.setTimeOut(200);
-            pro.process = [this] () {this->doBackgroundProcessing();};
+            pro.process = [=] () {doBackgroundProcessing();};
             norm = 0;}
 
     ~DoubleThreadConvolver() { reset(); pro.stop();}

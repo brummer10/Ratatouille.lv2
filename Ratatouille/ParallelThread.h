@@ -25,6 +25,39 @@
 #define PARALLEL_THREAD_H_
 
 
+/****************************************************************
+ ** ParallelThread - class to run processes in a separate thread
+ * usage:
+ *      // create a instance of ParallelThread
+ *      ParallelThread proc;
+ * 
+ *      // start the thread
+ *      proc.start();
+ * 
+ *      // optional: set the time out for the waiting function,
+ *      // this is a periodic wake up to check if the data been processed
+ *      proc.setTimeOut(microseconds);
+ * 
+ *      // optional: set the policy class and the priority the thread should use
+ *      proc.set_priority(priority, policy):
+ * 
+ *      // set a (YourClass member) function to be run by the thread
+ *      proc.function = [=] () {yourFunction();};
+ * 
+ *      //optional: prepare the waiting function to wait
+ *      proc.setWait();
+ * 
+ *      // Inform the thread to run the function
+ *      proc.cv.notify_one();
+ * 
+ *      // optional: wait for the processed data
+ *      proc.processWait();
+ * 
+ *      // stop the thread when no longer needed
+ *      // at least before exit the program
+ *      proc.stop();
+ */
+
 class ParallelThread
 {
 private:

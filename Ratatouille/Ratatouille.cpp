@@ -43,10 +43,7 @@
 #define XLV2__GUI "urn:brummer:ratatouille#gui"
 
 
-#include "resampler.cc"
-#include "resampler-table.cc"
-#include "zita-resampler/resampler.h"
-#include "gx_resampler.cc"
+#include "gx_resampler.h"
 
 #include "dcblocker.cc"
 #include "cdelay.cc"
@@ -191,12 +188,14 @@ private:
     inline void deactivate_f();
     inline void processSlotB();
     inline void processConv1();
-    friend class ParallelThread;
-public:
     inline void map_uris(LV2_URID_Map* map);
     inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
             const LV2_URID xlv2_model, const char* filename);
     inline const LV2_Atom* read_set_file(const LV2_Atom_Object* obj);
+
+    friend class ParallelThread;
+
+public:
     // LV2 Descriptor
     static const LV2_Descriptor descriptor;
     static const void* extension_data(const char* uri);
@@ -398,7 +397,7 @@ void Xratatouille::do_work_mono()
         } else {
             _neuralB.store(true, std::memory_order_release);
         }
-    // load Models in slots a and B
+    // load Models in slots A and B
     } else if (_ab.load(std::memory_order_acquire) == 3) {
         slotA.setModelFile(model_file);
         if (!slotA.loadModel()) {
@@ -448,7 +447,7 @@ void Xratatouille::do_work_mono()
             ir_file1 = "None";
             printf("impulse convolver1 update fail\n");
         }
-    // load all models and IR files new
+    // load all models and IR files
     } else if (_ab.load(std::memory_order_acquire) > 10) {
         if (model_file != "None") {
             slotA.setModelFile(model_file);
@@ -514,11 +513,15 @@ void Xratatouille::do_work_mono()
             }            
         }
     }
+    // set wait function time out for parallel processor thread
     pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
+    // set flag that work is done ready
     _execute.store(false, std::memory_order_release);
+    // set flag that GUI need information about changed state
     _notify_ui.store(true, std::memory_order_release);
 }
 
+// prepare atom message with file path
 inline LV2_Atom* Xratatouille::write_set_file(LV2_Atom_Forge* forge,
                     const LV2_URID xlv2_model, const char* filename) {
 
@@ -536,6 +539,7 @@ inline LV2_Atom* Xratatouille::write_set_file(LV2_Atom_Forge* forge,
     return set;
 }
 
+// read atom message with file path
 inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
     if (obj->body.otype != patch_Set) {
         return NULL;
@@ -565,10 +569,12 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
     return file_path;
 }
 
+// process slotB in parallel thread
 inline void Xratatouille::processSlotB() {
     slotB.compute(bufsize, _bufb, _bufb);
 }
 
+// process second convolver in parallel thread
 inline void Xratatouille::processConv1() {
     conv1.compute(bufsize, _bufb, _bufb);
 }
@@ -722,24 +728,14 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufa, output0, n_samples*sizeof(float));
     memcpy(bufb, output0, n_samples*sizeof(float));
 
-    // process conv1 in parallel
-    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
-        if (pro.is_running()) {
-            pro.setWait();
-            _bufb = bufb;
-            pro.process = [=] () {processConv1();};
-            pro.cv.notify_one();
-        } else {
-            processConv1();
-        }
-    }
-
-    if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
+    // process conv
+    if (!_execute.load(std::memory_order_acquire) && conv.is_runnable()) {
         conv.compute(n_samples, bufa, bufa);
-
-    //wait for conv1 when needed
-    if (pro.is_running() && conv1.is_runnable())
-        pro.processWait();
+    }
+    // process conv1 
+    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
+        conv1.compute(n_samples, bufb, bufb);
+    }
 
     // mix output when needed
     if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {

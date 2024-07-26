@@ -112,6 +112,11 @@ endif
 	CONV_OBJ := $(patsubst %.cpp,%.o,$(CONV_SOURCES))
 	CONV_LIB := libfftconvolver.$(STATIC_LIB_EXT)
 
+	RESAMP_DIR := ./zita-resampler-1.1.0/
+	RESAMP_SOURCES := $(wildcard $(RESAMP_DIR)*.cc) gx_resampler.cc
+	RESAMP_OBJ := $(patsubst %.cc,%.o,$(RESAMP_SOURCES))
+	RESAMP_LIB := libzita-resampler.$(STATIC_LIB_EXT)
+
 	GUIIMPL_SOURCE := lv2_plugin.cc
 
 	DEPS = $(RTN_OBJ:%.o=%.d) $(NAM_OBJ:%.o=%.d) Ratatouille.d
@@ -122,7 +127,7 @@ ifeq ($(TARGET), Linux)
 
 	LDFLAGS += -fvisibility=hidden -shared -lm -fPIC -pthread -lpthread \
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
-	-lfftw3 -lfftw3f -lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
+	-lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
 
 	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
@@ -158,8 +163,8 @@ else ifeq ($(TARGET), Windows)
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
-	LDFLAGS += -I. -shared -lm $(PAWPAW_LFLAGS) -lfftw3 -lfftw3f \
-	-Wl,--gc-sections -Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile`
+	LDFLAGS += -I. -shared -lm $(PAWPAW_LFLAGS) -Wl,--gc-sections \
+	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile`
 
 	GUI_LDFLAGS += -I$(HEADER_DIR) -static-libgcc -static-libstdc++ \
 	`$(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags --libs cairo ` \
@@ -251,15 +256,24 @@ $(NEURAL_LIB): $(NEURAL_OBJ)
 	$(QUIET)$(AR) rcs $(NEURAL_LIB) $(NEURAL_OBJ)
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
+$(RESAMP_OBJ): $(RESAMP_SOURCES)
+	@$(ECHO) "Building object file $@ $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD  -c $(patsubst %.o,%.cc,$@) -o $@ -I./zita-resampler-1.1.0
+
+$(RESAMP_LIB): $(RESAMP_OBJ)
+	@$(B_ECHO) "Build static library $@ $(reset)"
+	$(QUIET)$(AR) rcs $(RESAMP_LIB) $(RESAMP_OBJ)
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
 $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
 	$(QUIET)$(CC) $(CFLAGS) '$(NAME).c' -L. $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)
 
-$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(NEURAL_LIB) $(CONV_LIB)
+$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp  \
-	-L. $(NEURAL_LIB) -L. $(CONV_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :
@@ -291,6 +305,7 @@ ifndef EXTRAQUIET
 	@$(ECHO) ". ., clean up$(reset)"
 endif
 	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll 
+	$(QUIET)rm -f $(RESAMP_DIR)*.a $(RESAMP_DIR)*.lib $(RESAMP_DIR)*.o $(RESAMP_DIR)*.d
 	$(QUIET)rm -f $(CONV_DIR)*.a $(CONV_DIR)*.lib $(CONV_DIR)*.o $(CONV_DIR)*.d
 	$(QUIET)rm -f $(NAM_DIR)*.a $(NAM_DIR)*.lib $(NAM_DIR)*.o $(NAM_DIR)*.d
 	$(QUIET)rm -f $(RTN_DIR)*.a $(RTN_DIR)*.lib $(RTN_DIR)*.o $(RTN_DIR)*.d

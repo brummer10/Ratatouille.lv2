@@ -12,7 +12,6 @@
 #ifndef FFTCONVOLVER_H_
 #define FFTCONVOLVER_H_
 
-#include "TwoStageFFTConvolver.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <thread>
@@ -21,6 +20,7 @@
 #include <chrono>
 #include <sndfile.hh>
 
+#include "TwoStageFFTConvolver.h"
 #include "ParallelThread.h"
 #include "gx_resampler.h"
 

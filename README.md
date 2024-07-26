@@ -29,7 +29,6 @@ for using it on the [MOD Desktop](https://github.com/moddevices/mod-desktop)
 ## Dependencies
 
 - libsndfile1-dev
-- libfftw3-dev
 - libcairo2-dev
 - libx11-dev
 - lv2-dev

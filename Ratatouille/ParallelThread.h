@@ -42,7 +42,7 @@
  *      proc.set_priority(priority, policy):
  * 
  *      // set a (YourClass member) function to be run by the thread
- *      proc.function = [=] () {yourFunction();};
+ *      proc.process = [=] () {yourFunction();};
  * 
  *      //optional: prepare the waiting function to wait
  *      proc.setWait();
@@ -75,8 +75,8 @@ private:
         };
         _execute.store(true, std::memory_order_release);
         _thd = std::thread([this]() {
+            std::unique_lock<std::mutex> lk(m);
             while (_execute.load(std::memory_order_acquire)) {
-                std::unique_lock<std::mutex> lk(m);
                 // wait for signal from dsp that work is to do
                 cv.wait(lk);
                 //do work
@@ -138,9 +138,16 @@ public:
 
     void processWait() {
         if (is_running() && pWait.load(std::memory_order_acquire)) {
+            int maxDuration = 0;
             std::unique_lock<std::mutex> lk(mo);
-            while (pWait.load(std::memory_order_acquire))
+            while (pWait.load(std::memory_order_acquire)) {
                 co.wait_for(lk, timeoutPeriod);
+                maxDuration +=1;
+                if (maxDuration > 5) {
+                    pWait.store(false, std::memory_order_release);
+                    //fprintf(stderr, "break\n");
+                }
+            }
         }   
     }
 

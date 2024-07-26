@@ -22,7 +22,6 @@
 
 #include "RTNeural.h"
 
-#include "zita-resampler/resampler.h"
 #include "gx_resampler.h"
 
 #pragma once

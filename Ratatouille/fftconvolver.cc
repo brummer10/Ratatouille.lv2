@@ -108,9 +108,8 @@ int Audiofile::read(float *data, uint32_t frames) {
 
 void DoubleThreadConvolver::startBackgroundProcessing()
 {
-    if (pro.is_running()) {
-        pro.setWait();
-        pro.cv.notify_one();
+    if (pro.getProcess()) {
+        pro.runProcess();
     } else {
         doBackgroundProcessing();
     }

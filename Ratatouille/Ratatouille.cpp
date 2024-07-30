@@ -148,6 +148,7 @@ private:
     std::atomic<bool>            _neuralB;
 
     std::condition_variable      Sync;
+    std::mutex                   WMutex;
 
 
     // LV2 stuff
@@ -192,8 +193,6 @@ private:
     inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
             const LV2_URID xlv2_model, const char* filename);
     inline const LV2_Atom* read_set_file(const LV2_Atom_Object* obj);
-
-    friend class ParallelThread;
 
 public:
     // LV2 Descriptor
@@ -249,7 +248,8 @@ Xratatouille::Xratatouille() :
     _normA(0),
     _normB(0) {
         xrworker.start();
-        xrworker.process = [=] () {do_work_mono();};
+        xrworker.process.set<&Xratatouille::do_work_mono>(*this);
+        //xrworker.process = [=] () {do_work_mono();};
         pro.start();
         };
 
@@ -298,7 +298,9 @@ void Xratatouille::init_dsp_(uint32_t rate)
     slotB.init(rate);
 
     if (!rt_policy) rt_policy = 1; //SCHED_FIFO;
-    pro.set_priority(rt_prio, rt_policy);
+    pro.setPriority(rt_prio, rt_policy);
+    pro.process.set<&Xratatouille::processSlotB>(*this);
+    pro.setThreadName("RT");
 
     model_file = "None";
     model_file1 = "None";
@@ -418,6 +420,8 @@ void Xratatouille::do_work_mono()
         if (conv.is_runnable()) {
             conv.set_not_runnable();
             conv.stop_process();
+            std::unique_lock<std::mutex> lk(WMutex);
+            Sync.wait(lk);
         }
 
         conv.cleanup();
@@ -435,6 +439,8 @@ void Xratatouille::do_work_mono()
         if (conv1.is_runnable()) {
             conv1.set_not_runnable();
             conv1.stop_process();
+            std::unique_lock<std::mutex> lk(WMutex);
+            Sync.wait(lk);
         }
 
         conv1.cleanup();
@@ -472,6 +478,8 @@ void Xratatouille::do_work_mono()
             if (conv.is_runnable()) {
                 conv.set_not_runnable();
                 conv.stop_process();
+                std::unique_lock<std::mutex> lk(WMutex);
+                Sync.wait(lk);
             }
 
             conv.cleanup();
@@ -494,6 +502,8 @@ void Xratatouille::do_work_mono()
             if (conv1.is_runnable()) {
                 conv1.set_not_runnable();
                 conv1.stop_process();
+                std::unique_lock<std::mutex> lk(WMutex);
+                Sync.wait(lk);
             }
 
             conv1.cleanup();
@@ -613,7 +623,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
                     if (!_execute.load(std::memory_order_acquire)) {
                         bufsize = n_samples;
                         _execute.store(true, std::memory_order_release);
-                        xrworker.cv.notify_one();
+                        xrworker.runProcess();
                         //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
                     }
                 }
@@ -624,7 +634,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     if (!_execute.load(std::memory_order_acquire) && _restore.load(std::memory_order_acquire)) {
         _execute.store(true, std::memory_order_release);
         bufsize = n_samples;
-        xrworker.cv.notify_one();
+        xrworker.runProcess();
         //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
         _restore.store(false, std::memory_order_release);
     }
@@ -636,7 +646,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         conv.set_normalisation(normA);
         if (ir_file.compare("None") != 0) {
             _execute.store(true, std::memory_order_release);
-            xrworker.cv.notify_one();
+            xrworker.runProcess();
             //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
             _restore.store(false, std::memory_order_release);
         }
@@ -647,9 +657,9 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         bufsize = n_samples;
         _ab.store(8, std::memory_order_release);
         conv1.set_normalisation(normB);
-        if (ir_file.compare("None") != 0) {
+        if (ir_file1.compare("None") != 0) {
             _execute.store(true, std::memory_order_release);
-            xrworker.cv.notify_one();
+            xrworker.runProcess();
             //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
             _restore.store(false, std::memory_order_release);
         }
@@ -678,14 +688,12 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufa, output0, n_samples*sizeof(float));
     float bufb[n_samples];
     memcpy(bufb, output0, n_samples*sizeof(float));
-    _bufb = bufb;
     bufsize = n_samples;
 
     // process slot B in parallel
-    if (pro.is_running() && _neuralB.load(std::memory_order_acquire)) {
-        pro.setWait();
-        pro.process = [=] () {processSlotB();};
-        pro.cv.notify_one();
+    _bufb = bufb;
+    if (_neuralB.load(std::memory_order_acquire) && pro.getProcess()) {
+        pro.runProcess();
     } else {
         processSlotB();
     }
@@ -693,9 +701,10 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // process slot A
     slotA.compute(n_samples, bufa, bufa);
 
-    //wait for slot B when needed
-    if (pro.is_running() && _neuralB.load(std::memory_order_acquire))
+    //wait for parallel processed slot B when needed
+    if (_neuralB.load(std::memory_order_acquire)) {
         pro.processWait();
+    }
 
     cdelay->compute(n_samples, bufb, bufb);
 
@@ -728,14 +737,11 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufa, output0, n_samples*sizeof(float));
     memcpy(bufb, output0, n_samples*sizeof(float));
 
-    // process conv
-    if (!_execute.load(std::memory_order_acquire) && conv.is_runnable()) {
+    // process convolver
+    if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
         conv.compute(n_samples, bufa, bufa);
-    }
-    // process conv1 
-    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
+    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable())
         conv1.compute(n_samples, bufb, bufb);
-    }
 
     // mix output when needed
     if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {

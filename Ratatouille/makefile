@@ -12,11 +12,14 @@
 # check CPU and supported optimization flags
 ifneq ($(UNAME_S), FreeBSD)
   ifneq ($(shell cat /proc/cpuinfo | grep sse3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
+    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
+    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell cat /proc/cpuinfo | grep sse2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
+    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr 
+    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell cat /proc/cpuinfo | grep sse ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
+    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr 
+    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell cat /proc/cpuinfo | grep ARM ) , )
     ifneq ($(shell cat /proc/cpuinfo | grep ARMv7 ) , )
       ifneq ($(shell cat /proc/cpuinfo | grep vfpd32 ) , )
@@ -32,11 +35,14 @@ ifneq ($(UNAME_S), FreeBSD)
   endif
 else
   ifneq ($(shell dmidecode -t processor -t cache | grep SSE3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
+    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr 
+    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell dmidecode -t processor -t cache | grep SSE2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
+    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr 
+    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($(shell dmidecode -t processor -t cache | grep SSE ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr -DFFTCONVOLVER_USE_SSE=1
+    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr
+    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   endif
 endif
 
@@ -66,14 +72,23 @@ ifeq ($(UNAME_S), Linux)
   ifeq ($(TARGET), Linux)
     CXX_VERSION = $(shell clang++ --version 2>/dev/null)
     ifneq ($(CXX_VERSION),)
-      CXX := clang++
+      CXX := clang++    
     endif
   endif
 endif
 
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
   ifeq (,$(filter install,$(MAKECMDGOALS)))
-    $(info $(yellow) INFO: $(reset)with          $(blue)$(CXX)$(reset))
+    $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX)$(reset))
+
+    CXX_v = $(shell $(CXX) -dumpversion)
+    ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
+      CXXFLAGS += -std=c++17
+      $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++17$(reset))
+    else
+      CXXFLAGS += -std=c++20
+      $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++20$(reset))
+    endif
   endif
 endif
 
@@ -118,6 +133,7 @@ endif
 	RESAMP_LIB := libzita-resampler.$(STATIC_LIB_EXT)
 
 	GUIIMPL_SOURCE := lv2_plugin.cc
+	DELEGATE_DIR := ../delegate/include/delegate/
 
 	DEPS = $(RTN_OBJ:%.o=%.d) $(NAM_OBJ:%.o=%.d) Ratatouille.d
 
@@ -129,10 +145,10 @@ ifeq ($(TARGET), Linux)
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
 	-lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
 
-	CXXFLAGS += -MMD -std=c++17 -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
-	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM \
+	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
+	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \
 	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
-	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
+	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) -I$(DELEGATE_DIR) \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
@@ -156,10 +172,10 @@ ifeq ($(TARGET), Linux)
 	TTLUPDATEMODGUI =  sed -i -e '183,197d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
-	CXXFLAGS += -std=c++17 -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
-	-ffast-math -fomit-frame-pointer -fstrength-reduce \
-	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(SSE_CFLAGS) \
-	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
+	CXXFLAGS += -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
+	-ffast-math -fomit-frame-pointer -fstrength-reduce -Wno-deprecated-declarations \
+	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(SSE_CFLAGS) $(FFT_FLAG) \
+	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) -I$(DELEGATE_DIR) \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 

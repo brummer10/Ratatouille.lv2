@@ -90,9 +90,9 @@ public:
     std::mutex mo;
     std::condition_variable co;
     bool start(int32_t policy, int32_t priority) {
-        if (!pro.is_running()) {
+        if (!pro.isRunning()) {
             pro.start(); 
-            pro.set_priority(25, 1); //SCHED_FIFO
+            pro.setPriority(25, 1); //SCHED_FIFO
         }
         return ready;}
 
@@ -124,7 +124,8 @@ public:
     DoubleThreadConvolver()
         : resamp(), ready(false), samplerate(0), pro() {
             pro.setTimeOut(200);
-            pro.process = [=] () {doBackgroundProcessing();};
+            pro.process.set<&DoubleThreadConvolver::doBackgroundProcessing>(*this);
+            pro.setThreadName("Convolver");
             norm = 0;}
 
     ~DoubleThreadConvolver() { reset(); pro.stop();}

@@ -13,10 +13,14 @@ You can also load just a single model file, in that case the "Blend" control wil
 When you've loaded a second model, the "Blend" control will blend between the two models and
 mix them to simulate your specific tone.
 
+Ratatouille using parallel processing for the neural models,
+so, loading a second neural model wouldn't be remarkable on the dsp load.
+
 The "Delay" control could add a small delay to the second model to overcome phasing issues,
 or to add some color/reverb to the sound. 
 
 To round up your sound you can load two Impulse Response Files and mix them to your needs.
+IR-files could be normalised on load, so that they didn't influence the loudness. 
 
 Ratatouille.lv2 supports resampling when needed to match the expected sample rate of the 
 loaded models. Both models and the IR Files may have different expectations regarding the sample rate.

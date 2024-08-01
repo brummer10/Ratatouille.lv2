@@ -283,13 +283,13 @@ $(RESAMP_LIB): $(RESAMP_OBJ)
 
 $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
-	$(QUIET)$(CC) $(CFLAGS) '$(NAME).c' -L. $(UI_LIB) -o '$(EXEC_NAME)_ui.$(LIB_EXT)' $(LDFLAGS) $(GUI_LDFLAGS) -I./
+	$(QUIET)$(CC) $(CFLAGS) $(EXEC_NAME).c -L. $(UI_LIB) -o $@ $(LDFLAGS) $(GUI_LDFLAGS) -I./
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)
 
 $(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp  \
-	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $@
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 install :

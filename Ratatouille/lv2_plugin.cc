@@ -646,7 +646,7 @@ void draw_my_button(void *w_, void* user_data) {
 
 Widget_t* add_lv2_button(Widget_t *w, Widget_t *p, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height) {
-    w = add_combobox(p, label, x-350, y, width+350, height);
+    w = add_combobox(p, label, x-345, y, width+345, height);
     w->parent_struct = ui;
     w->func.expose_callback = dummy_expose;
     w->childlist->childs[0]->func.expose_callback = draw_my_button;
@@ -724,7 +724,7 @@ void draw_image_(Widget_t *w, int width_t, int height_t, float offset) {
         cairo_fill(w->crb);
     }
     cairo_set_source_surface (w->crb, w->image, off_set, off_set);
-    cairo_rectangle(w->crb,0, 0, height, height);
+    cairo_rectangle(w->crb,0, 0, width, height);
     cairo_fill(w->crb);
     cairo_scale(w->crb, x1,y1);
 }

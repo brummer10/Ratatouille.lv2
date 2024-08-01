@@ -298,9 +298,9 @@ void Xratatouille::init_dsp_(uint32_t rate)
     slotB.init(rate);
 
     if (!rt_policy) rt_policy = 1; //SCHED_FIFO;
+    pro.setThreadName("RT");
     pro.setPriority(rt_prio, rt_policy);
     pro.process.set<&Xratatouille::processSlotB>(*this);
-    pro.setThreadName("RT");
 
     model_file = "None";
     model_file1 = "None";
@@ -737,9 +737,11 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufa, output0, n_samples*sizeof(float));
     memcpy(bufb, output0, n_samples*sizeof(float));
 
-    // process convolver
+    // process conv
     if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
         conv.compute(n_samples, bufa, bufa);
+
+    // process conv1
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable())
         conv1.compute(n_samples, bufb, bufb);
 

@@ -214,8 +214,15 @@ bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned in
     while (_head < buffersize) {
         _head *= 2;
     }
+    /* FIXME
+    int tail = 1;
+    while (tail < asize) {
+        tail *= 2;
+    }
+    asize = tail * 0.5;
+    */
     uint32_t _tail = _head > 8192 ? _head : 8192;
-    //fprintf(stderr, "head %i tail %i irlen %i timeout %i microsec\n", _head, _tail, asize, timeout);
+    //fprintf(stderr, "head %i tail %i irlen %i \n", _head, _tail, asize);
     if (init(_head, _tail, abuf, asize)) {
         ready = true;
         delete[] abuf;
@@ -225,8 +232,7 @@ bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned in
     return false;
 }
 
-bool DoubleThreadConvolver::compute(int32_t count, float* input, float* output)
+void DoubleThreadConvolver::compute(int32_t count, float* input, float* output)
 {
-    process(input, output, count);
-    return true;
+    if (ready) process(input, output, count);
 }

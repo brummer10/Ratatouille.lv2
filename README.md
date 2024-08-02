@@ -1,6 +1,8 @@
 # Ratatouille.lv2
 
-![Ratatouille](https://github.com/brummer10/Ratatouille.lv2/blob/main/Ratatouille.png?raw=true)
+<p align="center">
+    <img src="https://github.com/brummer10/Ratatouille.lv2/blob/main/Ratatouille.png?raw=true" />
+</p>
 
 Ratatouille is a Neural Model loader and mixer for Linux/Windows.
 

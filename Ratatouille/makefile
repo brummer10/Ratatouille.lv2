@@ -135,7 +135,7 @@ endif
 	GUIIMPL_SOURCE := lv2_plugin.cc
 	DELEGATE_DIR := ../delegate/include/delegate/
 
-	DEPS = $(RTN_OBJ:%.o=%.d) $(NAM_OBJ:%.o=%.d) Ratatouille.d
+	DEPS = $NEURAL_OBJ:%.o=%.d) $(CONV_OBJ:%.o=%.d) $(RESAMP_OBJ:%.o=%.d) Ratatouille.d
 
 ifeq ($(TARGET), Linux)
 	GUI_LDFLAGS += -I$(HEADER_DIR) -Wl,-Bstatic -L. $(UI_LIB) \

@@ -101,7 +101,7 @@ public:
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
                     unsigned int length, unsigned int size, unsigned int bufsize);
 
-    bool compute(int32_t count, float* input, float *output);
+    void compute(int32_t count, float* input, float *output);
 
     bool checkstate() { return true;}
 

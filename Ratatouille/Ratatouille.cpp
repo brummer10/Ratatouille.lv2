@@ -699,7 +699,9 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     }
 
     // process slot A
-    slotA.compute(n_samples, bufa, bufa);
+    if (_neuralA.load(std::memory_order_acquire)) {
+        slotA.compute(n_samples, bufa, bufa);
+    }
 
     //wait for parallel processed slot B when needed
     if (_neuralB.load(std::memory_order_acquire)) {

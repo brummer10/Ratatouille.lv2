@@ -144,7 +144,53 @@ private:
     std::string filename;
     ParallelThread pro;
     std::atomic<bool> setWait;
-    std::chrono::microseconds timeoutPeriod;
+    bool get_buffer(std::string fname, float **buffer, uint32_t* rate, int* size);
+    void normalize(float* buffer, int asize);
+};
+
+class SingleThreadConvolver:  public fftconvolver::FFTConvolver
+{
+public:
+    bool start(int32_t policy, int32_t priority) {
+        return ready;}
+
+    void set_normalisation(uint32_t norm);
+
+    bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
+                    unsigned int length, unsigned int size, unsigned int bufsize);
+
+    void compute(int32_t count, float* input, float *output);
+
+    bool checkstate() { return true;}
+
+    inline void set_not_runnable() { ready = false;}
+
+    inline bool is_runnable() { return ready;}
+
+    inline void set_buffersize(uint32_t sz) { buffersize = sz;}
+
+    inline void set_samplerate(uint32_t sr) { samplerate = sr;}
+
+    int stop_process() {
+            ready = false;
+            return 0;}
+
+    int cleanup () {
+            reset();
+            return 0;}
+
+    SingleThreadConvolver()
+        : resamp(), ready(false), samplerate(0) { norm = 0;}
+
+    ~SingleThreadConvolver() { reset();}
+
+private:
+    gx_resample::BufferResampler resamp;
+    volatile bool ready;
+    uint32_t buffersize;
+    uint32_t samplerate;
+    uint32_t norm;
+    std::string filename;
     bool get_buffer(std::string fname, float **buffer, uint32_t* rate, int* size);
     void normalize(float* buffer, int asize);
 };

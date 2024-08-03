@@ -107,8 +107,8 @@ private:
     cdeleay::Dsp*                cdelay;
     ModelerSelector              slotA;
     ModelerSelector              slotB;
-    DoubleThreadConvolver        conv;
-    DoubleThreadConvolver        conv1;
+    SingleThreadConvolver        conv;
+    SingleThreadConvolver        conv1;
     ParallelThread               xrworker;
     ParallelThread               pro;
     DenormalProtection           MXCSR;
@@ -237,8 +237,8 @@ Xratatouille::Xratatouille() :
     cdelay(cdeleay::plugin()),
     slotA(&Sync),
     slotB(&Sync),
-    conv(DoubleThreadConvolver()),
-    conv1(DoubleThreadConvolver()),
+    conv(SingleThreadConvolver()),
+    conv1(SingleThreadConvolver()),
     rt_prio(0),
     rt_policy(0),
     input0(NULL),
@@ -300,7 +300,6 @@ void Xratatouille::init_dsp_(uint32_t rate)
     if (!rt_policy) rt_policy = 1; //SCHED_FIFO;
     pro.setThreadName("RT");
     pro.setPriority(rt_prio, rt_policy);
-    pro.process.set<&Xratatouille::processSlotB>(*this);
 
     model_file = "None";
     model_file1 = "None";
@@ -693,6 +692,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // process slot B in parallel
     _bufb = bufb;
     if (_neuralB.load(std::memory_order_acquire) && pro.getProcess()) {
+        pro.process.set<&Xratatouille::processSlotB>(*this);
         pro.runProcess();
     } else {
         processSlotB();
@@ -739,13 +739,23 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufa, output0, n_samples*sizeof(float));
     memcpy(bufb, output0, n_samples*sizeof(float));
 
+    // process conv1 in parallel
+    _bufb = bufb;
+    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
+        if (pro.getProcess()) {
+            pro.process.set<&Xratatouille::processConv1>(*this);
+            pro.runProcess();
+        } else {
+            processConv1();
+        }
+    }
     // process conv
     if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
         conv.compute(n_samples, bufa, bufa);
 
-    // process conv1
+    // wait for parallel processed conv1 when needed
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable())
-        conv1.compute(n_samples, bufb, bufb);
+        pro.processWait();
 
     // mix output when needed
     if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {

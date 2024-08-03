@@ -236,3 +236,108 @@ void DoubleThreadConvolver::compute(int32_t count, float* input, float* output)
 {
     if (ready) process(input, output, count);
 }
+
+/****************************************************************
+ ** SingleThreadConvolver
+ */
+
+bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32_t *rate, int *asize)
+{
+    Audiofile audio;
+    if (audio.open_read(fname)) {
+        fprintf(stderr, "Unable to open %s\n", fname.c_str() );
+        *buffer = 0;
+        return false;
+    }
+    *rate = audio.rate();
+    *asize = audio.size();
+    const int limit = 2000000; // arbitrary size limit
+    if (*asize > limit) {
+        fprintf(stderr, "too many samples (%i), truncated to %i\n"
+                           , audio.size(), limit);
+        *asize = limit;
+    }
+    if (*asize * audio.chan() == 0) {
+        fprintf(stderr, "No samples found\n");
+        *buffer = 0;
+        audio.close();
+        return false;
+    }
+    float* cbuffer = new float[*asize * audio.chan()];
+    if (audio.read(cbuffer, *asize) != static_cast<int>(*asize)) {
+        delete[] cbuffer;
+        fprintf(stderr, "Error reading file\n");
+        *buffer = 0;
+        audio.close();
+        return false;
+    }
+    if (audio.chan() > 1) {
+        //fprintf(stderr,"only taking first channel of %i channels in impulse response\n", audio.chan());
+        float *abuffer = new float[*asize];
+        for (int i = 0; i < *asize; i++) {
+            abuffer[i] = cbuffer[i * audio.chan()];
+        }
+        delete[] cbuffer;
+        cbuffer = NULL;
+        cbuffer = abuffer;
+    }
+    *buffer = cbuffer;
+    audio.close();
+    if (*rate != samplerate) {
+        *buffer = resamp.process(*rate, *asize, *buffer, samplerate, asize);
+        if (!*buffer) {
+            printf("no buffer\n");
+            return false;
+        }
+        //fprintf(stderr, "FFTConvolver: resampled from %i to %i\n", *rate, samplerate);
+    }
+    return true;
+}
+
+void SingleThreadConvolver::normalize(float* buffer, int asize) {
+    if (!norm) return;
+    double gain = 0.0;
+    // get gain factor from file buffer
+    for (int i = 0; i < asize; i++) {
+        double v = buffer[i] ;
+        gain += v*v;
+    }
+    // apply gain factor when needed
+    if (gain != 0.0) {
+        gain = 1.0 / gain;
+
+        for (int i = 0; i < asize; i++) {
+            buffer[i] *= gain;
+        }
+    }
+}
+
+void SingleThreadConvolver::set_normalisation(uint32_t norm_) {
+    norm = norm_;
+}
+
+bool SingleThreadConvolver::configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
+            unsigned int length, unsigned int size, unsigned int bufsize)
+{
+    filename = fname;
+    float* abuf = NULL;
+    uint32_t arate = 0;
+    int asize = 0;
+    if (!get_buffer(fname, &abuf, &arate, &asize)) {
+        return false;
+    }
+    normalize(abuf, asize);
+
+    if (init(1024, abuf, asize)) {
+        ready = true;
+        delete[] abuf;
+        return true;
+    }
+    delete[] abuf;
+    return false;
+}
+
+void SingleThreadConvolver::compute(int32_t count, float* input, float* output)
+{
+    if (ready) process(input, output, count);
+}

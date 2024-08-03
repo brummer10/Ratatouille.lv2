@@ -145,7 +145,7 @@ public:
             while (!getState()) {
                 pthread_mutex_lock(&pWaitProc);
                 if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) == ETIMEDOUT) {
-                    pthread_mutex_unlock(&pWaitProc);;
+                    pthread_mutex_unlock(&pWaitProc);
                     maxDuration +=1;
                     //fprintf(stderr, "%s wait for process %i\n", threadName.c_str(), maxDuration);
                     if (maxDuration > 2) {
@@ -179,7 +179,7 @@ public:
             while (pWait.load(std::memory_order_acquire)) {
                 pthread_mutex_lock(&pWaitProc);
                 if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) == ETIMEDOUT) {
-                    pthread_mutex_unlock(&pWaitProc);;
+                    pthread_mutex_unlock(&pWaitProc);
                     maxDuration +=1;
                     //fprintf(stderr, "%s wait for data %i\n", threadName.c_str(), maxDuration);
                     if (maxDuration > 5) {

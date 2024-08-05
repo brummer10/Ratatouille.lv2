@@ -124,7 +124,7 @@ public:
     DoubleThreadConvolver()
         : resamp(), ready(false), samplerate(0), pro() {
             pro.setTimeOut(200);
-            pro.process.set<&DoubleThreadConvolver::doBackgroundProcessing>(*this);
+            pro.set<DoubleThreadConvolver, &DoubleThreadConvolver::backgroundProcessing>(this);
             pro.setThreadName("Convolver");
             norm = 0;}
 
@@ -137,6 +137,7 @@ protected:
 private:
     friend class ParallelThread;
     gx_resample::BufferResampler resamp;
+    void backgroundProcessing() { return doBackgroundProcessing();}
     volatile bool ready;
     uint32_t buffersize;
     uint32_t samplerate;

@@ -10,6 +10,3 @@
 [submodule "FFTConvolver"]
 	path = FFTConvolver
 	url = https://github.com/HiFi-LoFi/FFTConvolver.git
-[submodule "delegate"]
-	path = delegate
-	url = https://github.com/rosbacke/delegate.git

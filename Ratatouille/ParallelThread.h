@@ -11,10 +11,6 @@
  *                   requires minimum c++17
  *                   works best with c++20 (std::atomic::wait)
  *
- *  ParallelThread using delegate to replace std::function<void> 
- *  see:
- *           https://github.com/rosbacke/delegate
- *
  *  ParallelThread aims to be suitable in real-time processes
  *  to provide a parallel processor.
  *
@@ -39,7 +35,7 @@
  *      proc.setTimeOut(std::max(100,static_cast<int>((bufferSize/(sampleRate*0.000001))*0.1)));
  *      // set the function to run in the parallel thread
  *         function should be defined in YourClass as void YourFunction();
- *      proc.process.set<&YourClass::YourFunction>(*this);
+ *      proc.set<YourClass, &YourClass::YourFunction>(*this);
  *      // now anything is setup to run the thread,
  *         so try to get the processing pointer by getProcess()
  *         getProcess() check if the thread is in waiting state, if not,
@@ -79,14 +75,57 @@
 
 #include <pthread.h>
 
-#include "delegate.hpp"
-
 #pragma once
 
 #ifndef PARALLEL_THREAD_H_
 #define PARALLEL_THREAD_H_
 
-class ParallelThread
+class ProcessPtr
+{ 
+public:
+    ProcessPtr() {
+      set<0, ProcessPtr, &ProcessPtr::dummyFunc>(this);
+      set<1, ProcessPtr, &ProcessPtr::dummyFunc>(this);
+      i = 0;
+      }
+ 
+    template <class C, void (C::*Function)()>
+    void set(C* instance) {
+        instPtr[i] = instance;
+        memberFunc[i] = &wrap<C, Function>;
+    }
+ 
+    template <uint32_t s, class C, void (C::*Function)()>
+    void set(C* instance) {
+        instPtr[s] = instance;
+        memberFunc[s] = &wrap<C, Function>;
+    }
+
+    void setProcessor(uint32_t i_) {
+        i = i_;
+    }
+
+    void process() const {
+        return memberFunc[i](instPtr[i]);
+    }
+ 
+private:
+    typedef void* InstancePtr;
+    typedef void (*MemberFunc)(InstancePtr);
+ 
+    template <class C, void (C::*Function)()>
+    static inline void wrap(InstancePtr instance) {
+        return (static_cast<C*>(instance)->*Function)();
+    }
+
+    void dummyFunc() {}
+
+    InstancePtr instPtr[2];
+    MemberFunc memberFunc[2];
+    uint32_t i;
+};
+
+class ParallelThread: public ProcessPtr
 {
 public:
     //Constructor
@@ -99,7 +138,6 @@ public:
          #endif
     {
         timeoutPeriod = 400;
-        process.set<&ParallelThread::runDummyFunction>(*this);
         threadName = "anonymous";
         init();
     }
@@ -208,9 +246,6 @@ public:
         }
     }
 
-    // the function to run by thread
-    // could be a std::function, but delegate is more lightweight 
-    delegate<void ()>process;
 
 private:
     std::atomic<bool> pRun;
@@ -321,9 +356,6 @@ private:
         return 0;
     }
     #endif
-
-    // default dummy function running by delegate
-    void runDummyFunction() {}
 
 };
 

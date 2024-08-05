@@ -248,7 +248,7 @@ Xratatouille::Xratatouille() :
     _normA(0),
     _normB(0) {
         xrworker.start();
-        xrworker.process.set<&Xratatouille::do_work_mono>(*this);
+        xrworker.set<Xratatouille, &Xratatouille::do_work_mono>(this);
         //xrworker.process = [=] () {do_work_mono();};
         pro.start();
         };
@@ -300,6 +300,8 @@ void Xratatouille::init_dsp_(uint32_t rate)
     if (!rt_policy) rt_policy = 1; //SCHED_FIFO;
     pro.setThreadName("RT");
     pro.setPriority(rt_prio, rt_policy);
+    pro.set<0, Xratatouille, &Xratatouille::processSlotB>(this);
+    pro.set<1, Xratatouille, &Xratatouille::processConv1>(this);
 
     model_file = "None";
     model_file1 = "None";
@@ -692,7 +694,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // process slot B in parallel
     _bufb = bufb;
     if (_neuralB.load(std::memory_order_acquire) && pro.getProcess()) {
-        pro.process.set<&Xratatouille::processSlotB>(*this);
+        pro.setProcessor(0);
         pro.runProcess();
     } else {
         processSlotB();
@@ -743,7 +745,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     _bufb = bufb;
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
         if (pro.getProcess()) {
-            pro.process.set<&Xratatouille::processConv1>(*this);
+            pro.setProcessor(1);
             pro.runProcess();
         } else {
             processConv1();

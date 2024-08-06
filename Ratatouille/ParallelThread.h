@@ -313,7 +313,7 @@ private:
 
     // set thread scheduling class and priority level 
     inline void setThreadPolicy(int32_t rt_prio, int32_t rt_policy) noexcept {
-        #if defined(__linux__) || defined(_UNIX) || defined(__APPLE__)
+        #if defined(__linux__) || defined(_UNIX) || defined(__APPLE__) || defined(_OS_UNIX_)
         sched_param sch_params;
         if (rt_prio == 0) {
             rt_prio = sched_get_priority_max(rt_policy);

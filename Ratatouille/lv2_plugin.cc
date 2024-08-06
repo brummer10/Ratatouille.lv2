@@ -682,7 +682,7 @@ static void my_fbutton_callback(void *w_, void* user_data) {
             } else {
                 widget_set_title(filebutton->w, _("File Selector - Select Neural Model"));
             }
-#ifdef __linux__
+#ifdef _OS_UNIX_
             Atom wmStateAbove = XInternAtom(w->app->dpy, "_NET_WM_STATE_ABOVE", 1 );
             Atom wmNetWmState = XInternAtom(w->app->dpy, "_NET_WM_STATE", 1 );
             XChangeProperty(w->app->dpy, filebutton->w->widget, wmNetWmState, XA_ATOM, 32, 

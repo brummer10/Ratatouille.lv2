@@ -9,74 +9,85 @@
 	INSTALL_DIR = ~/.lv2
 	endif
 
-# check CPU and supported optimization flags
-ifneq ($(UNAME_S), FreeBSD)
-  ifneq ($(shell cat /proc/cpuinfo | grep sse3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
-    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
-  else ifneq ($(shell cat /proc/cpuinfo | grep sse2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr 
-    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
-  else ifneq ($(shell cat /proc/cpuinfo | grep sse ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr 
-    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
-  else ifneq ($(shell cat /proc/cpuinfo | grep ARM ) , )
-    ifneq ($(shell cat /proc/cpuinfo | grep ARMv7 ) , )
-      ifneq ($(shell cat /proc/cpuinfo | grep vfpd32 ) , )
-        SSE_CFLAGS = -march=armv7-a -mfpu=vfpv3 
-      else ifneq ($(shell cat /proc/cpuinfo | grep vfpv3 ) , )
-        SSE_CFLAGS = -march=armv7-a -mfpu=vfpv3
-      endif
-    else
-      ARMCPU = "YES"
-    endif
-  else
-    SSE_CFLAGS =
-  endif
+# get flags supported by CPU
+ifeq ($(UNAME_S), FreeBSD)
+  CPU_INFO = dmesg | grep Features | tr A-Z a-z
 else
-  ifneq ($(shell dmidecode -t processor -t cache | grep SSE3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr 
-    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
-  else ifneq ($(shell dmidecode -t processor -t cache | grep SSE2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr 
-    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
-  else ifneq ($(shell dmidecode -t processor -t cache | grep SSE ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr
-    FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
-  endif
+  CPU_INFO = cat /proc/cpuinfo | grep flags
 endif
 
-ifneq ($(UNAME_S), FreeBSD)
+# check for sse optimisation level
+ifneq ($$(filter $(CPU_INFO) | grep sse3 ) , )
+  SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
+  FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
+else ifneq ($$(filter $(CPU_INFO) | grep sse2 ) , )
+  SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr 
+  FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
+else ifneq ($$(filter $(CPU_INFO) | grep sse ) , )
+  SSE_CFLAGS = -msse -mfpmath=sse -mfxsr 
+  FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
+else ifneq ($$(filter $(CPU_INFO) | grep ARM ) , )
+  ifneq ($$(filter $(CPU_INFO) | grep ARMv7 ) , )
+    ifneq ($$(filter $(CPU_INFO) | grep vfpd32 ) , )
+      SSE_CFLAGS = -march=armv7-a -mfpu=vfpv3 
+    else ifneq ($$(filter $(CPU_INFO) | grep vfpv3 ) , )
+      SSE_CFLAGS = -march=armv7-a -mfpu=vfpv3
+    endif
+  else
+    ARMCPU = "YES"
+  endif
+else
+  SSE_CFLAGS =
+endif
+
+# check for x86_64 optimisation level
+FLAGS_v3    := avx avx2 bmi1 bmi2 f16c fma abm movbe xsave
+FLAGS_v2    := cx16 lahf_lm popcnt sse4_1 sse4_2 ssse3
+FLAGS_v1    := lm cmov cx8 fpu fxsr mmx syscall sse2
+FLAGS      := $(shell $(CPU_INFO))
+
+define LOOPBODY
+  ifneq ($$(filter $(v),$(FLAGS)),)
+   YES_x86_64 = x86_64_LEVEL
+  else
+    NO_x86_64 = x86_64_LEVEL
+  endif
+endef
+
+x86_64_LEVEL := 3
+$(foreach v,$(FLAGS_v3),$(eval $(LOOPBODY)))
+ifeq ($(NO_x86_64), $(x86_64_LEVEL))
+  x86_64_LEVEL := 2
+  $(foreach v,$(FLAGS_v2),$(eval $(LOOPBODY)))
+endif
+ifeq ($(NO_x86_64), $(x86_64_LEVEL))
+  x86_64_LEVEL := 1
+  $(foreach v,$(FLAGS_v1),$(eval $(LOOPBODY)))
+endif
+
 ifneq ($(MAKECMDGOALS),install)
   ifneq ($(MAKECMDGOALS),clean)
-    ifeq ($(shell arch), x86_64)
-      ifneq ($(shell /usr/lib64/ld-linux-x86-64.so.2 --help 2>/dev/null | grep 'x86-64-v3 (supported, searched)') , )
-        CXXFLAGS += -march=x86-64-v3
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=x86-64-v3 $(SSE_CFLAGS)$(reset))
-      else ifneq ($(shell /usr/lib64/ld-linux-x86-64.so.2 --help 2>/dev/null | grep 'x86-64-v2 (supported, searched)') , )
-        CXXFLAGS += -march=x86-64-v2
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=x86-64-v2 $(SSE_CFLAGS)$(reset))
-      else
-        CXXFLAGS += -march=x86-64
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=x86_64 $(SSE_CFLAGS)$(reset))
-      endif
+    ifneq ($(NO_x86_64), $(x86_64_LEVEL))
+      SSE_CFLAGS += -march=x86-64-v$(x86_64_LEVEL)
+      $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
     else ifeq ($(shell arch), aarch64)
       CXXFLAGS += -march=armv8
       $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8 $(SSE_CFLAGS)$(reset))
     endif
   endif
 endif
-endif
 
-ifeq ($(UNAME_S), Linux)
-  ifeq ($(TARGET), Linux)
-    CXX_VERSION = $(shell clang++ --version 2>/dev/null)
-    ifneq ($(CXX_VERSION),)
-      CXX := clang++    
-    endif
+# check if clang is available
+
+ifeq ($(TARGET), Linux)
+  CXX_VERSION = $(shell clang++ --version 2>/dev/null)
+  ifneq ($(CXX_VERSION),)
+    CXX := clang++    
   endif
 endif
 
+
+# check for c++ level
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
   ifeq (,$(filter install,$(MAKECMDGOALS)))
     $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX)$(reset))
@@ -133,7 +144,6 @@ endif
 	RESAMP_LIB := libzita-resampler.$(STATIC_LIB_EXT)
 
 	GUIIMPL_SOURCE := lv2_plugin.cc
-	DELEGATE_DIR := ../delegate/include/delegate/
 
 	DEPS = $NEURAL_OBJ:%.o=%.d) $(CONV_OBJ:%.o=%.d) $(RESAMP_OBJ:%.o=%.d) Ratatouille.d
 
@@ -143,18 +153,18 @@ ifeq ($(TARGET), Linux)
 
 	LDFLAGS += -fvisibility=hidden -shared -lm -fPIC -pthread -lpthread \
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
-	-lstdc++fs `$(PKGCONFIG) --cflags --libs sndfile`
+	`$(PKGCONFIG) --cflags --libs sndfile`
 
 	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \
 	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
-	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) -I$(DELEGATE_DIR) \
+	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
 	ifneq ($(UNAME_S), FreeBSD)
 	ifeq (,$(findstring clang, $(CXX)))
-	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects
+	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects -Wno-vla-cxx-extension -Wno-nan-infinity-disabled
 	else
 	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero
 	endif
@@ -175,7 +185,7 @@ else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
 	-ffast-math -fomit-frame-pointer -fstrength-reduce -Wno-deprecated-declarations \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(SSE_CFLAGS) $(FFT_FLAG) \
-	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) -I$(DELEGATE_DIR) \
+	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 

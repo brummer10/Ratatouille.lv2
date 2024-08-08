@@ -65,11 +65,17 @@ ifeq ($(NO_x86_64), $(x86_64_LEVEL))
   $(foreach v,$(FLAGS_v1),$(eval $(LOOPBODY)))
 endif
 
+CXX_v = $(shell $(CXX) -dumpversion)
 ifneq ($(MAKECMDGOALS),install)
   ifneq ($(MAKECMDGOALS),clean)
     ifneq ($(NO_x86_64), $(x86_64_LEVEL))
-      SSE_CFLAGS += -march=x86-64-v$(x86_64_LEVEL)
-      $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
+      ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
+        SSE_CFLAGS += -march=native
+        $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))      
+      else
+        SSE_CFLAGS += -march=x86-64-v$(x86_64_LEVEL)
+        $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
+      endif
     else ifeq ($(shell arch), aarch64)
       CXXFLAGS += -march=armv8
       $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8 $(SSE_CFLAGS)$(reset))
@@ -91,8 +97,6 @@ endif
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
   ifeq (,$(filter install,$(MAKECMDGOALS)))
     $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX)$(reset))
-
-    CXX_v = $(shell $(CXX) -dumpversion)
     ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
       CXXFLAGS += -std=c++17
       $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++17$(reset))

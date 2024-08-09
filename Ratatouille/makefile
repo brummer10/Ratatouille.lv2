@@ -168,12 +168,13 @@ ifeq ($(TARGET), Linux)
 
 	ifneq ($(UNAME_S), FreeBSD)
 	ifeq (,$(findstring clang, $(CXX)))
-	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects -Wno-vla-cxx-extension -Wno-nan-infinity-disabled
+	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects -Wno-deprecated-declarations
 	else
 	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero
 	endif
 	else
-	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero
+	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero \
+	-Wno-vla-cxx-extension -Wno-nan-infinity-disabled
 	endif
 
 	SLP_LDFLAGS += -fvisibility=hidden -Wl,-Bstatic `pkg-config --cflags --libs xputty` \

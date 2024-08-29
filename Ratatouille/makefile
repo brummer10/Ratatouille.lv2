@@ -157,7 +157,7 @@ ifeq ($(TARGET), Linux)
 
 	LDFLAGS += -fvisibility=hidden -shared -lm -fPIC -pthread -lpthread \
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
-	`$(PKGCONFIG) --cflags --libs sndfile`
+	`$(PKGCONFIG) --cflags --libs sndfile lv2`
 
 	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \

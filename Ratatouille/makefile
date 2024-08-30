@@ -77,7 +77,7 @@ ifneq ($(MAKECMDGOALS),install)
         $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
       endif
     else ifeq ($(shell arch), aarch64)
-      CXXFLAGS += -march=armv8
+      CXXFLAGS += -march=armv8-a
       $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8 $(SSE_CFLAGS)$(reset))
     endif
   endif

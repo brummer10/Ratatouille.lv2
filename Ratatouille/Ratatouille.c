@@ -7,7 +7,7 @@
  */
 
 
-#define CONTROLS 7
+#define CONTROLS 8
 
 #define GUI_ELEMENTS 0
 
@@ -285,8 +285,8 @@ void plugin_value_changed(X11_UI *ui, Widget_t *w, PortIndex index) {
 }
 
 void plugin_set_window_size(int *w,int *h,const char * plugin_uri) {
-    (*w) = 500; //set initial width of main window
-    (*h) = 429; //set initial height of main window
+    (*w) = 610; //set initial width of main window
+    (*h) = 419; //set initial height of main window
 }
 
 const char* plugin_set_name() {
@@ -325,73 +325,78 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     asprintf(&ps->ir1.filepicker->filter ,"%s", ".wav");
     ps->ir1.filepicker->use_filter = 1;
 
-    ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 40,  258, 25, 25);
+    ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 40,  248, 25, 25);
     ps->ma.filebutton->parent_struct = (void*)&ps->ma;
     ps->ma.filebutton->func.user_callback = file_load_response;
 
-    ps->mb.filebutton = add_lv2_file_button (ps->mb.filebutton, ui->win, -2, "Neural Model", ui, 40,  298, 25, 25);
+    ps->mb.filebutton = add_lv2_file_button (ps->mb.filebutton, ui->win, -2, "Neural Model", ui, 40,  288, 25, 25);
     ps->mb.filebutton->parent_struct = (void*)&ps->mb;
     ps->mb.filebutton->func.user_callback = file_load_response;
 
-    ps->ir.filebutton = add_lv2_irfile_button (ps->ir.filebutton, ui->win, -3, "IR File", ui, 40,  338, 25, 25);
+    ps->ir.filebutton = add_lv2_irfile_button (ps->ir.filebutton, ui->win, -3, "IR File", ui, 40,  328, 25, 25);
     ps->ir.filebutton->parent_struct = (void*)&ps->ir;
     ps->ir.filebutton->func.user_callback = file_load_response;
 
-    ps->ir1.filebutton = add_lv2_irfile_button (ps->ir1.filebutton, ui->win, -4, "IR File", ui, 40,  378, 25, 25);
+    ps->ir1.filebutton = add_lv2_irfile_button (ps->ir1.filebutton, ui->win, -4, "IR File", ui, 40,  368, 25, 25);
     ps->ir1.filebutton->parent_struct = (void*)&ps->ir1;
     ps->ir1.filebutton->func.user_callback = file_load_response;
 
-    ui->widget[0] = add_lv2_knob (ui->widget[0], ui->win, 2, "Input", ui, 35,  85, 100, 120);
+    ui->widget[0] = add_lv2_knob (ui->widget[0], ui->win, 2, "Input(A)", ui, 35,  90, 90, 110);
     set_adjustment(ui->widget[0]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
     set_widget_color(ui->widget[0], 0, 0, 0.259, 0.518, 0.894, 1.0);
     set_widget_color(ui->widget[0], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
-    ui->widget[2] = add_lv2_knob (ui->widget[2], ui->win, 4, "Blend", ui, 135,  95, 80, 110);
+    ui->widget[7] = add_lv2_knob (ui->widget[7], ui->win, 11, "Input(B)", ui, 125,  90, 90, 110);
+    set_adjustment(ui->widget[7]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
+    set_widget_color(ui->widget[7], 0, 0, 0.259, 0.518, 0.894, 1.0);
+    set_widget_color(ui->widget[7], 0, 3,  0.686, 0.729, 0.773, 1.0);
+
+    ui->widget[2] = add_lv2_knob (ui->widget[2], ui->win, 4, "Blend(A|B)", ui, 215,  90, 90, 110);
     set_adjustment(ui->widget[2]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
     set_widget_color(ui->widget[2], 0, 0, 0.259, 0.518, 0.894, 1.0);
     set_widget_color(ui->widget[2], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
-    ui->widget[4] = add_lv2_knob (ui->widget[4], ui->win, 8, "Delay", ui, 215,  100, 70, 105);
-    set_adjustment(ui->widget[4]->adj, 0.0, 0.0, 0.0, 4096.0, 16.0, CL_CONTINUOS);
+    ui->widget[4] = add_lv2_knob (ui->widget[4], ui->win, 8, "Delay(Δ)", ui, 305,  90, 90, 110);
+    set_adjustment(ui->widget[4]->adj, 0.0, 0.0, -4096.0, 4096.0, 16.0, CL_CONTINUOS);
     set_widget_color(ui->widget[4], 0, 0, 0.259, 0.518, 0.894, 1.0);
     set_widget_color(ui->widget[4], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
-    ui->widget[3] = add_lv2_knob (ui->widget[3], ui->win, 7, "Mix (IR)", ui, 285,  95, 80, 110);
+    ui->widget[3] = add_lv2_knob (ui->widget[3], ui->win, 7, "Mix (IR)", ui, 395,  90, 90, 110);
     set_adjustment(ui->widget[3]->adj, 0.5, 0.5, 0.0, 1.0, 0.01, CL_CONTINUOS);
     set_widget_color(ui->widget[3], 0, 0, 0.259, 0.518, 0.894, 1.0);
     set_widget_color(ui->widget[3], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
-    ui->widget[1] = add_lv2_knob (ui->widget[1], ui->win, 3, "Output ", ui, 365,  85, 100, 120);
+    ui->widget[1] = add_lv2_knob (ui->widget[1], ui->win, 3, "Output ", ui, 485,  90, 90, 110);
     set_adjustment(ui->widget[1]->adj, 0.0, 0.0, -20.0, 20.0, 0.2, CL_CONTINUOS);
     set_widget_color(ui->widget[1], 0, 0, 0.259, 0.518, 0.894, 1.0);
     set_widget_color(ui->widget[1], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
-    ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 435,  254, 22, 30);
+    ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 545,  244, 22, 30);
     ps->ma.fbutton->parent_struct = (void*)&ps->ma;
     combobox_set_pop_position(ps->ma.fbutton, 0);
     combobox_add_entry(ps->ma.fbutton, "None");
     ps->ma.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->mb.fbutton = add_lv2_button(ps->mb.fbutton, ui->win, "", ui, 435,  294, 22, 30);
+    ps->mb.fbutton = add_lv2_button(ps->mb.fbutton, ui->win, "", ui, 545,  284, 22, 30);
     ps->mb.fbutton->parent_struct = (void*)&ps->mb;
     combobox_set_pop_position(ps->mb.fbutton, 0);
     combobox_add_entry(ps->mb.fbutton, "None");
     ps->mb.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 435,  334, 22, 30);
+    ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 545,  324, 22, 30);
     ps->ir.fbutton->parent_struct = (void*)&ps->ir;
     combobox_set_pop_position(ps->ir.fbutton, 0);
     combobox_add_entry(ps->ir.fbutton, "None");
     ps->ir.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 435,  374, 22, 30);
+    ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 545,  364, 22, 30);
     ps->ir1.fbutton->parent_struct = (void*)&ps->ir1;
     combobox_set_pop_position(ps->ir1.fbutton, 0);
     combobox_add_entry(ps->ir1.fbutton, "None");
     ps->ir1.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ui->widget[5] = add_lv2_toggle_button (ui->widget[5], ui->win, 9, "", ui, 70,  338, 25, 25);
-    ui->widget[6] = add_lv2_toggle_button (ui->widget[6], ui->win, 10, "", ui, 70,  378, 25, 25);
+    ui->widget[5] = add_lv2_toggle_button (ui->widget[5], ui->win, 9, "", ui, 70,  328, 25, 25);
+    ui->widget[6] = add_lv2_toggle_button (ui->widget[6], ui->win, 10, "", ui, 70,  368, 25, 25);
 }
 
 void plugin_cleanup(X11_UI *ui) {

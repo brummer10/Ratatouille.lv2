@@ -118,9 +118,11 @@ private:
     float*                       input0;
     float*                       output0;
     float*                       _inputGain;
+    float*                       _inputGain1;
     float*                       _outputGain;
     float*                       _blend;
     float*                       _mix;
+    float*                       _delay;
     float*                       _bufb;
     float*                       _normA;
     float*                       _normB;
@@ -130,6 +132,7 @@ private:
     double                       fRec3[2];
     double                       fRec2[2];
     double                       fRec1[2];
+    double                       fRec4[2];
     uint32_t                     bufsize;
     uint32_t                     s_rate;
     bool                         doit;
@@ -243,8 +246,13 @@ Xratatouille::Xratatouille() :
     rt_policy(0),
     input0(NULL),
     output0(NULL),
+    _inputGain(0),
+    _inputGain1(0),
+    _outputGain(0),
     _blend(0),
     _mix(0),
+    _delay(0),
+    _bufb(0),
     _normA(0),
     _normB(0) {
         xrworker.start();
@@ -321,6 +329,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec3[l0] = 0.0;
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec2[l0] = 0.0;
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec1[l0] = 0.0;
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec4[l0] = 0.0;
 }
 
 // connect the Ports used by the plug-in class
@@ -352,11 +361,17 @@ void Xratatouille::connect_(uint32_t port,void* data)
         case 7:
             _mix = static_cast<float*>(data);
             break;
+        case 8: 
+            _delay = static_cast<float*>(data); 
+            break;
         case 9:
             _normA = static_cast<float*>(data);
             break;
         case 10:
             _normB = static_cast<float*>(data);
+            break;
+        case 11:
+            _inputGain1 = static_cast<float*>(data);
             break;
         default:
             break;
@@ -370,8 +385,11 @@ void Xratatouille::activate_f()
 
 void Xratatouille::clean_up()
 {
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec0[l0] = 0.0;
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec3[l0] = 0.0;
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec2[l0] = 0.0;
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec1[l0] = 0.0;
+    for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec4[l0] = 0.0;
     // delete the internal DSP mem
 }
 
@@ -672,26 +690,41 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
 
     // get controller values from host
     double fSlow0 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_inputGain)));
+    double fSlow4 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_inputGain1)));
     double fSlow3 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_outputGain)));
     double fSlow2 = 0.0010000000000000009 * double(*(_blend));
     double fSlow1 = 0.0010000000000000009 * double(*(_mix));
 
-    if (_neuralA.load(std::memory_order_acquire) || _neuralB.load(std::memory_order_acquire)) {
-        // input volume
-        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
-            fRec0[0] = fSlow0 + 0.999 * fRec0[1];
-            output0[i0] = float(double(output0[i0]) * fRec0[0]);
-            fRec0[1] = fRec0[0];
-        }
-    }
-
+    // internal buffer
     float bufa[n_samples];
     memcpy(bufa, output0, n_samples*sizeof(float));
     float bufb[n_samples];
     memcpy(bufb, output0, n_samples*sizeof(float));
     bufsize = n_samples;
 
-    // process slot B in parallel
+    // process delta delay
+    if (*(_delay) < 0) cdelay->compute(n_samples, bufa, bufa);
+    else cdelay->compute(n_samples, bufb, bufb);
+
+    // process input volume slot A
+    if (_neuralA.load(std::memory_order_acquire)) {
+        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+            fRec0[0] = fSlow0 + 0.999 * fRec0[1];
+            bufa[i0] = float(double(bufa[i0]) * fRec0[0]);
+            fRec0[1] = fRec0[0];
+        }
+    }
+
+    // process input volume slot B
+    if (_neuralB.load(std::memory_order_acquire)) {
+        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+            fRec4[0] = fSlow4 + 0.999 * fRec4[1];
+            bufb[i0] = float(double(bufb[i0]) * fRec4[0]);
+            fRec4[1] = fRec4[0];
+        }
+    }
+
+    // process slot B in parallel thread
     _bufb = bufb;
     if (_neuralB.load(std::memory_order_acquire) && pro.getProcess()) {
         pro.setProcessor(0);
@@ -709,8 +742,6 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     if (_neuralB.load(std::memory_order_acquire)) {
         pro.processWait();
     }
-
-    cdelay->compute(n_samples, bufb, bufb);
 
     // mix output when needed
     if (_neuralA.load(std::memory_order_acquire) && _neuralB.load(std::memory_order_acquire)) {
@@ -741,7 +772,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     memcpy(bufa, output0, n_samples*sizeof(float));
     memcpy(bufb, output0, n_samples*sizeof(float));
 
-    // process conv1 in parallel
+    // process conv1 in parallel thread
     _bufb = bufb;
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
         if (pro.getProcess()) {

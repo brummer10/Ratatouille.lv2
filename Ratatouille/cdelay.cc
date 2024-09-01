@@ -53,7 +53,7 @@ inline void Dsp::init(uint32_t sample_rate)
 
 void Dsp::compute(int count, float *input0, float *output0)
 {
-	double fSlow0 = 0.0010000000000000009 * double(*(fHslider0_));
+	double fSlow0 = 0.0010000000000000009 * std::fabs(*(fHslider0_));
 	for (int i0 = 0; i0 < count; i0 = i0 + 1) {
 		double fTemp0 = double(input0[i0]);
 		fVec0[IOTA0 & 16383] = fTemp0;

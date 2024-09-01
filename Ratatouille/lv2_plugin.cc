@@ -32,7 +32,7 @@ void boxShadowInset(cairo_t* const cr, int x, int y, int width, int height, bool
     cairo_pattern_add_color_stop_rgba
         (pat, 1, 0.33, 0.33, 0.33, 1.0);
     cairo_pattern_add_color_stop_rgba
-        (pat, 0.98, 0.33 * 0.6, 0.33 * 0.6, 0.33 * 0.6, 0.0);
+        (pat, 0.9844, 0.33 * 0.6, 0.33 * 0.6, 0.33 * 0.6, 0.0);
     cairo_pattern_add_color_stop_rgba
         (pat, 0.05, 0.05 * 2.0, 0.05 * 2.0, 0.05 * 2.0, 0.0);
     cairo_pattern_add_color_stop_rgba
@@ -46,7 +46,7 @@ void boxShadowInset(cairo_t* const cr, int x, int y, int width, int height, bool
     cairo_pattern_add_color_stop_rgba
         (pat, 1, 0.33, 0.33, 0.33, 1.0);
     cairo_pattern_add_color_stop_rgba
-        (pat, 0.9, 0.33 * 0.6, 0.33 * 0.6, 0.33 * 0.6, 0.0);
+        (pat, 0.93, 0.33 * 0.6, 0.33 * 0.6, 0.33 * 0.6, 0.0);
     cairo_pattern_add_color_stop_rgba
         (pat, 0.1, 0.05 * 2.0, 0.05 * 2.0, 0.05 * 2.0, 0.0);
     cairo_pattern_add_color_stop_rgba 
@@ -145,42 +145,42 @@ static void draw_window(void *w_, void* user_data) {
 
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 0.333);
     round_rectangle(w->crb, 25 * w->app->hdpi, 70 * w->app->hdpi,
-        450 * w->app->hdpi, 154 * w->app->hdpi, 0.08);
+        560 * w->app->hdpi, 145 * w->app->hdpi, 0.08);
     cairo_fill_preserve (w->crb);
     boxShadowInset(w->crb,25 * w->app->hdpi,70 * w->app->hdpi,
-        450 * w->app->hdpi,154 * w->app->hdpi, true);
+        560 * w->app->hdpi,145 * w->app->hdpi, true);
     cairo_stroke (w->crb);
 
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
-    round_rectangle(w->crb, 30 * w->app->hdpi, 254 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
+    round_rectangle(w->crb, 30 * w->app->hdpi, 244 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
     cairo_fill_preserve (w->crb);
-    boxShadowInset(w->crb,30 * w->app->hdpi,254 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, true);
+    boxShadowInset(w->crb,30 * w->app->hdpi,244 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, true);
     cairo_fill (w->crb);
 
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
-    round_rectangle(w->crb, 30 * w->app->hdpi, 294 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
+    round_rectangle(w->crb, 30 * w->app->hdpi, 284 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
     cairo_fill_preserve (w->crb);
-    boxShadowInset(w->crb,30 * w->app->hdpi,294 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, true);
+    boxShadowInset(w->crb,30 * w->app->hdpi,284 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, true);
     cairo_fill (w->crb);
 
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
-    round_rectangle(w->crb, 30 * w->app->hdpi, 334 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
+    round_rectangle(w->crb, 30 * w->app->hdpi, 324 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
     cairo_fill_preserve (w->crb);
-    boxShadowInset(w->crb,30 * w->app->hdpi,334 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, true);
+    boxShadowInset(w->crb,30 * w->app->hdpi,324 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, true);
     cairo_fill (w->crb);
 
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
-    round_rectangle(w->crb, 30 * w->app->hdpi, 374 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
+    round_rectangle(w->crb, 30 * w->app->hdpi, 364 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, 0.5);
     cairo_fill_preserve (w->crb);
-    boxShadowInset(w->crb,30 * w->app->hdpi,374 * w->app->hdpi,
-                                            440 * w->app->hdpi, 30 * w->app->hdpi, true);
+    boxShadowInset(w->crb,30 * w->app->hdpi,364 * w->app->hdpi,
+                                            550 * w->app->hdpi, 30 * w->app->hdpi, true);
     cairo_fill (w->crb);
 
     use_text_color_scheme(w, NORMAL_);
@@ -194,8 +194,8 @@ static void draw_window(void *w_, void* user_data) {
         cairo_set_font_size (w->crb, w->app->normal_font);
         int slen = strlen(basename(ps->ma.filename));
         
-        if ((slen - 4) > 48) {
-            utf8crop(label,basename(ps->ma.filename), 48);
+        if ((slen - 4) > 58) {
+            utf8crop(label,basename(ps->ma.filename), 58);
             strcat(label,"...");
             tooltip_set_text(ps->ma.filebutton,basename(ps->ma.filename));
             ps->ma.filebutton->flags |= HAS_TOOLTIP;
@@ -207,7 +207,7 @@ static void draw_window(void *w_, void* user_data) {
 
         cairo_text_extents(w->crb, label, &extents_f);
         double twf = extents_f.width/2.0;
-        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 274 * w->app->hdpi );
+        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 264 * w->app->hdpi );
         cairo_show_text(w->crb, label);
     }
     if (strlen(ps->mb.filename)) {
@@ -217,8 +217,8 @@ static void draw_window(void *w_, void* user_data) {
         cairo_set_font_size (w->crb, w->app->normal_font);
         int slen = strlen(basename(ps->mb.filename));
         
-        if ((slen - 4) > 48) {
-            utf8crop(label,basename(ps->mb.filename), 48);
+        if ((slen - 4) > 58) {
+            utf8crop(label,basename(ps->mb.filename), 58);
             strcat(label,"...");
             tooltip_set_text(ps->mb.filebutton,basename(ps->mb.filename));
             ps->mb.filebutton->flags |= HAS_TOOLTIP;
@@ -230,7 +230,7 @@ static void draw_window(void *w_, void* user_data) {
 
         cairo_text_extents(w->crb, label, &extents_f);
         double twf = extents_f.width/2.0;
-        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 314 * w->app->hdpi );
+        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 304 * w->app->hdpi );
         cairo_show_text(w->crb, label);
     }
     if (strlen(ps->ir.filename)) {
@@ -240,8 +240,8 @@ static void draw_window(void *w_, void* user_data) {
         cairo_set_font_size (w->crb, w->app->normal_font);
         int slen = strlen(basename(ps->ir.filename));
         
-        if ((slen - 4) > 48) {
-            utf8crop(label,basename(ps->ir.filename), 48);
+        if ((slen - 4) > 58) {
+            utf8crop(label,basename(ps->ir.filename), 58);
             strcat(label,"...");
             tooltip_set_text(ps->ir.filebutton,basename(ps->ir.filename));
             ps->ir.filebutton->flags |= HAS_TOOLTIP;
@@ -253,7 +253,7 @@ static void draw_window(void *w_, void* user_data) {
 
         cairo_text_extents(w->crb, label, &extents_f);
         double twf = extents_f.width/2.0;
-        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 354 * w->app->hdpi );
+        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 344 * w->app->hdpi );
         cairo_show_text(w->crb, label);
     }
     if (strlen(ps->ir1.filename)) {
@@ -263,8 +263,8 @@ static void draw_window(void *w_, void* user_data) {
         cairo_set_font_size (w->crb, w->app->normal_font);
         int slen = strlen(basename(ps->ir1.filename));
         
-        if ((slen - 4) > 48) {
-            utf8crop(label,basename(ps->ir1.filename), 48);
+        if ((slen - 4) > 58) {
+            utf8crop(label,basename(ps->ir1.filename), 58);
             strcat(label,"...");
             tooltip_set_text(ps->ir1.filebutton,basename(ps->ir1.filename));
             ps->ir1.filebutton->flags |= HAS_TOOLTIP;
@@ -276,7 +276,7 @@ static void draw_window(void *w_, void* user_data) {
 
         cairo_text_extents(w->crb, label, &extents_f);
         double twf = extents_f.width/2.0;
-        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 394 * w->app->hdpi );
+        cairo_move_to (w->crb, max(100 * w->app->hdpi,(w->scale.init_width*0.5)-twf), 384 * w->app->hdpi );
         cairo_show_text(w->crb, label);
     }
 #endif
@@ -305,13 +305,13 @@ static void draw_window(void *w_, void* user_data) {
     cairo_stroke (w->crb);
 
     cairo_move_to (w->crb, 50 * w->app->hdpi, w->scale.init_y+55 * w->app->hdpi);
-    cairo_line_to (w->crb, 450 * w->app->hdpi, w->scale.init_y+55 * w->app->hdpi);
+    cairo_line_to (w->crb, 560 * w->app->hdpi, w->scale.init_y+55 * w->app->hdpi);
     cairo_set_source_rgba(w->crb, 0.33, 0.33, 0.33, 1);
     //use_text_color_scheme(w, NORMAL_);
     cairo_stroke (w->crb);
 
     cairo_move_to (w->crb, 50 * w->app->hdpi, w->scale.init_y+53 * w->app->hdpi);
-    cairo_line_to (w->crb, 450 * w->app->hdpi, w->scale.init_y+53 * w->app->hdpi);
+    cairo_line_to (w->crb, 560 * w->app->hdpi, w->scale.init_y+53 * w->app->hdpi);
     cairo_set_source_rgba(w->crb, 0.1, 0.1, 0.1, 1);
     //use_text_color_scheme(w, NORMAL_);
     cairo_stroke (w->crb);
@@ -646,7 +646,7 @@ void draw_my_button(void *w_, void* user_data) {
 
 Widget_t* add_lv2_button(Widget_t *w, Widget_t *p, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height) {
-    w = add_combobox(p, label, x-345, y, width+345, height);
+    w = add_combobox(p, label, x-445, y, width+445, height);
     w->parent_struct = ui;
     w->func.expose_callback = dummy_expose;
     w->childlist->childs[0]->func.expose_callback = draw_my_button;

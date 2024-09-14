@@ -46,11 +46,12 @@ FLAGS_v2    := cx16 lahf_lm popcnt sse4_1 sse4_2 ssse3
 FLAGS_v1    := lm cmov cx8 fpu fxsr mmx syscall sse2
 FLAGS      := $(shell $(CPU_INFO))
 
+NO_x86_64 = 0
 define LOOPBODY
   ifneq ($$(filter $(v),$(FLAGS)),)
-   YES_x86_64 = x86_64_LEVEL
+    YES_x86_64 = $(x86_64_LEVEL)
   else
-    NO_x86_64 = x86_64_LEVEL
+    NO_x86_64 = $(x86_64_LEVEL)
   endif
 endef
 

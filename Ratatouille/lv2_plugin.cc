@@ -472,6 +472,25 @@ static void draw_my_knob(void *w_, void* user_data) {
     cairo_paint (w->crb);
 }
 
+void set_precision(void *w_, void* xkey_, void* user_data) {
+    Widget_t *w = (Widget_t*)w_;
+    X11_UI* ui = (X11_UI*)w->parent_struct;
+    XKeyEvent *xkey = (XKeyEvent*)xkey_;
+    if ((xkey->keycode == XKeysymToKeycode(w->app->dpy,XK_Control_L) ||
+        xkey->keycode == XKeysymToKeycode(w->app->dpy,XK_Control_R))) {
+        ui->widget[4]->adj->step = 1;
+    }
+}
+
+void reset_precision(void *w_, void* xkey_, void* user_data) {
+    Widget_t *w = (Widget_t*)w_;
+    X11_UI* ui = (X11_UI*)w->parent_struct;
+    XKeyEvent *xkey = (XKeyEvent*)xkey_;
+    if ((xkey->keycode == XKeysymToKeycode(w->app->dpy,XK_Control_L) ||
+        xkey->keycode == XKeysymToKeycode(w->app->dpy,XK_Control_R))) {
+        ui->widget[4]->adj->step = 16;
+    }
+}
 
 Widget_t* add_lv2_knob(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height) {
@@ -884,6 +903,8 @@ static LV2UI_Handle instantiate(const LV2UI_Descriptor * descriptor,
     widget_get_png(ui->win, LDVAR(texture_png));
     // connect the expose func
     ui->win->func.expose_callback = draw_window;
+    ui->win->func.key_press_callback = set_precision;
+    ui->win->func.key_release_callback = reset_precision;
     // create controller widgets
     plugin_create_controller_widgets(ui,plugin_uri);
     // map all widgets into the toplevel Widget_t

@@ -43,10 +43,11 @@ endif
 # check for x86_64 optimisation level
 FLAGS_v3    := avx avx2 bmi1 bmi2 f16c fma abm movbe xsave
 FLAGS_v2    := cx16 lahf_lm popcnt sse4_1 sse4_2 ssse3
-FLAGS_v1    := lm cmov cx8 fpu fxsr mmx syscall sse2
+#FLAGS_v1    := lm cmov cx8 fpu fxsr mmx syscall sse2
 FLAGS      := $(shell $(CPU_INFO))
 
-NO_x86_64 = 0
+
+NO_x86_64 = -v0
 define LOOPBODY
   ifneq ($$(filter $(v),$(FLAGS)),)
     YES_x86_64 = $(x86_64_LEVEL)
@@ -55,15 +56,14 @@ define LOOPBODY
   endif
 endef
 
-x86_64_LEVEL := 3
+x86_64_LEVEL := -v3
 $(foreach v,$(FLAGS_v3),$(eval $(LOOPBODY)))
 ifeq ($(NO_x86_64), $(x86_64_LEVEL))
-  x86_64_LEVEL := 2
+  x86_64_LEVEL := -v2
   $(foreach v,$(FLAGS_v2),$(eval $(LOOPBODY)))
 endif
 ifeq ($(NO_x86_64), $(x86_64_LEVEL))
-  x86_64_LEVEL := 1
-  $(foreach v,$(FLAGS_v1),$(eval $(LOOPBODY)))
+  x86_64_LEVEL :=
 endif
 
 CXX_v = $(shell $(CXX) -dumpversion)
@@ -74,7 +74,7 @@ ifneq ($(MAKECMDGOALS),install)
         SSE_CFLAGS += -march=native
         $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))      
       else
-        SSE_CFLAGS += -march=x86-64-v$(x86_64_LEVEL)
+        SSE_CFLAGS += -march=x86-64$(x86_64_LEVEL)
         $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
       endif
     else ifeq ($(shell arch), aarch64)

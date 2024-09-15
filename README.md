@@ -18,8 +18,9 @@ mix them to simulate your specific tone.
 Ratatouille using parallel processing for the neural models,
 so, loading a second neural model wouldn't be remarkable on the dsp load.
 
-The "Delay" control could add a small delay to the second model to overcome phasing issues,
+The "Delay" control could add a small delay to overcome phasing issues,
 or to add some color/reverb to the sound. 
+The 'ctrl' key activate fine tuning to dial in a sample accurate delay.
 
 To round up your sound you can load two Impulse Response Files and mix them to your needs.
 IR-files could be normalised on load, so that they didn't influence the loudness. 

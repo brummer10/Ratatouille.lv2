@@ -76,13 +76,13 @@ private:
 public:
     std::string                     modelFile;
 
-    void setModelFile(std::string modelFile_) { modelFile = modelFile_;}
-    inline void clearState();
-    inline void init(unsigned int sample_rate);
-    void connect(uint32_t port,void* data);
-    inline void compute(int count, float *input0, float *output0);
-    bool loadModel();
-    void unloadModel();
+    void setModelFile(std::string modelFile_) override { modelFile = modelFile_;}
+    inline void clearState() override;
+    inline void init(unsigned int sample_rate) override;
+    void connect(uint32_t port,void* data) override;
+    inline void compute(int count, float *input0, float *output0) override;
+    bool loadModel() override;
+    void unloadModel() override;
 
     NeuralModel(std::condition_variable *var);
     ~NeuralModel();
@@ -113,13 +113,13 @@ private:
 public:
     std::string                     modelFile;
 
-    void setModelFile(std::string modelFile_) { modelFile = modelFile_;}
-    inline void clearState();
-    inline void init(unsigned int sample_rate);
-    void connect(uint32_t port,void* data);
-    inline void compute(int count, float *input0, float *output0);
-    bool loadModel();
-    void unloadModel();
+    void setModelFile(std::string modelFile_) override { modelFile = modelFile_;}
+    inline void clearState() override;
+    inline void init(unsigned int sample_rate) override;
+    void connect(uint32_t port,void* data) override;
+    inline void compute(int count, float *input0, float *output0) override;
+    bool loadModel() override;
+    void unloadModel() override;
 
     RtNeuralModel(std::condition_variable *var);
     ~RtNeuralModel();

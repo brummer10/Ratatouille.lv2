@@ -45,13 +45,13 @@ endif
 # check for sse optimisation level only on x86_64 architecture
 ifeq ($(TARGET_ARCH), x86_64)
   ifneq ($$(filter $(CPU_INFO) | grep sse3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr
+    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr -DUSE_SSE
     FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($$(filter $(CPU_INFO) | grep sse2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr 
+    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr -DUSE_SSE
     FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($$(filter $(CPU_INFO) | grep sse ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr 
+    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr -DUSE_SSE
     FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($$(filter $(CPU_INFO) | grep ARM ) , )
     ifneq ($$(filter $(CPU_INFO) | grep ARMv7 ) , )
@@ -99,15 +99,15 @@ CXX_v = $(shell $(CXX) -dumpversion)
 ifneq ($(MAKECMDGOALS),install)
   ifneq ($(MAKECMDGOALS),clean)
     ifneq ($(NO_x86_64), $(x86_64_LEVEL))
-      ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
+      ifeq ($(TARGET_ARCH), aarch64)
+        CXXFLAGS += -march=armv8-a
+        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8-a $(SSE_CFLAGS)$(reset))
+      else ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
         SSE_CFLAGS += -march=native
         $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
       else ifeq ($(TARGET_ARCH), x86_64)
         SSE_CFLAGS += -march=x86-64$(x86_64_LEVEL)
         $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
-      else ifeq ($(TARGET_ARCH), aarch64)
-        CXXFLAGS += -march=armv8-a
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8-a $(SSE_CFLAGS)$(reset))
       else
         SSE_CFLAGS += -march=native
         $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))

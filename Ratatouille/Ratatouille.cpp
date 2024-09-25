@@ -61,7 +61,7 @@ namespace ratatouille {
 
 class DenormalProtection {
 private:
-#ifdef __SSE__
+#ifdef USE_SSE
     uint32_t  mxcsr_mask;
     uint32_t  mxcsr;
     uint32_t  old_mxcsr;
@@ -69,20 +69,20 @@ private:
 
 public:
     inline void set_() {
-#ifdef __SSE__
+#ifdef USE_SSE
         old_mxcsr = _mm_getcsr();
         mxcsr = old_mxcsr;
         _mm_setcsr((mxcsr | _MM_DENORMALS_ZERO_MASK | _MM_FLUSH_ZERO_MASK) & mxcsr_mask);
 #endif
     };
     inline void reset_() {
-#ifdef __SSE__
+#ifdef USE_SSE
         _mm_setcsr(old_mxcsr);
 #endif
     };
 
     inline DenormalProtection() {
-#ifdef __SSE__
+#ifdef USE_SSE
         mxcsr_mask = 0xffbf; // Default MXCSR mask
         mxcsr      = 0;
         uint8_t fxsave[512] __attribute__ ((aligned (16))); // Structure for storing FPU state with FXSAVE command

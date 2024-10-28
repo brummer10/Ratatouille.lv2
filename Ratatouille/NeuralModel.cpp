@@ -71,7 +71,7 @@ inline void NeuralModel::compute(int count, float *input0, float *output0)
                 memcpy(buf1, buf, ReCounta * sizeof(float));
             }
             model->process(buf1, buf1, ReCounta);
-            model->finalize_(ReCounta);
+
             if (needResample == 1) {
                 smp.down(buf1, buf);
             } else if (needResample == 2) {
@@ -79,7 +79,6 @@ inline void NeuralModel::compute(int count, float *input0, float *output0)
             }
         } else {
             model->process(buf, buf, count);
-            model->finalize_(count);
         }
         memcpy(output0, buf, count*sizeof(float));
     }
@@ -121,7 +120,6 @@ bool NeuralModel::loadModel() {
             memset(buffer, 0, warmUpSize * sizeof(float));
 
             model->process(buffer, buffer, warmUpSize);
-            model->finalize_(warmUpSize);
 
             delete[] buffer;
             //fprintf(stderr, "sample rate = %i file = %i l = %f\n",fSampleRate, modelSampleRate, loudness);

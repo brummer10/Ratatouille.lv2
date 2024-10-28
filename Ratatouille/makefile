@@ -45,13 +45,13 @@ endif
 # check for sse optimisation level only on x86_64 architecture
 ifeq ($(TARGET_ARCH), x86_64)
   ifneq ($$(filter $(CPU_INFO) | grep sse3 ) , )
-    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr -DUSE_SSE
+    SSE_CFLAGS = -msse3 -mfpmath=sse -mfxsr -DUSE_SSE=1
     FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($$(filter $(CPU_INFO) | grep sse2 ) , )
-    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr -DUSE_SSE
+    SSE_CFLAGS = -msse2 -mfpmath=sse -mfxsr -DUSE_SSE=1
     FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($$(filter $(CPU_INFO) | grep sse ) , )
-    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr -DUSE_SSE
+    SSE_CFLAGS = -msse -mfpmath=sse -mfxsr -DUSE_SSE=1
     FFT_FLAG = -DFFTCONVOLVER_USE_SSE=1
   else ifneq ($$(filter $(CPU_INFO) | grep ARM ) , )
     ifneq ($$(filter $(CPU_INFO) | grep ARMv7 ) , )

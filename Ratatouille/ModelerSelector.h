@@ -18,6 +18,7 @@
 #include <condition_variable>
 
 #include "dsp.h"
+#include "get_dsp.h"
 #include "activations.h"
 
 #include "RTNeural.h"

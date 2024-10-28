@@ -108,6 +108,8 @@ public:
     void process() const {
         return memberFunc[i](instPtr[i]);
     }
+
+    void dummyFunc() {}
  
 private:
     typedef void* InstancePtr;
@@ -117,8 +119,6 @@ private:
     static inline void wrap(InstancePtr instance) {
         return (static_cast<C*>(instance)->*Function)();
     }
-
-    void dummyFunc() {}
 
     InstancePtr instPtr[2];
     MemberFunc memberFunc[2];
@@ -185,9 +185,7 @@ public:
                 if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) == ETIMEDOUT) {
                     pthread_mutex_unlock(&pWaitProc);
                     maxDuration +=1;
-                    //fprintf(stderr, "%s wait for process %i\n", threadName.c_str(), maxDuration);
                     if (maxDuration > 2) {
-                        //fprintf(stderr, "%s break waitForProcess\n", threadName.c_str());
                         break;
                     }
                 } else {
@@ -219,16 +217,13 @@ public:
                 if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) == ETIMEDOUT) {
                     pthread_mutex_unlock(&pWaitProc);
                     maxDuration +=1;
-                    //fprintf(stderr, "%s wait for data %i\n", threadName.c_str(), maxDuration);
                     if (maxDuration > 5) {
                         pWait.store(false, std::memory_order_release);
-                        //fprintf(stderr, "%s break processWait\n", threadName.c_str());
                     }
                 } else {
                     pthread_mutex_unlock(&pWaitProc);;
                 }
             }
-            //fprintf(stderr, "%s processed data %i\n", threadName.c_str(), maxDuration);
         }
     }
 
@@ -237,6 +232,7 @@ public:
         if (isRunning()) {
             pRun.store(false, std::memory_order_release);
             if (pThd.joinable()) {
+                set<ProcessPtr, &ProcessPtr::dummyFunc>(this);
                 #if __cplusplus > 201703L
                 pWorkCond.store(true);
                 #endif

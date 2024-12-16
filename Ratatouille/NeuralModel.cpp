@@ -16,6 +16,7 @@ NeuralModel::NeuralModel(std::condition_variable *Sync)
     : model(nullptr), smp(), SyncWait(Sync) {
     nam::activations::Activation::enable_fast_tanh();
     loudness = 0.0;
+    nGain = 1.0;
     needResample = 0;
     isInited = false;
     ready.store(false, std::memory_order_release);
@@ -40,6 +41,16 @@ inline void NeuralModel::init(unsigned int sample_rate)
 // connect the Ports used by the plug-in class
 void NeuralModel::connect(uint32_t port,void* data)
 {
+}
+
+inline void NeuralModel::normalize(int count, float *buf)
+{
+    if (!model) return;
+    if (nGain != 1.0) {
+        for (int i0 = 0; i0 < count; i0 = i0 + 1) {
+            buf[i0] = float(double(buf[i0]) * nGain);
+        }
+    }
 }
 
 inline void NeuralModel::compute(int count, float *input0, float *output0)
@@ -105,7 +116,12 @@ bool NeuralModel::loadModel() {
         
         if (model) {
            // fprintf(stderr, "load model\n");
-            if (model->HasLoudness()) loudness = model->GetLoudness();
+            if (model->HasLoudness()) {
+                loudness = model->GetLoudness();
+                nGain = pow(10.0, (-18.0 - loudness) / 20.0);
+            } else {
+                nGain = 1.0;
+            }
             modelSampleRate = static_cast<int>(model->GetExpectedSampleRate());
             //model->SetLoudness(-15.0);
             if (modelSampleRate <= 0) modelSampleRate = 48000;

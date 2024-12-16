@@ -40,6 +40,11 @@ void RtNeuralModel::connect(uint32_t port,void* data)
 {
 }
 
+inline void RtNeuralModel::normalize(int count, float *buf)
+{
+    // not implemented
+}
+
 inline void RtNeuralModel::compute(int count, float *input0, float *output0)
 {
     if (!model ) return;

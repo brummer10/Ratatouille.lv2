@@ -119,7 +119,7 @@ endif
 # check for c++ level
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
   ifeq (,$(filter install,$(MAKECMDGOALS)))
-    $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX)$(reset))
+    $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX) $(CXX_v)$(reset))
     ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
       CXXFLAGS += -std=c++17
       $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++17$(reset))
@@ -182,7 +182,7 @@ ifeq ($(TARGET), Linux)
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
 	`$(PKGCONFIG) --cflags --libs sndfile`
 
-	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -Ofast -Wall -funroll-loops $(SSE_CFLAGS) \
+	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -O3 -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \
 	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
 	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
@@ -193,7 +193,7 @@ ifeq ($(TARGET), Linux)
 	ifeq (,$(findstring clang, $(CXX)))
 	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects -Wno-deprecated-declarations
 	else
-	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero
+	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero -Wno-vla-cxx-extension
 	endif
 	else
 	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero \

@@ -44,6 +44,7 @@ public:
     virtual inline void clearState() {}
     virtual inline void init(unsigned int sample_rate) {}
     virtual void connect(uint32_t port,void* data) {}
+    virtual inline void normalize(int count, float *buf) {}
     virtual inline void compute(int count, float *input0, float *output0) {}
     virtual bool loadModel() { return false;}
     virtual void unloadModel() {}
@@ -76,11 +77,13 @@ private:
 
 public:
     std::string                     modelFile;
+    float                           nGain;
 
     void setModelFile(std::string modelFile_) override { modelFile = modelFile_;}
     inline void clearState() override;
     inline void init(unsigned int sample_rate) override;
     void connect(uint32_t port,void* data) override;
+    inline void normalize(int count, float *buf) override;
     inline void compute(int count, float *input0, float *output0) override;
     bool loadModel() override;
     void unloadModel() override;
@@ -118,6 +121,7 @@ public:
     inline void clearState() override;
     inline void init(unsigned int sample_rate) override;
     void connect(uint32_t port,void* data) override;
+    inline void normalize(int count, float *buf) override;
     inline void compute(int count, float *input0, float *output0) override;
     bool loadModel() override;
     void unloadModel() override;
@@ -150,6 +154,9 @@ public:
 
     void connect(uint32_t port,void* data) {
             return modeler->connect(port, data);}
+
+    inline void normalize(int count, float *buf) {
+            return modeler->normalize(count, buf); }
 
     inline void compute(int count, float *input0, float *output0) {
             return modeler->compute(count, input0, output0);}

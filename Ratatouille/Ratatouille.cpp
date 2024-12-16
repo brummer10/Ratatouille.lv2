@@ -128,6 +128,8 @@ private:
     float*                       _normB;
     uint32_t                     normA;
     uint32_t                     normB;
+    float*                       _normSlotA;
+    float*                       _normSlotB;
     double                       fRec0[2];
     double                       fRec3[2];
     double                       fRec2[2];
@@ -373,6 +375,12 @@ void Xratatouille::connect_(uint32_t port,void* data)
         case 11:
             _inputGain1 = static_cast<float*>(data);
             break;
+        case 12:
+            _normSlotA = static_cast<float*>(data);
+            break;
+        case 13:
+            _normSlotB = static_cast<float*>(data);
+            break;
         default:
             break;
     }
@@ -601,6 +609,7 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
 // process slotB in parallel thread
 inline void Xratatouille::processSlotB() {
     slotB.compute(bufsize, _bufb, _bufb);
+    if (*(_normSlotB)) slotB.normalize(bufsize, _bufb);
 }
 
 // process second convolver in parallel thread
@@ -736,6 +745,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // process slot A
     if (_neuralA.load(std::memory_order_acquire)) {
         slotA.compute(n_samples, bufa, bufa);
+        if (*(_normSlotA)) slotA.normalize(n_samples, bufa);
     }
 
     //wait for parallel processed slot B when needed

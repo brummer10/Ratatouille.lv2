@@ -187,6 +187,26 @@ A Neural Model loader and mixer
       lv2:default 0.000000 ;
       lv2:minimum -20.000000 ;
       lv2:maximum 20.000000 ;
+   ], [
+      a lv2:InputPort ,
+          lv2:ControlPort ;
+      lv2:index 12 ;
+      lv2:portProperty lv2:toggled ;
+      lv2:symbol "NormalizeSlotA" ;
+      lv2:name "Normalize Slot A" ;
+      lv2:default 0.0 ;
+      lv2:minimum 0.0 ;
+      lv2:maximum 1.0 ;
+   ], [
+      a lv2:InputPort ,
+          lv2:ControlPort ;
+      lv2:index 13 ;
+      lv2:portProperty lv2:toggled ;
+      lv2:symbol "NormalizeSlotB" ;
+      lv2:name "Normalize Slot B" ;
+      lv2:default 0.0 ;
+      lv2:minimum 0.0 ;
+      lv2:maximum 1.0 ;
    ] .
 
 <urn:brummer:ratatouille_ui>

@@ -7,7 +7,7 @@
  */
 
 
-#define CONTROLS 8
+#define CONTROLS 10
 
 #define GUI_ELEMENTS 0
 
@@ -384,6 +384,9 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     combobox_set_entry_length(ps->mb.fbutton, 64);
     combobox_add_entry(ps->mb.fbutton, "None");
     ps->mb.fbutton->func.value_changed_callback = file_menu_callback;
+
+    ui->widget[8] = add_lv2_toggle_button (ui->widget[8], ui->win, 12, "", ui, 70,  248, 25, 25);
+    ui->widget[9] = add_lv2_toggle_button (ui->widget[9], ui->win, 13, "", ui, 70,  288, 25, 25);
 
     ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 545,  324, 22, 30);
     ps->ir.fbutton->parent_struct = (void*)&ps->ir;

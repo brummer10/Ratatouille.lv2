@@ -175,15 +175,31 @@ bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 }
 
 void DoubleThreadConvolver::normalize(float* buffer, int asize) {
+    // normalize
     if (!norm) return;
     float gain = 0.0;
     // get gain factor from file buffer
     for (int i = 0; i < asize; i++) {
         gain = std::max(gain, std::abs( buffer[i])) ;
     }
-    // apply gain factor
+    // apply normalize factor
     for (int i = 0; i < asize; i++) {
         buffer[i] /= gain;
+    }
+    // loudness compensation
+    gain = 0.0;
+    // get gain square root factor from file buffer
+    for (int i = 0; i < asize; i++) {
+        double v = buffer[i] ;
+        gain += v*v;
+    }
+    // apply gain square root factor when needed
+    if (gain != 0.0) {
+        gain = 1.0 / gain;
+
+        for (int i = 0; i < asize; i++) {
+            buffer[i] *= gain;
+        }
     }
 }
 
@@ -290,15 +306,31 @@ bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 }
 
 void SingleThreadConvolver::normalize(float* buffer, int asize) {
+    // normalize
     if (!norm) return;
     float gain = 0.0;
     // get gain factor from file buffer
     for (int i = 0; i < asize; i++) {
         gain = std::max(gain, std::abs( buffer[i])) ;
     }
-    // apply gain factor
+    // apply normalize factor
     for (int i = 0; i < asize; i++) {
         buffer[i] /= gain;
+    }
+    // loudness compensation
+    gain = 0.0;
+    // get gain square root factor from file buffer
+    for (int i = 0; i < asize; i++) {
+        double v = buffer[i] ;
+        gain += v*v;
+    }
+    // apply gain square root factor when needed
+    if (gain != 0.0) {
+        gain = 1.0 / gain;
+
+        for (int i = 0; i < asize; i++) {
+            buffer[i] *= gain;
+        }
     }
 }
 

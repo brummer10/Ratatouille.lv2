@@ -176,19 +176,14 @@ bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 
 void DoubleThreadConvolver::normalize(float* buffer, int asize) {
     if (!norm) return;
-    double gain = 0.0;
+    float gain = 0.0;
     // get gain factor from file buffer
     for (int i = 0; i < asize; i++) {
-        double v = buffer[i] ;
-        gain += v*v;
+        gain = std::max(gain, std::abs( buffer[i])) ;
     }
-    // apply gain factor when needed
-    if (gain != 0.0) {
-        gain = 1.0 / gain;
-
-        for (int i = 0; i < asize; i++) {
-            buffer[i] *= gain;
-        }
+    // apply gain factor
+    for (int i = 0; i < asize; i++) {
+        buffer[i] /= gain;
     }
 }
 
@@ -296,19 +291,14 @@ bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 
 void SingleThreadConvolver::normalize(float* buffer, int asize) {
     if (!norm) return;
-    double gain = 0.0;
+    float gain = 0.0;
     // get gain factor from file buffer
     for (int i = 0; i < asize; i++) {
-        double v = buffer[i] ;
-        gain += v*v;
+        gain = std::max(gain, std::abs( buffer[i])) ;
     }
-    // apply gain factor when needed
-    if (gain != 0.0) {
-        gain = 1.0 / gain;
-
-        for (int i = 0; i < asize; i++) {
-            buffer[i] *= gain;
-        }
+    // apply gain factor
+    for (int i = 0; i < asize; i++) {
+        buffer[i] /= gain;
     }
 }
 

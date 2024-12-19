@@ -207,7 +207,7 @@ ifeq ($(TARGET), Linux)
 	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -Wno-unused-result -fstack-protector -fvisibility=hidden \
 	-fdata-sections -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--exclude-libs,ALL -DUSE_ATOM
 
-	TTLUPDATEMODGUI =  sed -i -e '191,206d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '211,226d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
@@ -229,7 +229,7 @@ else ifeq ($(TARGET), Windows)
 
 	TTLUPDATE = sed -i '/lv2:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/manifest.ttl
 	TTLUPDATEGUI = sed -i '/a guiext:X11UI/ s/X11UI/WindowsUI/ ; /guiext:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/$(NAME).ttl
-	TTLUPDATEMODGUI =  sed -i -e '183,197d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '211,226d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 endif
 

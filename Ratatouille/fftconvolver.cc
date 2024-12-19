@@ -178,18 +178,15 @@ void DoubleThreadConvolver::normalize(float* buffer, int asize) {
     // normalize
     if (!norm) return;
     float gain = 0.0;
+    float peak = 0.0;
     // get gain factor from file buffer
     for (int i = 0; i < asize; i++) {
-        gain = std::max(gain, std::abs( buffer[i])) ;
+        peak = std::max(peak, std::abs( buffer[i])) ;
     }
     // apply normalize factor
     for (int i = 0; i < asize; i++) {
-        buffer[i] /= gain;
-    }
-    // loudness compensation
-    gain = 0.0;
-    // get gain square root factor from file buffer
-    for (int i = 0; i < asize; i++) {
+        buffer[i] /= peak;
+
         double v = buffer[i] ;
         gain += v*v;
     }
@@ -309,18 +306,15 @@ void SingleThreadConvolver::normalize(float* buffer, int asize) {
     // normalize
     if (!norm) return;
     float gain = 0.0;
+    float peak = 0.0;
     // get gain factor from file buffer
     for (int i = 0; i < asize; i++) {
-        gain = std::max(gain, std::abs( buffer[i])) ;
+        peak = std::max(peak, std::abs( buffer[i])) ;
     }
     // apply normalize factor
     for (int i = 0; i < asize; i++) {
-        buffer[i] /= gain;
-    }
-    // loudness compensation
-    gain = 0.0;
-    // get gain square root factor from file buffer
-    for (int i = 0; i < asize; i++) {
+        buffer[i] /= peak;
+
         double v = buffer[i] ;
         gain += v*v;
     }

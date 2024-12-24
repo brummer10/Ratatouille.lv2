@@ -1,0 +1,55 @@
+@prefix modgui: <http://moddevices.com/ns/modgui#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+
+<urn:brummer:ratatouille>
+    modgui:gui [
+        modgui:resourcesDirectory <modgui> ;
+        modgui:iconTemplate <modgui/icon-ratatouille.html> ;
+        modgui:stylesheet <modgui/stylesheet-ratatouille.css> ;
+        modgui:screenshot <modgui/screenshot-ratatouille.png> ;
+        modgui:thumbnail <modgui/thumbnail-ratatouille.png> ;
+        modgui:brand "brummer" ;
+        modgui:label "Ratatouille" ;
+        modgui:model "mod-pedal-ratatouille" ;
+        modgui:port [
+            lv2:index 0 ;
+            lv2:symbol "Knob0" ;
+            lv2:name "input" ;
+        ] , [
+            lv2:index 1 ;
+            lv2:symbol "Knob5" ;
+            lv2:name "input1" ;
+        ] , [
+            lv2:index 2 ;
+            lv2:symbol "Knob2" ;
+            lv2:name "blend" ;
+        ] , [
+            lv2:index 3 ;
+            lv2:symbol "Knob4" ;
+            lv2:name "Delay" ;
+        ] , [
+            lv2:index 4 ;
+            lv2:symbol "Knob3" ;
+            lv2:name "mix" ;
+        ] , [
+            lv2:index 5 ;
+            lv2:symbol "Knob1" ;
+            lv2:name "output" ;
+        ] , [
+            lv2:index 6 ;
+            lv2:symbol "NormalizeA" ;
+            lv2:name "Normalize A" ;
+        ] , [
+            lv2:index 7 ;
+            lv2:symbol "NormalizeB" ;
+            lv2:name "Normalize B" ;
+        ] , [
+            lv2:index 8 ;
+            lv2:symbol "NormalizeSlotA" ;
+            lv2:name "Normalize Slot A" ;
+        ] , [
+            lv2:index 9 ;
+            lv2:symbol "NormalizeSlotB" ;
+            lv2:name "Normalize Slot B" ;
+        ] ;
+    ] .

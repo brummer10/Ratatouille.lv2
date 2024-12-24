@@ -29,8 +29,14 @@ Ratatouille.lv2 supports resampling when needed to match the expected sample rat
 loaded models. Both models and the IR Files may have different expectations regarding the sample rate.
 
 ## MOD Desktop
-You could find a Ratatouille GUI made by David Germain [here](https://github.com/Riebeck-one/ratatouille-modgui)
-for using it on the [MOD Desktop](https://github.com/moddevices/mod-desktop)
+For using it on the [MOD Desktop](https://github.com/moddevices/mod-desktop) you could build Ratatouille.lv2
+with a additional MOD UI included by running
+
+- make modapp
+
+To build Ratatouille.lv2 with only the MOD UI included (For usage in a MOD device like a Dwarf or a Duo (X)) run
+
+- make mod
 
 
 ## Dependencies

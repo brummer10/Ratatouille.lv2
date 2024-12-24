@@ -62,6 +62,7 @@
 
 #if defined(_WIN32)
 #define MINGW_STDTHREAD_REDUNDANCY_WARNING
+#include <windows.h>
 #endif
 
 #include <atomic>

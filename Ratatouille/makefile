@@ -257,8 +257,25 @@ mod: $(EXEC_NAME).$(LIB_EXT)
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
 	$(QUIET)mkdir -p ../bin/$(BUNDLE)
 	$(QUIET)cp ./*.ttl ../bin/$(BUNDLE)
+	$(QUIET)cp -r ./mod/* ../bin/$(BUNDLE)
 	$(QUIET)$(TTLUPDATE)
 	$(QUIET)$(TTLUPDATEMODGUI)
+	$(QUIET)cp ./*.$(LIB_EXT) ../bin/$(BUNDLE)
+	@if [ -f ../bin/$(BUNDLE)/$(EXEC_NAME).$(LIB_EXT) ]; then \
+		$(B_ECHO) "build finish, . . . $(reset)"; \
+	else \
+		$(R_ECHO) "Sorry, build fail$(reset)"; \
+	fi
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
+modapp: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
+
+	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
+	$(QUIET)mkdir -p ../bin/$(BUNDLE)
+	$(QUIET)cp ./*.ttl ../bin/$(BUNDLE)
+	$(QUIET)cp -r ./mod/* ../bin/$(BUNDLE)
+	$(QUIET)$(TTLUPDATE)
+	$(QUIET)$(TTLUPDATEGUI)
 	$(QUIET)cp ./*.$(LIB_EXT) ../bin/$(BUNDLE)
 	@if [ -f ../bin/$(BUNDLE)/$(EXEC_NAME).$(LIB_EXT) ]; then \
 		$(B_ECHO) "build finish, . . . $(reset)"; \

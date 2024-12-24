@@ -1,7 +1,9 @@
 
 include libxputty/Build/Makefile.base
 
-NOGOAL := install all features mod
+NOGOAL := install all features mod modapp
+
+SWITCHGOAL := modapp
 
 PASS := features 
 
@@ -30,6 +32,13 @@ ifeq (,$(wildcard ./libxputty/xputty/resources/texture.png))
 endif
 	@exec $(MAKE) --no-print-directory -j 1 -C $@ $(MAKECMDGOALS)
 endif
+ifneq (,$(filter $(SWITCHGOAL),$(MAKECMDGOALS)))
+ifeq (,$(wildcard ./libxputty/xputty/resources/texture.png))
+	@cp ./Ratatouille/resources/*.png ./libxputty/xputty/resources/
+endif
+	@exec $(MAKE) --no-print-directory -j 1 -C $@ all
+endif
+
 
 $(SUBDIR): libxputty
 ifeq (,$(filter $(PASS),$(MAKECMDGOALS)))

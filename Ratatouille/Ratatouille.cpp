@@ -130,6 +130,7 @@ private:
     uint32_t                     normB;
     float*                       _normSlotA;
     float*                       _normSlotB;
+    float*                       _bypass;
     double                       fRec0[2];
     double                       fRec3[2];
     double                       fRec2[2];
@@ -256,7 +257,8 @@ Xratatouille::Xratatouille() :
     _delay(0),
     _bufb(0),
     _normA(0),
-    _normB(0) {
+    _normB(0),
+    _bypass(0) {
         xrworker.start();
         xrworker.set<Xratatouille, &Xratatouille::do_work_mono>(this);
         //xrworker.process = [=] () {do_work_mono();};
@@ -380,6 +382,9 @@ void Xratatouille::connect_(uint32_t port,void* data)
             break;
         case 13:
             _normSlotB = static_cast<float*>(data);
+            break;
+        case 14:
+            _bypass = static_cast<float*>(data);
             break;
         default:
             break;
@@ -696,6 +701,9 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // do inplace processing on default
     if(output0 != input0)
         memcpy(output0, input0, n_samples*sizeof(float));
+
+    // basic bypass
+    if (!static_cast<uint32_t>(*_bypass)) return;
 
     // get controller values from host
     double fSlow0 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_inputGain)));

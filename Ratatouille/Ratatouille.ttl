@@ -21,7 +21,7 @@
 @prefix spdx:  <http://spdx.org/rdf/terms#> .
 
 
-<urn:name#me>
+<rata:me>
    a foaf:Person ;
    foaf:name "brummer" .
 
@@ -52,7 +52,7 @@ rata:irfile1
 <urn:brummer:ratatouille>
    a lv2:Plugin ,
        lv2:SimulatorPlugin ;
-   doap:maintainer <urn:name#me> ;
+   doap:maintainer <rata:me> ;
    doap:name "Ratatouille" ;
    doap:license <https://spdx.org/licenses/BSD-3-Clause> ;
    lv2:project <urn:brummer:ratatouille> ;
@@ -207,6 +207,17 @@ A Neural Model loader and mixer
       lv2:default 0.0 ;
       lv2:minimum 0.0 ;
       lv2:maximum 1.0 ;
+   ], [
+      a lv2:InputPort ,
+          lv2:ControlPort ;
+      lv2:index 14 ;
+      lv2:designation lv2:enabled;
+      lv2:portProperty lv2:toggled ;
+      lv2:symbol "ENABLE" ;
+      lv2:name "enable" ;
+      lv2:default 1 ;
+      lv2:minimum 0 ;
+      lv2:maximum 1 ;
    ] .
 
 <urn:brummer:ratatouille_ui>

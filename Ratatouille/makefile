@@ -14,6 +14,17 @@
 	endif
 
 
+	# check which architecture we build for
+	TARGET_ARCH = $(shell $(CXX) -dumpmachine | sed 's/-.*//')
+
+ifneq ($(UNAME_M),$(TARGET_ARCH))
+  CROSS_COMPILING = 1
+  $(info $(yellow) INFO: $(reset)Cross Compile $(blue)$(UNAME_M)$(reset) to $(blue)$(TARGET_ARCH)$(reset))
+endif
+
+# avoid optimisation for x86_64 arch when we cross compile
+ifneq ($(CROSS_COMPILING), 1)
+
 # check if clang is available
 ifeq ($(TARGET), Linux)
   CXX_VERSION = $(shell clang++ --version 2>/dev/null)
@@ -21,9 +32,6 @@ ifeq ($(TARGET), Linux)
     CXX := clang++    
   endif
 endif
-
-	# check which architecture we build for
-	TARGET_ARCH = $(shell $(CXX) -dumpmachine | sed 's/-.*//')
 
 # get flags supported by CPU
 ifeq ($(UNAME_S), FreeBSD)
@@ -35,13 +43,6 @@ else
   CPU_INFO = cat /proc/cpuinfo | grep flags
 endif
 
-ifneq ($(UNAME_M),$(TARGET_ARCH))
-  CROSS_COMPILING = 1
-  $(info $(yellow) INFO: $(reset)Cross Compile $(blue)$(UNAME_M)$(reset) to $(blue)$(TARGET_ARCH)$(reset))
-endif
-
-# avoid optimisation for x86_64 arch when we cross compile
-#ifneq ($(CROSS_COMPILING), 1)
 # check for sse optimisation level only on x86_64 architecture
 ifeq ($(TARGET_ARCH), x86_64)
   ifneq ($$(filter $(CPU_INFO) | grep sse3 ) , )
@@ -93,16 +94,19 @@ endif
 ifeq ($(NO_x86_64), $(x86_64_LEVEL))
   x86_64_LEVEL :=
 endif
-#endif
+
+endif
 
 CXX_v = $(shell $(CXX) -dumpversion)
+CXX_VERSION   := $(subst ., ,$(lastword $(CXX_v)))
+CXX_MAJOR_VER := $(word 1,$(CXX_VERSION))
 ifneq ($(MAKECMDGOALS),install)
   ifneq ($(MAKECMDGOALS),clean)
     ifneq ($(NO_x86_64), $(x86_64_LEVEL))
       ifeq ($(TARGET_ARCH), aarch64)
         CXXFLAGS += -march=armv8-a
         $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8-a $(SSE_CFLAGS)$(reset))
-      else ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
+      else ifeq ($(shell awk -v a="$(CXX_MAJOR_VER)" -v b="11" 'BEGIN{print(a<b)}'), 1)
         SSE_CFLAGS += -march=native
         $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
       else ifeq ($(TARGET_ARCH), x86_64)
@@ -120,7 +124,7 @@ endif
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
   ifeq (,$(filter install,$(MAKECMDGOALS)))
     $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX) $(CXX_v)$(reset))
-    ifeq ($(shell awk -v a="$(CXX_v)" -v b="11" 'BEGIN{print(a<b)}'), 1)
+    ifeq ($(shell awk -v a="$(CXX_MAJOR_VER)" -v b="11" 'BEGIN{print(a<b)}'), 1)
       CXXFLAGS += -std=c++17
       $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++17$(reset))
     else
@@ -184,7 +188,7 @@ ifeq ($(TARGET), Linux)
 
 	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -O3 -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \
-	-fomit-frame-pointer -fstack-protector -fvisibility=hidden \
+	-fomit-frame-pointer -fstack-protector -fvisibility=hidden -Wno-pessimizing-move \
 	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
@@ -207,7 +211,7 @@ ifeq ($(TARGET), Linux)
 	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -Wno-unused-result -fstack-protector -fvisibility=hidden \
 	-fdata-sections -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--exclude-libs,ALL -DUSE_ATOM
 
-	TTLUPDATEMODGUI =  sed -i -e '222,237d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '262,277d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
@@ -229,7 +233,7 @@ else ifeq ($(TARGET), Windows)
 
 	TTLUPDATE = sed -i '/lv2:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/manifest.ttl
 	TTLUPDATEGUI = sed -i '/a guiext:X11UI/ s/X11UI/WindowsUI/ ; /guiext:binary/ s/\.so/\.dll/ ' ../bin/$(BUNDLE)/$(NAME).ttl
-	TTLUPDATEMODGUI =  sed -i -e '222,237d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
+	TTLUPDATEMODGUI =  sed -i -e '262,277d' -e 's/guiext:ui <urn:brummer:ratatouille_ui> ;//' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 endif
 

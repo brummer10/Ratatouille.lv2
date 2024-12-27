@@ -48,10 +48,15 @@
             <div class="mod-switch-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
         </div>
         {{/controls.8}}
+        {{#controls.10}}
+        <div class="mod-switch2" title="{{name}}">
+            <div class="mod-button-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
+        </div>
+        {{/controls.10}}
         {{#effect.parameters.0}}
         {{#path}}
         <div class="mod-enumerated" mod-role="input-parameter" mod-parameter-uri="{{uri}}" mod-widget="custom-select-path">
-            <div mod-role="input-parameter-value" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
+            <div mod-role="input-parameter-value" rata-role="SlotA" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
                 -- choose a NAM/AIDA-X model --
             </div>
             <div class="mod-enumerated-list">
@@ -67,10 +72,15 @@
             <div class="mod-switch-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
         </div>
         {{/controls.9}}
+        {{#controls.11}}
+        <div class="mod-switch2" title="{{name}}">
+            <div class="mod-button-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
+        </div>
+        {{/controls.11}}
         {{#effect.parameters.1}}
         {{#path}}
         <div class="mod-enumerated" mod-role="input-parameter" mod-parameter-uri="{{uri}}" mod-widget="custom-select-path">
-            <div mod-role="input-parameter-value" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
+            <div mod-role="input-parameter-value" rata-role="SlotB" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
                 -- choose a NAM/AIDA-X model --
             </div>
             <div class="mod-enumerated-list">
@@ -86,10 +96,15 @@
             <div class="mod-switch-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
         </div>
         {{/controls.6}}
+        {{#controls.12}}
+        <div class="mod-switch2" title="{{name}}">
+            <div class="mod-button-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
+        </div>
+        {{/controls.12}}
         {{#effect.parameters.2}}
         {{#path}}
         <div class="mod-enumerated" mod-role="input-parameter" mod-parameter-uri="{{uri}}" mod-widget="custom-select-path">
-            <div mod-role="input-parameter-value" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
+            <div mod-role="input-parameter-value" rata-role="IrA" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
                 -- choose an IR file --
             </div>
             <div class="mod-enumerated-list">
@@ -105,10 +120,15 @@
             <div class="mod-switch-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
         </div>
         {{/controls.7}}
+        {{#controls.13}}
+        <div class="mod-switch2" title="{{name}}">
+            <div class="mod-button-image" mod-role="input-control-port" mod-port-symbol="{{symbol}}" mod-widget="switch"></div>
+        </div>
+        {{/controls.13}}
         {{#effect.parameters.3}}
         {{#path}}
         <div class="mod-enumerated" mod-role="input-parameter" mod-parameter-uri="{{uri}}" mod-widget="custom-select-path">
-            <div mod-role="input-parameter-value" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
+            <div mod-role="input-parameter-value" rata-role="IrB" mod-parameter-uri="{{uri}}" class="mod-enumerated-selected">
                 -- choose an IR file --
             </div>
             <div class="mod-enumerated-list">

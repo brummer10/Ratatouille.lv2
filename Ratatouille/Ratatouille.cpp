@@ -131,6 +131,10 @@ private:
     float*                       _normSlotA;
     float*                       _normSlotB;
     float*                       _bypass;
+    float*                       _eraseSlotA;
+    float*                       _eraseSlotB;
+    float*                       _eraseIr;
+    float*                       _eraseIr1;
     double                       fRec0[2];
     double                       fRec3[2];
     double                       fRec2[2];
@@ -258,7 +262,11 @@ Xratatouille::Xratatouille() :
     _bufb(0),
     _normA(0),
     _normB(0),
-    _bypass(0) {
+    _bypass(0),
+    _eraseSlotA(0),
+    _eraseSlotB(0),
+    _eraseIr(0),
+    _eraseIr1(0) {
         xrworker.start();
         xrworker.set<Xratatouille, &Xratatouille::do_work_mono>(this);
         //xrworker.process = [=] () {do_work_mono();};
@@ -385,6 +393,18 @@ void Xratatouille::connect_(uint32_t port,void* data)
             break;
         case 14:
             _bypass = static_cast<float*>(data);
+            break;
+        case 15:
+            _eraseSlotA = static_cast<float*>(data);
+            break;
+        case 16:
+            _eraseSlotB = static_cast<float*>(data);
+            break;
+        case 17:
+            _eraseIr = static_cast<float*>(data);
+            break;
+        case 18:
+            _eraseIr1 = static_cast<float*>(data);
             break;
         default:
             break;
@@ -663,6 +683,32 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
             }
         }
     }
+
+    if ((*_eraseSlotA)) {
+        _ab.store(1, std::memory_order_release);
+         model_file = "None";
+        _execute.store(true, std::memory_order_release);
+        xrworker.runProcess();
+        (*_eraseSlotA) = 0.0;
+    } else if ((*_eraseSlotB)) {
+        _ab.store(2, std::memory_order_release);
+         model_file1 = "None";
+        _execute.store(true, std::memory_order_release);
+        xrworker.runProcess();
+        (*_eraseSlotB) = 0.0;
+    } else if ((*_eraseIr)) {
+        _ab.store(7, std::memory_order_release);
+         ir_file = "None";
+        _execute.store(true, std::memory_order_release);
+        xrworker.runProcess();
+        (*_eraseIr) = 0.0;
+    } else if ((*_eraseIr1)) {
+        _ab.store(8, std::memory_order_release);
+         ir_file1 = "None";
+        _execute.store(true, std::memory_order_release);
+        xrworker.runProcess();
+        (*_eraseIr1) = 0.0;
+    } 
 
     if (!_execute.load(std::memory_order_acquire) && _restore.load(std::memory_order_acquire)) {
         _execute.store(true, std::memory_order_release);

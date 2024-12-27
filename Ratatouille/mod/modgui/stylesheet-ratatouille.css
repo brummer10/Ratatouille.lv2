@@ -85,6 +85,35 @@
     background-position: 0px 0px;
 }
 
+/* = Button ON/OFF
+================================================  */
+.mod-pedal-ratatouille{{{cns}}} .mod-switch2 {
+    margin-top: 3px ;
+    cursor: pointer;
+    float: right;
+    height: 20px;
+    position: relative;
+    top: 0px;
+    width: 20px;
+}
+
+.mod-pedal-ratatouille{{{cns}}} .mod-button-image {
+    background-image: url(/resources/switches/eject.png{{{ns}}});
+    background-position: 0px 0px;
+    background-repeat: no-repeat;
+    background-size: auto 20px;
+    height: 20px;
+    width: 20px;
+}
+
+.mod-pedal-ratatouille{{{cns}}} .mod-button-image.on {
+    background-position: -20px 0px;
+}
+
+.mod-pedal-ratatouille{{{cns}}} .mod-button-image.off {
+    background-position: 0px 0px;
+}
+
 /* = KNOBS
 ================================================ */
 .mod-pedal-ratatouille{{{cns}}} .mod-control-group {
@@ -104,6 +133,7 @@
     margin-top:0px ;
     margin-right:0px ;
     margin-left:0px ;
+    width: 590px;
 }
 
 .mod-pedal-ratatouille{{{cns}}} .mod-control-group .mod-knob {
@@ -145,7 +175,7 @@
     height:31px;
     margin:20px 30px 0 !important;
     position:relative;
-    width:425px;
+    width:525px;
     z-index:35;
     margin-bottom:10px !important;
 }

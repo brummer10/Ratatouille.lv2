@@ -684,31 +684,33 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         }
     }
 
-    if ((*_eraseSlotA)) {
-        _ab.store(1, std::memory_order_release);
-         model_file = "None";
-        _execute.store(true, std::memory_order_release);
-        xrworker.runProcess();
-        (*_eraseSlotA) = 0.0;
-    } else if ((*_eraseSlotB)) {
-        _ab.store(2, std::memory_order_release);
-         model_file1 = "None";
-        _execute.store(true, std::memory_order_release);
-        xrworker.runProcess();
-        (*_eraseSlotB) = 0.0;
-    } else if ((*_eraseIr)) {
-        _ab.store(7, std::memory_order_release);
-         ir_file = "None";
-        _execute.store(true, std::memory_order_release);
-        xrworker.runProcess();
-        (*_eraseIr) = 0.0;
-    } else if ((*_eraseIr1)) {
-        _ab.store(8, std::memory_order_release);
-         ir_file1 = "None";
-        _execute.store(true, std::memory_order_release);
-        xrworker.runProcess();
-        (*_eraseIr1) = 0.0;
-    } 
+    if (!_execute.load(std::memory_order_acquire)) {
+        if ((*_eraseSlotA)) {
+            _ab.store(1, std::memory_order_release);
+             model_file = "None";
+            _execute.store(true, std::memory_order_release);
+            xrworker.runProcess();
+            (*_eraseSlotA) = 0.0;
+        } else if ((*_eraseSlotB)) {
+            _ab.store(2, std::memory_order_release);
+             model_file1 = "None";
+            _execute.store(true, std::memory_order_release);
+            xrworker.runProcess();
+            (*_eraseSlotB) = 0.0;
+        } else if ((*_eraseIr)) {
+            _ab.store(7, std::memory_order_release);
+             ir_file = "None";
+            _execute.store(true, std::memory_order_release);
+            xrworker.runProcess();
+            (*_eraseIr) = 0.0;
+        } else if ((*_eraseIr1)) {
+            _ab.store(8, std::memory_order_release);
+             ir_file1 = "None";
+            _execute.store(true, std::memory_order_release);
+            xrworker.runProcess();
+            (*_eraseIr1) = 0.0;
+        }
+    }
 
     if (!_execute.load(std::memory_order_acquire) && _restore.load(std::memory_order_acquire)) {
         _execute.store(true, std::memory_order_release);

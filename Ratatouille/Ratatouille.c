@@ -7,7 +7,7 @@
  */
 
 
-#define CONTROLS 11
+#define CONTROLS 15
 
 #define GUI_ELEMENTS 0
 
@@ -373,39 +373,45 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     set_widget_color(ui->widget[1], 0, 0, 0.259, 0.518, 0.894, 1.0);
     set_widget_color(ui->widget[1], 0, 3,  0.686, 0.729, 0.773, 1.0);
 
-    ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 545,  244, 22, 30);
+    ps->ma.fbutton = add_lv2_button(ps->ma.fbutton, ui->win, "", ui, 515,  244, 22, 30);
     ps->ma.fbutton->parent_struct = (void*)&ps->ma;
     combobox_set_pop_position(ps->ma.fbutton, 0);
-    combobox_set_entry_length(ps->ma.fbutton, 64);
+    combobox_set_entry_length(ps->ma.fbutton, 60);
     combobox_add_entry(ps->ma.fbutton, "None");
     ps->ma.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->mb.fbutton = add_lv2_button(ps->mb.fbutton, ui->win, "", ui, 545,  284, 22, 30);
+    ps->mb.fbutton = add_lv2_button(ps->mb.fbutton, ui->win, "", ui, 515,  284, 22, 30);
     ps->mb.fbutton->parent_struct = (void*)&ps->mb;
     combobox_set_pop_position(ps->mb.fbutton, 0);
-    combobox_set_entry_length(ps->mb.fbutton, 64);
+    combobox_set_entry_length(ps->mb.fbutton, 60);
     combobox_add_entry(ps->mb.fbutton, "None");
     ps->mb.fbutton->func.value_changed_callback = file_menu_callback;
 
     ui->widget[8] = add_lv2_toggle_button (ui->widget[8], ui->win, 12, "", ui, 70,  248, 25, 25);
     ui->widget[9] = add_lv2_toggle_button (ui->widget[9], ui->win, 13, "", ui, 70,  288, 25, 25);
 
-    ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 545,  324, 22, 30);
+    ui->widget[11] = add_lv2_erase_button (ui->widget[11], ui->win, 15, "", ui, 545,  248, 25, 25);
+    ui->widget[12] = add_lv2_erase_button (ui->widget[12], ui->win, 16, "", ui, 545,  288, 25, 25);
+
+    ps->ir.fbutton = add_lv2_button(ps->ir.fbutton, ui->win, "", ui, 515,  324, 22, 30);
     ps->ir.fbutton->parent_struct = (void*)&ps->ir;
     combobox_set_pop_position(ps->ir.fbutton, 0);
-    combobox_set_entry_length(ps->ir.fbutton, 64);
+    combobox_set_entry_length(ps->ir.fbutton, 60);
     combobox_add_entry(ps->ir.fbutton, "None");
     ps->ir.fbutton->func.value_changed_callback = file_menu_callback;
 
-    ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 545,  364, 22, 30);
+    ps->ir1.fbutton = add_lv2_button(ps->ir1.fbutton, ui->win, "", ui, 515,  364, 22, 30);
     ps->ir1.fbutton->parent_struct = (void*)&ps->ir1;
     combobox_set_pop_position(ps->ir1.fbutton, 0);
-    combobox_set_entry_length(ps->ir1.fbutton, 64);
+    combobox_set_entry_length(ps->ir1.fbutton, 60);
     combobox_add_entry(ps->ir1.fbutton, "None");
     ps->ir1.fbutton->func.value_changed_callback = file_menu_callback;
 
     ui->widget[5] = add_lv2_toggle_button (ui->widget[5], ui->win, 9, "", ui, 70,  328, 25, 25);
     ui->widget[6] = add_lv2_toggle_button (ui->widget[6], ui->win, 10, "", ui, 70,  368, 25, 25);
+
+    ui->widget[13] = add_lv2_erase_button (ui->widget[13], ui->win, 17, "", ui, 545,  328, 25, 25);
+    ui->widget[14] = add_lv2_erase_button (ui->widget[14], ui->win, 18, "", ui, 545,  368, 25, 25);
 }
 
 void plugin_cleanup(X11_UI *ui) {

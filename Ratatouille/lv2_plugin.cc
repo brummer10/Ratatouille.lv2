@@ -665,7 +665,7 @@ void draw_my_button(void *w_, void* user_data) {
 
 Widget_t* add_lv2_button(Widget_t *w, Widget_t *p, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height) {
-    w = add_combobox(p, label, x-445, y, width+445, height);
+    w = add_combobox(p, label, x-415, y, width+415, height);
     w->parent_struct = ui;
     w->func.expose_callback = dummy_expose;
     w->childlist->childs[0]->func.expose_callback = draw_my_button;
@@ -814,6 +814,17 @@ Widget_t* add_lv2_toggle_button(Widget_t *w, Widget_t *p, PortIndex index, const
     w->parent_struct = ui;
     w->data = index;
     widget_get_png(w, LDVAR(norm_png));
+    w->func.expose_callback = draw_i_button;
+    w->func.value_changed_callback = value_changed;
+    return w;
+}
+
+Widget_t* add_lv2_erase_button(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height) {
+    w = add_image_button(p, "", x, y, width, height);
+    w->parent_struct = ui;
+    w->data = index;
+    widget_get_png(w, LDVAR(eject_png));
     w->func.expose_callback = draw_i_button;
     w->func.value_changed_callback = value_changed;
     return w;

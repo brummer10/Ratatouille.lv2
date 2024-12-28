@@ -109,6 +109,9 @@ Widget_t* add_lv2_irfile_button(Widget_t *w, Widget_t *p, PortIndex index, const
 Widget_t* add_lv2_toggle_button(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height);
 
+Widget_t* add_lv2_erase_button(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height);
+
 // free used mem on exit
 void plugin_cleanup(X11_UI *ui);
 

@@ -27,13 +27,13 @@ function (event, funcs)
     }
     else if (event.type == 'change')
     {
-        if (event.uri === 'urn:brummer:ratatouille#Neural_Model')
+        if (event.uri == 'urn:brummer:ratatouille#Neural_Model')
             check_neural_model(event.icon, event.value);
-        else if  (event.uri === 'urn:brummer:ratatouille#Neural_Model1')
+        else if  (event.uri == 'urn:brummer:ratatouille#Neural_Model1')
             check_neural_model1(event.icon, event.value);
-        else if  (event.uri === 'urn:brummer:ratatouille#irfile')
+        else if  (event.uri == 'urn:brummer:ratatouille#irfile')
             check_irfile(event.icon, event.value);
-        else if  (event.uri === 'urn:brummer:ratatouille#irfile1')
+        else if  (event.uri == 'urn:brummer:ratatouille#irfile1')
             check_irfile1(event.icon, event.value);
 
     }

@@ -68,5 +68,9 @@
             lv2:index 13 ;
             lv2:symbol "eraseIr1" ;
             lv2:name "erase Ir1" ;
+        ] , [
+            lv2:index 14 ;
+            lv2:symbol "buffered" ;
+            lv2:name "Buffer" ;
         ] ;
     ] .

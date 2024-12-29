@@ -7,7 +7,7 @@
  */
 
 
-#define CONTROLS 15
+#define CONTROLS 16
 
 #define GUI_ELEMENTS 0
 
@@ -325,6 +325,7 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     asprintf(&ps->ir1.filepicker->filter ,"%s", ".wav");
     ps->ir1.filepicker->use_filter = 1;
 
+    ui->widget[15] = add_lv2_switch (ui->widget[15], ui->win, 20, "Buffer", ui, 50,  22, 30, 30);
     ui->widget[10] = add_lv2_switch (ui->widget[10], ui->win, 14, "", ui, 505,  22, 50, 50);
 
     ps->ma.filebutton = add_lv2_file_button (ps->ma.filebutton, ui->win, -1, "Neural Model", ui, 40,  248, 25, 25);

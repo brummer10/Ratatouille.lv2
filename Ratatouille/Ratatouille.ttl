@@ -56,7 +56,6 @@ rata:irfile1
    doap:name "Ratatouille" ;
    doap:license <https://spdx.org/licenses/BSD-3-Clause> ;
    lv2:project <urn:brummer:ratatouille> ;
-   lv2:requiredFeature urid:map ;
    lv2:optionalFeature lv2:hardRTCapable ,
        opts:options ;
    lv2:requiredFeature urid:map ,
@@ -65,7 +64,7 @@ rata:irfile1
    lv2:extensionData work:interface ,
                     state:interface ;
    lv2:minorVersion 9 ;
-   lv2:microVersion 4 ;
+   lv2:microVersion 5 ;
 
 guiext:ui <urn:brummer:ratatouille_ui> ;
 
@@ -76,7 +75,14 @@ patch:writable rata:irfile ;
 patch:writable rata:irfile1 ;
 
 rdfs:comment """
-A Neural Model loader and mixer
+A Neural Model loader and mixer. Supports *.nam, *.aidax and *.json based model files.
+Ratatouille allow to load up to two model files and mix there output to archive the wanted sound.
+The input could be controlled separate for each model.
+It provide a delta delay control to overcome possible phasing issues between the models in use. 
+Additional it allow to load up to two Impulse Response files and mix them as well.
+Ratatouille using parallel processing to process the second slot, that reduce the CPU load.
+It provide a additional buffered Mode which introduce a one frame latency 
+and moves the complete processing into a background thread, that reduce the CPU load even more. 
 """;
 
 
@@ -258,7 +264,27 @@ A Neural Model loader and mixer
       lv2:default 0.0 ;
       lv2:minimum 0.0 ;
       lv2:maximum 1.0 ;
-   ] .
+   ], [
+      a lv2:OutputPort,
+           lv2:ControlPort ;
+      lv2:index 19 ;
+      lv2:portProperty lv2:reportsLatency, lv2:integer;
+      units:unit units:frame;
+      lv2:symbol "latency" ;
+      lv2:name "Latency" ;
+      lv2:minimum 0 ;
+      lv2:maximum 192000 ;
+    ], [
+      a lv2:InputPort ,
+          lv2:ControlPort ;
+      lv2:index 20 ;
+      lv2:portProperty lv2:toggled ;
+      lv2:symbol "buffered" ;
+      lv2:name "Buffered" ;
+      lv2:default 0.0 ;
+      lv2:minimum 0.0 ;
+      lv2:maximum 1.0 ;
+   ].
 
 <urn:brummer:ratatouille_ui>
    a guiext:X11UI;

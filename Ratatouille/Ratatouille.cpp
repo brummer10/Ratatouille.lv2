@@ -111,12 +111,14 @@ private:
     SingleThreadConvolver        conv1;
     ParallelThread               xrworker;
     ParallelThread               pro;
+    ParallelThread               par;
     DenormalProtection           MXCSR;
 
     int32_t                      rt_prio;
     int32_t                      rt_policy;
     float*                       input0;
     float*                       output0;
+    float*                       bufferoutput0;
     float*                       _inputGain;
     float*                       _inputGain1;
     float*                       _outputGain;
@@ -135,12 +137,15 @@ private:
     float*                       _eraseSlotB;
     float*                       _eraseIr;
     float*                       _eraseIr1;
+    float*                       _latency;
+    float*                       _buffered;
     double                       fRec0[2];
     double                       fRec3[2];
     double                       fRec2[2];
     double                       fRec1[2];
     double                       fRec4[2];
     uint32_t                     bufsize;
+    uint32_t                     buffersize;
     uint32_t                     s_rate;
     bool                         doit;
 
@@ -156,6 +161,7 @@ private:
     std::atomic<int>             _ab;
     std::atomic<bool>            _neuralA;
     std::atomic<bool>            _neuralB;
+    std::atomic<bool>            bufferIsInit;
 
     std::condition_variable      Sync;
     std::mutex                   WMutex;
@@ -189,7 +195,9 @@ private:
     LV2_URID                     patch_property;
     LV2_URID                     patch_value;
     // private functions
-    inline void run_dsp_(uint32_t n_samples);
+    inline void check_messages(uint32_t n_samples);
+    inline void run_dsp(uint32_t n_samples);
+    inline void processDsp(uint32_t n_samples, float* input, float* output);
     inline void connect_(uint32_t port,void* data);
     inline void init_dsp_(uint32_t rate);
     inline void connect_all__ports(uint32_t port, void* data);
@@ -199,6 +207,7 @@ private:
     inline void deactivate_f();
     inline void processSlotB();
     inline void processConv1();
+    inline void processBuffer();
     inline void map_uris(LV2_URID_Map* map);
     inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
             const LV2_URID xlv2_model, const char* filename);
@@ -253,6 +262,7 @@ Xratatouille::Xratatouille() :
     rt_policy(0),
     input0(NULL),
     output0(NULL),
+    bufferoutput0(NULL),
     _inputGain(0),
     _inputGain1(0),
     _outputGain(0),
@@ -266,11 +276,14 @@ Xratatouille::Xratatouille() :
     _eraseSlotA(0),
     _eraseSlotB(0),
     _eraseIr(0),
-    _eraseIr1(0) {
+    _eraseIr1(0),
+    _latency(0),
+    _buffered(0) {
         xrworker.start();
         xrworker.set<Xratatouille, &Xratatouille::do_work_mono>(this);
         //xrworker.process = [=] () {do_work_mono();};
         pro.start();
+        par.start();
         };
 
 // destructor
@@ -283,6 +296,8 @@ Xratatouille::~Xratatouille() {
     conv1.cleanup();
     xrworker.stop();
     pro.stop();
+    par.stop();
+    delete[] bufferoutput0;
 };
 
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
@@ -323,12 +338,17 @@ void Xratatouille::init_dsp_(uint32_t rate)
     pro.set<0, Xratatouille, &Xratatouille::processSlotB>(this);
     pro.set<1, Xratatouille, &Xratatouille::processConv1>(this);
 
+    par.setThreadName("RTBUF");
+    par.setPriority(rt_prio, rt_policy);
+    par.set<0, Xratatouille, &Xratatouille::processBuffer>(this);
+
     model_file = "None";
     model_file1 = "None";
 
     ir_file = "None";
     ir_file1 = "None";
     bufsize = 0;
+    buffersize = 0;
 
     _execute.store(false, std::memory_order_release);
     _notify_ui.store(false, std::memory_order_release);
@@ -336,6 +356,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     _ab.store(0, std::memory_order_release);
     _neuralA.store(false, std::memory_order_release);
     _neuralB.store(false, std::memory_order_release);
+    bufferIsInit.store(false, std::memory_order_release);
 
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec0[l0] = 0.0;
     for (int l0 = 0; l0 < 2; l0 = l0 + 1) fRec3[l0] = 0.0;
@@ -405,6 +426,12 @@ void Xratatouille::connect_(uint32_t port,void* data)
             break;
         case 18:
             _eraseIr1 = static_cast<float*>(data);
+            break;
+        case 19:
+            _latency = static_cast<float*>(data);
+            break;
+        case 20:
+            _buffered = static_cast<float*>(data);
             break;
         default:
             break;
@@ -575,6 +602,16 @@ void Xratatouille::do_work_mono()
             }            
         }
     }
+    // init buffer for background processing
+    if (buffersize < bufsize) {
+        buffersize = bufsize;
+        delete[] bufferoutput0;
+        bufferoutput0 = NULL;
+        bufferoutput0 = new float[buffersize];
+        memset(bufferoutput0, 0, buffersize*sizeof(float));
+        bufferIsInit.store(true, std::memory_order_release);
+        par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
+    }
     // set wait function time out for parallel processor thread
     pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
     // set flag that work is done ready
@@ -642,10 +679,14 @@ inline void Xratatouille::processConv1() {
     conv1.compute(bufsize, _bufb, _bufb);
 }
 
-void Xratatouille::run_dsp_(uint32_t n_samples)
+// process dsp in buffered in a background thread
+inline void Xratatouille::processBuffer() {
+    processDsp(bufsize, bufferoutput0, bufferoutput0);
+}
+
+inline void Xratatouille::check_messages(uint32_t n_samples)
 {
     if(n_samples<1) return;
-    MXCSR.set_();
     const uint32_t notify_capacity = this->notify->atom.size;
     lv2_atom_forge_set_buffer(&forge, (uint8_t*)notify, notify_capacity);
     lv2_atom_forge_sequence_head(&forge, &notify_frame, 0);
@@ -684,6 +725,7 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
         }
     }
 
+    // check if a model or IR file is to be removed
     if (!_execute.load(std::memory_order_acquire)) {
         if ((*_eraseSlotA)) {
             _ab.store(1, std::memory_order_release);
@@ -745,10 +787,17 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
             _restore.store(false, std::memory_order_release);
         }
     }
+    
+}
+
+inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* output)
+{
+    if(n_samples<1) return;
+    MXCSR.set_();
 
     // do inplace processing on default
-    if(output0 != input0)
-        memcpy(output0, input0, n_samples*sizeof(float));
+    if(output != input)
+        memcpy(output, input, n_samples*sizeof(float));
 
     // basic bypass
     if (!static_cast<uint32_t>(*_bypass)) return;
@@ -762,9 +811,9 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
 
     // internal buffer
     float bufa[n_samples];
-    memcpy(bufa, output0, n_samples*sizeof(float));
+    memcpy(bufa, output, n_samples*sizeof(float));
     float bufb[n_samples];
-    memcpy(bufb, output0, n_samples*sizeof(float));
+    memcpy(bufb, output, n_samples*sizeof(float));
     bufsize = n_samples;
 
     // process delta delay
@@ -813,20 +862,20 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     if (_neuralA.load(std::memory_order_acquire) && _neuralB.load(std::memory_order_acquire)) {
         for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec2[0] = fSlow2 + 0.999 * fRec2[1];
-            output0[i0] = bufa[i0] * (1.0 - fRec2[0]) + bufb[i0] * fRec2[0];
+            output[i0] = bufa[i0] * (1.0 - fRec2[0]) + bufb[i0] * fRec2[0];
             fRec2[1] = fRec2[0];
         }
     } else if (_neuralA.load(std::memory_order_acquire)) {
-        memcpy(output0, bufa, n_samples*sizeof(float));
+        memcpy(output, bufa, n_samples*sizeof(float));
     } else if (_neuralB.load(std::memory_order_acquire)) {
-        memcpy(output0, bufb, n_samples*sizeof(float));
+        memcpy(output, bufb, n_samples*sizeof(float));
     }
 
     if (_neuralA.load(std::memory_order_acquire) || _neuralB.load(std::memory_order_acquire)) {
         // output volume
         for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec3[0] = fSlow3 + 0.999 * fRec3[1];
-            output0[i0] = float(double(output0[i0]) * fRec3[0]);
+            output[i0] = float(double(output[i0]) * fRec3[0]);
             fRec3[1] = fRec3[0];
         }
     }
@@ -835,8 +884,8 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     dcb->compute(n_samples, output0, output0);
 
     // set buffer for mix control
-    memcpy(bufa, output0, n_samples*sizeof(float));
-    memcpy(bufb, output0, n_samples*sizeof(float));
+    memcpy(bufa, output, n_samples*sizeof(float));
+    memcpy(bufb, output, n_samples*sizeof(float));
 
     // process conv1 in parallel thread
     _bufb = bufb;
@@ -860,13 +909,13 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {
         for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec1[0] = fSlow1 + 0.999 * fRec1[1];
-            output0[i0] = bufa[i0] * (1.0 - fRec1[0]) + bufb[i0] * fRec1[0];
+            output[i0] = bufa[i0] * (1.0 - fRec1[0]) + bufb[i0] * fRec1[0];
             fRec1[1] = fRec1[0];
         }
     } else if (!_execute.load(std::memory_order_acquire) && conv.is_runnable()) {
-        memcpy(output0, bufa, n_samples*sizeof(float));
+        memcpy(output, bufa, n_samples*sizeof(float));
     } else if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
-        memcpy(output0, bufb, n_samples*sizeof(float));
+        memcpy(output, bufb, n_samples*sizeof(float));
     }
 
     // notify UI on changed model files
@@ -883,6 +932,33 @@ void Xratatouille::run_dsp_(uint32_t n_samples)
     // notify neural modeller that process cycle is done
     Sync.notify_all();
     MXCSR.reset_();
+}
+
+inline void Xratatouille::run_dsp(uint32_t n_samples)
+{
+    if (((*_buffered)) && bufferIsInit.load(std::memory_order_acquire)) {
+        if ( buffersize < n_samples) {
+            bufferIsInit.store(false, std::memory_order_release);
+            _execute.store(true, std::memory_order_release);
+            xrworker.runProcess();
+            if(output0 != input0)
+                memcpy(output0, input0, n_samples*sizeof(float));
+            return;
+        }
+        par.processWait();
+        memcpy(output0, bufferoutput0, bufsize*sizeof(float));
+        memcpy(bufferoutput0, input0, n_samples*sizeof(float));
+        check_messages(n_samples);
+        if (par.getProcess()) par.runProcess();
+        else  processDsp(n_samples, bufferoutput0, bufferoutput0);
+        bufsize = n_samples;
+        (*_latency) = bufsize;
+        
+    } else {
+        check_messages(n_samples);
+        processDsp(n_samples, input0, output0);
+        (*_latency) = 0.0;
+    }
 }
 
 void Xratatouille::connect_all__ports(uint32_t port, void* data)
@@ -1062,7 +1138,7 @@ void Xratatouille::activate(LV2_Handle instance)
 void Xratatouille::run(LV2_Handle instance, uint32_t n_samples)
 {
     // run dsp
-    static_cast<Xratatouille*>(instance)->run_dsp_(n_samples);
+    static_cast<Xratatouille*>(instance)->run_dsp(n_samples);
 }
 
 void Xratatouille::deactivate(LV2_Handle instance)

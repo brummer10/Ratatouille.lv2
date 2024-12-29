@@ -20,7 +20,7 @@ jobs:
       - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          extraargs: SSE_CFLAGS="" FFT_FLAG=""
+          extraargs: SSE_CFLAGS="" FFT_FLAG="" modapp
           pawpaw: true
 
   arm64:
@@ -37,6 +37,7 @@ jobs:
       - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
+          extraargs: modapp
           pawpaw: true
 
   linux-optimised:
@@ -54,6 +55,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           postfix: -v3
+          extraargs: modapp
           lto: true
           pawpaw: true
 
@@ -71,6 +73,7 @@ jobs:
       - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
+          extraargs: modapp
           lto: true
           pawpaw: true
 

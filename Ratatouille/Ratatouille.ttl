@@ -284,6 +284,16 @@ and moves the complete processing into a background thread, that reduce the CPU 
       lv2:default 0.0 ;
       lv2:minimum 0.0 ;
       lv2:maximum 1.0 ;
+   ], [
+      a lv2:InputPort ,
+          lv2:ControlPort ;
+      lv2:index 21 ;
+      lv2:portProperty lv2:toggled ;
+      lv2:symbol "phase" ;
+      lv2:name "Phase Correction" ;
+      lv2:default 0.0 ;
+      lv2:minimum 0.0 ;
+      lv2:maximum 1.0 ;
    ].
 
 <urn:brummer:ratatouille_ui>

@@ -41,6 +41,7 @@ namespace ratatouille {
 class ModelerBase {
 public:
     virtual void setModelFile(std::string modelFile_) {}
+    virtual int getPhaseOffset() {return 0;}
     virtual inline void clearState() {}
     virtual inline void init(unsigned int sample_rate) {}
     virtual void connect(uint32_t port,void* data) {}
@@ -78,8 +79,10 @@ private:
 public:
     std::string                     modelFile;
     float                           nGain;
+    int                             phaseOffset;
 
     void setModelFile(std::string modelFile_) override { modelFile = modelFile_;}
+    int getPhaseOffset() override;
     inline void clearState() override;
     inline void init(unsigned int sample_rate) override;
     void connect(uint32_t port,void* data) override;
@@ -116,8 +119,10 @@ private:
 
 public:
     std::string                     modelFile;
+    int                             phaseOffset;
 
     void setModelFile(std::string modelFile_) override { modelFile = modelFile_;}
+    int getPhaseOffset() override;
     inline void clearState() override;
     inline void init(unsigned int sample_rate) override;
     void connect(uint32_t port,void* data) override;
@@ -163,6 +168,9 @@ public:
 
     bool loadModel() {
             return modeler->loadModel();}
+
+    int getPhaseOffset() {
+            return modeler->getPhaseOffset();}
 
     void unloadModel() {
             return modeler->unloadModel();}

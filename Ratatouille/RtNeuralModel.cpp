@@ -15,6 +15,7 @@ namespace ratatouille {
 RtNeuralModel::RtNeuralModel(std::condition_variable *Sync)
     : model(nullptr), smp(), SyncWait(Sync) {
     needResample = 0;
+    phaseOffset = 0;
     isInited = false;
     ready.store(false, std::memory_order_release);
  }
@@ -38,6 +39,11 @@ inline void RtNeuralModel::init(unsigned int sample_rate)
 // connect the Ports used by the plug-in class
 void RtNeuralModel::connect(uint32_t port,void* data)
 {
+}
+
+int RtNeuralModel::getPhaseOffset()
+{
+    return phaseOffset;
 }
 
 inline void RtNeuralModel::normalize(int count, float *buf)
@@ -124,6 +130,7 @@ bool RtNeuralModel::loadModel() {
         model = nullptr;
         modelSampleRate = 0;
         needResample = 0;
+        phaseOffset = 0;
         //clearState();
         int32_t warmUpSize = 4096;
         try {
@@ -147,10 +154,22 @@ bool RtNeuralModel::loadModel() {
             // fprintf(stderr, "A: %s\n", modelFile.c_str());
 
             float* buffer = new float[warmUpSize];
-            memset(buffer, 0, warmUpSize * sizeof(float));
+            float angle = 0.0;
+            for(int i=0;i<warmUpSize;i++){
+                buffer[i] = sin(angle);
+                angle += (2 * 3.14159365) / warmUpSize;
+            }
+            //memset(buffer, 0, warmUpSize * sizeof(float));
 
             for (int i0 = 0; i0 < warmUpSize; i0 = i0 + 1) {
                 buffer[i0] = model->forward (&buffer[i0]);
+            }
+
+            for(int i=0;i<warmUpSize;i++){
+                if (!std::signbit(buffer[i+1]) != !std::signbit(buffer[i])) {
+                    phaseOffset = i;
+                    break;
+                }
             }
 
             delete[] buffer;

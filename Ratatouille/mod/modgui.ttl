@@ -72,5 +72,9 @@
             lv2:index 14 ;
             lv2:symbol "buffered" ;
             lv2:name "Buffer" ;
+        ] , [
+            lv2:index 15 ;
+            lv2:symbol "phase" ;
+            lv2:name "Phase" ;
         ] ;
     ] .

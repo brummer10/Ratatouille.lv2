@@ -1,16 +1,16 @@
-// generated from file 'cdeleay.dsp' by dsp2cc:
+// generated from file 'phasecor.dsp' by dsp2cc:
 // Code generated with Faust 2.70.3 (https://faust.grame.fr)
 
 #include <cmath>
 
-namespace cdeleay {
+namespace phasecor {
 
 class Dsp {
 private:
 	uint32_t fSampleRate;
 	int IOTA0;
 	double fVec0[16384];
-	float *fHslider0_;
+	float fHslider0;
 	double fRec4[2];
 	double fRec0[2];
 	double fRec1[2];
@@ -19,7 +19,7 @@ private:
 
 
 public:
-	void connect(uint32_t port,void* data);
+	void set(int value);
 	void del_instance(Dsp *p);
 	void clear_state_f();
 	void init(uint32_t sample_rate);
@@ -53,7 +53,7 @@ inline void Dsp::init(uint32_t sample_rate)
 
 void Dsp::compute(int count, float *input0, float *output0)
 {
-	double fSlow0 = 0.0001000000000000009 * std::fabs(*(fHslider0_));
+	double fSlow0 = 0.0001000000000000009 * std::abs(fHslider0);
 	for (int i0 = 0; i0 < count; i0 = i0 + 1) {
 		double fTemp0 = double(input0[i0]);
 		fVec0[IOTA0 & 16383] = fTemp0;
@@ -74,16 +74,9 @@ void Dsp::compute(int count, float *input0, float *output0)
 	}
 }
 
-void Dsp::connect(uint32_t port,void* data)
+void Dsp::set(int value)
 {
-	switch (port)
-	{
-	case 8: 
-		fHslider0_ = static_cast<float*>(data); // , 0.0, -4096.0, 4096.0, 12.0 
-		break;
-	default:
-		break;
-	}
+    fHslider0 = static_cast<float>(value); // , 0.0, -4096.0, 4096.0, 12.0 
 }
 
 Dsp *plugin() {
@@ -94,4 +87,4 @@ void Dsp::del_instance(Dsp *p)
 {
 	delete p;
 }
-} // end namespace cdeleay
+} // end namespace phasecor

@@ -18,6 +18,7 @@ NeuralModel::NeuralModel(std::condition_variable *Sync)
     loudness = 0.0;
     nGain = 1.0;
     needResample = 0;
+    phaseOffset = 0;
     isInited = false;
     ready.store(false, std::memory_order_release);
  }
@@ -51,6 +52,11 @@ inline void NeuralModel::normalize(int count, float *buf)
             buf[i0] = float(double(buf[i0]) * nGain);
         }
     }
+}
+
+int NeuralModel::getPhaseOffset()
+{
+    return phaseOffset;
 }
 
 inline void NeuralModel::compute(int count, float *input0, float *output0)
@@ -106,6 +112,7 @@ bool NeuralModel::loadModel() {
        // fprintf(stderr, "delete model\n");
         model = nullptr;
         needResample = 0;
+        phaseOffset = 0;
         //clearState();
         int32_t warmUpSize = 4096;
         try {
@@ -133,9 +140,22 @@ bool NeuralModel::loadModel() {
                 needResample = 2;
             } 
             float* buffer = new float[warmUpSize];
-            memset(buffer, 0, warmUpSize * sizeof(float));
+            float angle = 0.0;
+            for(int i=0;i<warmUpSize;i++){
+                buffer[i] = sin(angle);
+                angle += (2 * 3.14159365) / warmUpSize;
+            }
+
+           // memset(buffer, 0, warmUpSize * sizeof(float));
 
             model->process(buffer, buffer, warmUpSize);
+
+            for(int i=0;i<warmUpSize;i++){
+                if (!std::signbit(buffer[i+1]) != !std::signbit(buffer[i])) {
+                    phaseOffset = i;
+                    break;
+                }
+            }
 
             delete[] buffer;
             //fprintf(stderr, "sample rate = %i file = %i l = %f\n",fSampleRate, modelSampleRate, loudness);

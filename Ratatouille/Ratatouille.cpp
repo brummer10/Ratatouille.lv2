@@ -47,6 +47,7 @@
 
 #include "dcblocker.cc"
 #include "cdelay.cc"
+#include "phasecor.cc"
 
 #include "ModelerSelector.h"
 #include "ParallelThread.h"
@@ -105,6 +106,7 @@ class Xratatouille
 private:
     dcblocker::Dsp*              dcb;
     cdeleay::Dsp*                cdelay;
+    phasecor::Dsp*               pdelay;
     ModelerSelector              slotA;
     ModelerSelector              slotB;
     SingleThreadConvolver        conv;
@@ -139,6 +141,8 @@ private:
     float*                       _eraseIr1;
     float*                       _latency;
     float*                       _buffered;
+    float*                       _phasecor;
+    float                        phase_cor;
     double                       fRec0[2];
     double                       fRec3[2];
     double                       fRec2[2];
@@ -147,6 +151,7 @@ private:
     uint32_t                     bufsize;
     uint32_t                     buffersize;
     uint32_t                     s_rate;
+    int                          phaseOffset;
     bool                         doit;
 
     std::string                  model_file;
@@ -254,6 +259,7 @@ public:
 Xratatouille::Xratatouille() :
     dcb(dcblocker::plugin()),
     cdelay(cdeleay::plugin()),
+    pdelay(phasecor::plugin()),
     slotA(&Sync),
     slotB(&Sync),
     conv(SingleThreadConvolver()),
@@ -278,7 +284,8 @@ Xratatouille::Xratatouille() :
     _eraseIr(0),
     _eraseIr1(0),
     _latency(0),
-    _buffered(0) {
+    _buffered(0),
+    _phasecor(0) {
         xrworker.start();
         xrworker.set<Xratatouille, &Xratatouille::do_work_mono>(this);
         //xrworker.process = [=] () {do_work_mono();};
@@ -290,6 +297,7 @@ Xratatouille::Xratatouille() :
 Xratatouille::~Xratatouille() {
     dcb->del_instance(dcb);
     cdelay->del_instance(cdelay);
+    pdelay->del_instance(pdelay);
     conv.stop_process();
     conv.cleanup();
     conv1.stop_process();
@@ -329,6 +337,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     s_rate = rate;
     dcb->init(rate);
     cdelay->init(rate);
+    pdelay->init(rate);
     slotA.init(rate);
     slotB.init(rate);
 
@@ -349,6 +358,8 @@ void Xratatouille::init_dsp_(uint32_t rate)
     ir_file1 = "None";
     bufsize = 0;
     buffersize = 0;
+    phaseOffset = 0;
+    phase_cor = 0;
 
     _execute.store(false, std::memory_order_release);
     _notify_ui.store(false, std::memory_order_release);
@@ -432,6 +443,9 @@ void Xratatouille::connect_(uint32_t port,void* data)
             break;
         case 20:
             _buffered = static_cast<float*>(data);
+            break;
+        case 21:
+            _phasecor = static_cast<float*>(data);
             break;
         default:
             break;
@@ -602,6 +616,18 @@ void Xratatouille::do_work_mono()
             }            
         }
     }
+    // calculate phase offset
+    if (_neuralA.load(std::memory_order_acquire) && _neuralB.load(std::memory_order_acquire)) {
+        phaseOffset = slotB.getPhaseOffset() - slotA.getPhaseOffset();
+        pdelay->set(phaseOffset);
+        pdelay->clear_state_f();
+        //fprintf(stderr, "phase offset = %i\n", phaseOffset);
+    } else {
+        phaseOffset = 0;
+        pdelay->set(phaseOffset);
+        pdelay->clear_state_f();
+    }
+    
     // init buffer for background processing
     if (buffersize < bufsize) {
         buffersize = bufsize;
@@ -787,7 +813,17 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
             _restore.store(false, std::memory_order_release);
         }
     }
-    
+    // notify UI on changed model files
+    if (_notify_ui.load(std::memory_order_acquire)) {
+        _notify_ui.store(false, std::memory_order_release);
+
+        write_set_file(&forge, xlv2_model_file, model_file.data());
+        write_set_file(&forge, xlv2_model_file1, model_file1.data());
+
+        write_set_file(&forge, xlv2_ir_file, ir_file.data());
+        write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
+        _ab.store(0, std::memory_order_release);
+    }    
 }
 
 inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* output)
@@ -815,6 +851,17 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
     float bufb[n_samples];
     memcpy(bufb, output, n_samples*sizeof(float));
     bufsize = n_samples;
+
+    // clear phase correction when switch on/off
+    if (*(_phasecor) != phase_cor) {
+        phase_cor = *(_phasecor);
+        pdelay->clear_state_f();
+    }
+    // process phase correction
+    if (*(_phasecor) && phaseOffset) {
+        if (phaseOffset < 0) pdelay->compute(n_samples, bufa, bufa);
+        else pdelay->compute(n_samples, bufb, bufb);
+    }
 
     // process delta delay
     if (*(_delay) < 0) cdelay->compute(n_samples, bufa, bufa);
@@ -917,18 +964,6 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
     } else if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
         memcpy(output, bufb, n_samples*sizeof(float));
     }
-
-    // notify UI on changed model files
-    if (_notify_ui.load(std::memory_order_acquire)) {
-        _notify_ui.store(false, std::memory_order_release);
-
-        write_set_file(&forge, xlv2_model_file, model_file.data());
-        write_set_file(&forge, xlv2_model_file1, model_file1.data());
-
-        write_set_file(&forge, xlv2_ir_file, ir_file.data());
-        write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
-        _ab.store(0, std::memory_order_release);
-    }
     // notify neural modeller that process cycle is done
     Sync.notify_all();
     MXCSR.reset_();
@@ -936,6 +971,7 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
 
 inline void Xratatouille::run_dsp(uint32_t n_samples)
 {
+    check_messages(n_samples);
     if (((*_buffered)) && bufferIsInit.load(std::memory_order_acquire)) {
         if ( buffersize < n_samples) {
             bufferIsInit.store(false, std::memory_order_release);
@@ -948,14 +984,12 @@ inline void Xratatouille::run_dsp(uint32_t n_samples)
         par.processWait();
         memcpy(output0, bufferoutput0, bufsize*sizeof(float));
         memcpy(bufferoutput0, input0, n_samples*sizeof(float));
-        check_messages(n_samples);
         if (par.getProcess()) par.runProcess();
         else  processDsp(n_samples, bufferoutput0, bufferoutput0);
         bufsize = n_samples;
         (*_latency) = bufsize;
         
     } else {
-        check_messages(n_samples);
         processDsp(n_samples, input0, output0);
         (*_latency) = 0.0;
     }

@@ -268,6 +268,7 @@ and moves the complete processing into a background thread, that reduce the CPU 
       a lv2:OutputPort,
            lv2:ControlPort ;
       lv2:index 19 ;
+      lv2:designation <http://lv2plug.in/ns/lv2core#latency>;
       lv2:portProperty lv2:reportsLatency, lv2:integer;
       units:unit units:frame;
       lv2:symbol "latency" ;
@@ -278,12 +279,13 @@ and moves the complete processing into a background thread, that reduce the CPU 
       a lv2:InputPort ,
           lv2:ControlPort ;
       lv2:index 20 ;
-      lv2:portProperty lv2:toggled ;
+      
       lv2:symbol "buffered" ;
       lv2:name "Buffered" ;
       lv2:default 0.0 ;
       lv2:minimum 0.0 ;
       lv2:maximum 1.0 ;
+      pprop:rangeSteps 3;
    ], [
       a lv2:InputPort ,
           lv2:ControlPort ;
@@ -294,7 +296,15 @@ and moves the complete processing into a background thread, that reduce the CPU 
       lv2:default 0.0 ;
       lv2:minimum 0.0 ;
       lv2:maximum 1.0 ;
-   ].
+   ], [
+      a lv2:OutputPort,
+           lv2:ControlPort ;
+      lv2:index 22 ;
+      lv2:symbol "ms_latency" ;
+      lv2:name "Latency ms" ;
+      lv2:minimum 0.0 ;
+      lv2:maximum 171.0 ;
+    ].
 
 <urn:brummer:ratatouille_ui>
    a guiext:X11UI;

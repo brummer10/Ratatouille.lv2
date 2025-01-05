@@ -97,6 +97,9 @@ Widget_t* add_lv2_button(Widget_t *w, Widget_t *p, const char * label,
 Widget_t* add_lv2_switch(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height);
 
+Widget_t* add_lv2_slider(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height);
+
 Widget_t* add_lv2_knob(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height);
 
@@ -110,6 +113,9 @@ Widget_t* add_lv2_toggle_button(Widget_t *w, Widget_t *p, PortIndex index, const
                                 X11_UI* ui, int x, int y, int width, int height);
 
 Widget_t* add_lv2_erase_button(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height);
+
+Widget_t* add_lv2_label(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
                                 X11_UI* ui, int x, int y, int width, int height);
 
 // free used mem on exit

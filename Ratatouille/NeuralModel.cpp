@@ -140,17 +140,16 @@ bool NeuralModel::loadModel() {
                 needResample = 2;
             } 
             float* buffer = new float[warmUpSize];
+            memset(buffer, 0, warmUpSize * sizeof(float));
             float angle = 0.0;
-            for(int i=0;i<warmUpSize;i++){
+            for(int i=0;i<2048;i++){
                 buffer[i] = sin(angle);
-                angle += (2 * 3.14159365) / warmUpSize;
+                angle += (2 * 3.14159365) / 2048;
             }
-
-           // memset(buffer, 0, warmUpSize * sizeof(float));
 
             model->process(buffer, buffer, warmUpSize);
 
-            for(int i=0;i<warmUpSize;i++){
+            for(int i=0;i<2048;i++){
                 if (!std::signbit(buffer[i+1]) != !std::signbit(buffer[i])) {
                     phaseOffset = i;
                     break;

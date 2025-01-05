@@ -31,6 +31,8 @@
 #include <lv2/state/state.h>
 #include <lv2/worker/worker.h>
 #include <lv2/buf-size/buf-size.h>
+#include <lv2/log/log.h>
+#include <lv2/log/logger.h>
 
 ///////////////////////// MACRO SUPPORT ////////////////////////////////
 
@@ -140,6 +142,7 @@ private:
     float*                       _eraseIr;
     float*                       _eraseIr1;
     float*                       _latency;
+    float*                       _latencyms;
     float*                       _buffered;
     float*                       _phasecor;
     float                        phase_cor;
@@ -151,8 +154,11 @@ private:
     uint32_t                     bufsize;
     uint32_t                     buffersize;
     uint32_t                     s_rate;
+    double                       s_time;
     int                          phaseOffset;
     bool                         doit;
+
+    uint32_t                     partialBuffer;
 
     std::string                  model_file;
     std::string                  model_file1;
@@ -179,6 +185,8 @@ private:
     LV2_Atom_Sequence*           notify;
     LV2_Atom_Forge               forge;
     LV2_Atom_Forge_Frame         notify_frame;
+    LV2_Log_Log*                 log;
+    LV2_Log_Logger               logger;
 
     LV2_URID                     xlv2_model_file;
     LV2_URID                     xlv2_model_file1;
@@ -201,7 +209,7 @@ private:
     LV2_URID                     patch_value;
     // private functions
     inline void check_messages(uint32_t n_samples);
-    inline void run_dsp(uint32_t n_samples);
+    inline void runBufferedDsp(uint32_t n_samples);
     inline void processDsp(uint32_t n_samples, float* input, float* output);
     inline void connect_(uint32_t port,void* data);
     inline void init_dsp_(uint32_t rate);
@@ -284,6 +292,7 @@ Xratatouille::Xratatouille() :
     _eraseIr(0),
     _eraseIr1(0),
     _latency(0),
+    _latencyms(0),
     _buffered(0),
     _phasecor(0) {
         xrworker.start();
@@ -335,6 +344,7 @@ inline void Xratatouille::map_uris(LV2_URID_Map* map) {
 void Xratatouille::init_dsp_(uint32_t rate)
 {
     s_rate = rate;
+    s_time = (1.0 / (double)s_rate) * 1000;
     dcb->init(rate);
     cdelay->init(rate);
     pdelay->init(rate);
@@ -358,6 +368,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     ir_file1 = "None";
     bufsize = 0;
     buffersize = 0;
+    partialBuffer = 0;
     phaseOffset = 0;
     phase_cor = 0;
 
@@ -447,6 +458,9 @@ void Xratatouille::connect_(uint32_t port,void* data)
         case 21:
             _phasecor = static_cast<float*>(data);
             break;
+        case 22:
+            _latencyms = static_cast<float*>(data);
+            break;
         default:
             break;
     }
@@ -525,7 +539,7 @@ void Xratatouille::do_work_mono()
         while (!conv.checkstate());
         if(!conv.start(rt_prio, rt_policy)) {
             ir_file = "None";
-            printf("impulse convolver update fail\n");
+            lv2_log_error(&logger,"impulse convolver update fail\n");
         }
     // load IR file in second convolver
     } else if (_ab.load(std::memory_order_acquire) == 8) {
@@ -544,7 +558,7 @@ void Xratatouille::do_work_mono()
         while (!conv1.checkstate());
         if(!conv1.start(rt_prio, rt_policy)) {
             ir_file1 = "None";
-            printf("impulse convolver1 update fail\n");
+            lv2_log_error(&logger,"impulse convolver1 update fail\n");
         }
     // load all models and IR files
     } else if (_ab.load(std::memory_order_acquire) > 10) {
@@ -583,7 +597,7 @@ void Xratatouille::do_work_mono()
             while (!conv.checkstate());
             if(!conv.start(rt_prio, rt_policy)) {
                 ir_file = "None";
-                printf("impulse convolver update fail\n");
+                lv2_log_error(&logger,"impulse convolver update fail\n");
             }
         } else {
             if (conv.is_runnable()) {
@@ -607,7 +621,7 @@ void Xratatouille::do_work_mono()
             while (!conv1.checkstate());
             if(!conv1.start(rt_prio, rt_policy)) {
                 ir_file1 = "None";
-                printf("impulse convolver1 update fail\n");
+                lv2_log_error(&logger,"impulse convolver1 update fail\n");
             }
         } else {
             if (conv1.is_runnable()) {
@@ -630,16 +644,16 @@ void Xratatouille::do_work_mono()
     
     // init buffer for background processing
     if (buffersize < bufsize) {
-        buffersize = bufsize;
+        buffersize = bufsize * 2;
         delete[] bufferoutput0;
         bufferoutput0 = NULL;
         bufferoutput0 = new float[buffersize];
         memset(bufferoutput0, 0, buffersize*sizeof(float));
         bufferIsInit.store(true, std::memory_order_release);
-        par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
+        par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.2)));
     }
     // set wait function time out for parallel processor thread
-    pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
+    pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.2)));
     // set flag that work is done ready
     _execute.store(false, std::memory_order_release);
     // set flag that GUI need information about changed state
@@ -708,6 +722,62 @@ inline void Xratatouille::processConv1() {
 // process dsp in buffered in a background thread
 inline void Xratatouille::processBuffer() {
     processDsp(bufsize, bufferoutput0, bufferoutput0);
+}
+
+inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
+{
+    if(n_samples<1) return;
+    // check atom messages (full cycle)
+    check_messages(n_samples);
+    // process in buffered mode
+    if (((*_buffered) > 0.0) && bufferIsInit.load(std::memory_order_acquire)) {
+        // avoid buffer overflow on frame size change
+        if ( buffersize < n_samples) {
+            bufsize = n_samples;
+            bufferIsInit.store(false, std::memory_order_release);
+            _execute.store(true, std::memory_order_release);
+            xrworker.runProcess();
+            if(output0 != input0)
+                memcpy(output0, input0, n_samples*sizeof(float));
+            return;
+        }
+        // get the second part buffer from previous process 
+        par.processWait();
+        memcpy(output0, bufferoutput0, partialBuffer*sizeof(float));
+
+        // set bufsize for the first part
+        bufsize = n_samples - partialBuffer;
+
+        // process first part buffer in this cycle and append to output
+        memcpy(bufferoutput0, input0, bufsize*sizeof(float));
+        processDsp(bufsize, bufferoutput0, bufferoutput0);
+        memcpy(&output0[partialBuffer], bufferoutput0, bufsize*sizeof(float));
+
+        // process second part buffer in background, use in next cycle
+        // buffered size may have changed, so recalculate it
+        partialBuffer = n_samples * (*_buffered);
+        bufsize = n_samples - partialBuffer;
+        memcpy(bufferoutput0, &input0[bufsize], partialBuffer*sizeof(float));
+        // set bufsize for the second part processed in background
+        bufsize = partialBuffer;
+        if (par.getProcess()) par.runProcess();
+        else lv2_log_error(&logger,"thread1 missing deadline\n");
+
+        // report latency
+        if (*(_latency) != static_cast<float>(partialBuffer)) {
+            *(_latency) = static_cast<float>(partialBuffer);
+            *(_latencyms) = static_cast<float>(partialBuffer * s_time);
+        }
+
+    } else {
+        // process latency free
+        processDsp(n_samples, input0, output0);
+        // report latency
+        if (*(_latency) != 0.0) {
+            *(_latency) = 0.0;
+            *(_latencyms) = 0.0;
+        }
+    }
 }
 
 inline void Xratatouille::check_messages(uint32_t n_samples)
@@ -813,6 +883,11 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
             _restore.store(false, std::memory_order_release);
         }
     }
+    // init buffer for background processing when needed
+    if (!bufferIsInit.load(std::memory_order_acquire) && !_execute.load(std::memory_order_acquire)) {
+        _execute.store(true, std::memory_order_release);
+        xrworker.runProcess();
+    }
     // notify UI on changed model files
     if (_notify_ui.load(std::memory_order_acquire)) {
         _notify_ui.store(false, std::memory_order_release);
@@ -836,7 +911,10 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
         memcpy(output, input, n_samples*sizeof(float));
 
     // basic bypass
-    if (!static_cast<uint32_t>(*_bypass)) return;
+    if (!static_cast<uint32_t>(*_bypass)) {
+        Sync.notify_all();
+        return;
+    }
 
     // get controller values from host
     double fSlow0 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(*(_inputGain)));
@@ -852,6 +930,10 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
     memcpy(bufb, output, n_samples*sizeof(float));
     bufsize = n_samples;
 
+    // process delta delay
+    if (*(_delay) < 0) cdelay->compute(n_samples, bufa, bufa);
+    else cdelay->compute(n_samples, bufb, bufb);
+
     // clear phase correction when switch on/off
     if (*(_phasecor) != phase_cor) {
         phase_cor = *(_phasecor);
@@ -862,10 +944,6 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
         if (phaseOffset < 0) pdelay->compute(n_samples, bufa, bufa);
         else pdelay->compute(n_samples, bufb, bufb);
     }
-
-    // process delta delay
-    if (*(_delay) < 0) cdelay->compute(n_samples, bufa, bufa);
-    else cdelay->compute(n_samples, bufb, bufb);
 
     // process input volume slot A
     if (_neuralA.load(std::memory_order_acquire)) {
@@ -967,32 +1045,6 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
     // notify neural modeller that process cycle is done
     Sync.notify_all();
     MXCSR.reset_();
-}
-
-inline void Xratatouille::run_dsp(uint32_t n_samples)
-{
-    check_messages(n_samples);
-    if (((*_buffered)) && bufferIsInit.load(std::memory_order_acquire)) {
-        if ( buffersize < n_samples) {
-            bufferIsInit.store(false, std::memory_order_release);
-            _execute.store(true, std::memory_order_release);
-            xrworker.runProcess();
-            if(output0 != input0)
-                memcpy(output0, input0, n_samples*sizeof(float));
-            return;
-        }
-        par.processWait();
-        memcpy(output0, bufferoutput0, bufsize*sizeof(float));
-        memcpy(bufferoutput0, input0, n_samples*sizeof(float));
-        if (par.getProcess()) par.runProcess();
-        else  processDsp(n_samples, bufferoutput0, bufferoutput0);
-        bufsize = n_samples;
-        (*_latency) = bufsize;
-        
-    } else {
-        processDsp(n_samples, input0, output0);
-        (*_latency) = 0.0;
-    }
 }
 
 void Xratatouille::connect_all__ports(uint32_t port, void* data)
@@ -1097,25 +1149,29 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
     for (int32_t i = 0; features[i]; ++i) {
         if (!strcmp(features[i]->URI, LV2_URID__map)) {
             self->map = (LV2_URID_Map*)features[i]->data;
-        }
-        else if (!strcmp(features[i]->URI, LV2_WORKER__schedule)) {
+        } else if (!strcmp(features[i]->URI, LV2_WORKER__schedule)) {
             self->schedule = (LV2_Worker_Schedule*)features[i]->data;
-        }
-        else if (!strcmp(features[i]->URI, LV2_OPTIONS__options)) {
+        } else if (!strcmp(features[i]->URI, LV2_OPTIONS__options)) {
             options = (const LV2_Options_Option*)features[i]->data;
+        } else if (!strcmp(features[i]->URI, LV2_LOG__log)) {
+            self->log = (LV2_Log_Log*)features[i]->data;
         }
     }
 
+    if (self->log) {
+        lv2_log_logger_init(&self->logger, self->map, self->log);
+    }
+
     if (!self->schedule) {
-        fprintf(stderr, "Missing feature work:schedule.\n");
+        lv2_log_error(&self->logger, "Missing feature work:schedule.\n");
         self->_execute.store(true, std::memory_order_release);
     }
 
     if (!self->map) {
-        fprintf(stderr, "Missing feature uri:map.\n");
+        lv2_log_error(&self->logger, "Missing feature uri:map.\n");
     }
     else if (!options) {
-        fprintf(stderr, "Missing feature options.\n");
+        lv2_log_error(&self->logger, "Missing feature options.\n");
     }
     else {
         LV2_URID bufsz_max = self->map->map(self->map->handle, LV2_BUF_SIZE__maxBlockLength);
@@ -1142,10 +1198,10 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
         }
 
         if (bufsize == 0) {
-            fprintf(stderr, "No maximum buffer size given.\n");
+            lv2_log_error(&self->logger, "No maximum buffer size given.\n");
         } else {
             self->bufsize = bufsize;
-            printf("using block size: %d\n", bufsize);
+            lv2_log_note(&self->logger, "using block size: %d\n", bufsize);
         }
     }
 
@@ -1172,7 +1228,7 @@ void Xratatouille::activate(LV2_Handle instance)
 void Xratatouille::run(LV2_Handle instance, uint32_t n_samples)
 {
     // run dsp
-    static_cast<Xratatouille*>(instance)->run_dsp(n_samples);
+    static_cast<Xratatouille*>(instance)->runBufferedDsp(n_samples);
 }
 
 void Xratatouille::deactivate(LV2_Handle instance)

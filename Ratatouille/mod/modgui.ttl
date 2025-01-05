@@ -12,6 +12,7 @@
         modgui:brand "brummer" ;
         modgui:label "Ratatouille" ;
         modgui:model "mod-pedal-ratatouille" ;
+        modgui:monitoredOutputs [ lv2:symbol "ms_latency" ] ;
         modgui:port [
             lv2:index 0 ;
             lv2:symbol "Knob0" ;

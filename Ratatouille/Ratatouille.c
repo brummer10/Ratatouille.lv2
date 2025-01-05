@@ -7,7 +7,7 @@
  */
 
 
-#define CONTROLS 17
+#define CONTROLS 18
 
 #define GUI_ELEMENTS 0
 
@@ -325,7 +325,11 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     asprintf(&ps->ir1.filepicker->filter ,"%s", ".wav");
     ps->ir1.filepicker->use_filter = 1;
 
-    ui->widget[15] = add_lv2_switch (ui->widget[15], ui->win, 20, "Buffer", ui, 50,  22, 30, 30);
+    ui->widget[15] = add_lv2_slider (ui->widget[15], ui->win, 20, "Buffer", ui, 50,  22, 30, 30);
+    set_adjustment(ui->widget[15]->adj, 0.0, 0.0, 0.0, 1.0, 0.5, CL_CONTINUOS);
+
+    ui->widget[17] = add_lv2_label (ui->widget[17], ui->win, 22, "Latency", ui, 115,  22, 130, 30);
+
     ui->widget[16] = add_lv2_switch (ui->widget[16], ui->win, 21, "Phase", ui, 90,  22, 30, 30);
     ui->widget[10] = add_lv2_switch (ui->widget[10], ui->win, 14, "", ui, 505,  22, 50, 50);
 

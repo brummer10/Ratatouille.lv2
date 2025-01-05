@@ -21,6 +21,11 @@ function (event, funcs)
         if (value == 'None')
             icon.find ('[rata-role=IrB]').text ('-- choose an IR file --');
     }
+    function set_latency(icon, value)
+    {
+        v = value.toFixed(2);
+        icon.find ('[rata-role=latency]').text ('Latency: ' + `${v}` + 'ms');
+    }
 
     if (event.type == 'start')
     {
@@ -35,6 +40,8 @@ function (event, funcs)
             check_irfile(event.icon, event.value);
         else if  (event.uri == 'urn:brummer:ratatouille#irfile1')
             check_irfile1(event.icon, event.value);
+        else if (event.symbol == 'ms_latency')
+            set_latency(event.icon, event.value);
 
     }
 }

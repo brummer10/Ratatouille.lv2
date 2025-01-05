@@ -69,20 +69,12 @@
 }
 
 .mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch-image {
-    background-image: url(/resources/switches/powerswitch.png{{{ns}}});
+    background-image: url(/resources/switches/switch3.png{{{ns}}});
     background-position: 0px 0px;
     background-repeat: no-repeat;
     background-size: auto 15px;
     height: 15px;
     width: 30px;
-}
-
-.mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch-image.on {
-    background-position: -30px 0px;
-}
-
-.mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch-image.off {
-    background-position: 0px 0px;
 }
 
 .mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch .mod-switch-title {
@@ -98,10 +90,25 @@
     z-index: 1;
 }
 
+/* LATENCY REPORT
+================================================*/
+.mod-pedal-ratatouille{{{cns}}} .buffertext {
+    position: absolute;
+    margin-top: 29px;
+    width: 60%;
+    height: 100%;
+    text-align: center;
+    font-family: "Helvetica Neue",Helvetica,Arial,Sans-serif;
+    font-weight: bold;
+    font-size: 10px;
+    color: #888;
+    z-index: 1;
+}
+
 /* PHASE SWITCH ON/OFF 
 ================================================*/
 .mod-pedal-ratatouille{{{cns}}} .mod-phaseswitch {
-    margin-left: 105px ;
+    margin-left: 95px ;
     margin-top: 12px ;
     cursor: pointer;
     float: left;

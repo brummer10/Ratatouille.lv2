@@ -574,7 +574,7 @@ static void draw_my_switch(void *w_, void* user_data) {
     cairo_select_font_face (wid->crb, "Sans", CAIRO_FONT_SLANT_NORMAL,
                                CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_source_rgba(wid->crb, 0.4, 0.4, 0.4, 1);
-    cairo_set_font_size (wid->crb, wid->app->small_font);
+    cairo_set_font_size (wid->crb, wid->app->small_font/wid->scale.ascale);
     cairo_text_extents(wid->crb,wid->label , &extents);
     cairo_move_to (wid->crb, (w*0.5)-(extents.width/2), h*2 -(extents.height*0.4));
     cairo_show_text(wid->crb, wid->label);
@@ -590,6 +590,127 @@ Widget_t* add_lv2_switch(Widget_t *w, Widget_t *p, PortIndex index, const char *
     w->parent_struct = ui;
     w->data = index;
     w->func.expose_callback = draw_my_switch;
+    w->func.value_changed_callback = value_changed;
+    return w;
+}
+
+static void draw_my_slider(void *w_, void* user_data) {
+    Widget_t *wid = (Widget_t*)w_;    
+    const int w = wid->width;
+    const int h = wid->height * 0.5;
+    const float state = adj_get_state(wid->adj);
+
+    const int centerH = h * 0.5;
+    const int centerW = (w-centerH -8.0) * (state) + centerH  ;
+    const int offset = h * 0.2;
+
+    cairo_push_group (wid->crb);
+    
+    roundrec(wid->crb, 1, 1, w-2, h-2, centerH);
+    knobShadowOutset(wid->crb, w  , h, 0, 0);
+    cairo_stroke_preserve (wid->crb);
+
+    cairo_new_path(wid->crb);
+    roundrec(wid->crb, offset, offset, w - (offset * 2), h - (offset * 2), centerH-offset);
+    cairo_set_source_rgba(wid->crb, 0.05, 0.05, 0.05, 1);
+    cairo_fill_preserve(wid->crb);
+
+    cairo_set_source_rgba(wid->crb, 0.05, 0.05, 0.05, 1);
+    cairo_set_line_width(wid->crb,1);
+    cairo_stroke_preserve (wid->crb);
+
+    roundrec(wid->crb, offset+1, offset+1, centerW -2, h - (offset * 2)-2, centerH-offset);
+    switchLight(wid->crb, offset+1, offset+1, centerW - (offset * 2));
+    cairo_stroke_preserve (wid->crb);
+
+    cairo_new_path(wid->crb);
+    cairo_arc(wid->crb,centerW, centerH, h/2.8, 0, 2 * M_PI );
+    use_bg_color_scheme(wid, PRELIGHT_);
+    cairo_fill_preserve(wid->crb);
+    knobShadowOutset(wid->crb, w * 0.5 , h, centerW - centerH, 0);
+    cairo_set_source_rgba(wid->crb, 0.05, 0.05, 0.05, 1);
+    cairo_set_line_width(wid->crb,1);
+    cairo_stroke_preserve (wid->crb);
+
+    cairo_new_path(wid->crb);
+    cairo_arc(wid->crb,centerW, centerH, h/3.6, 0, 2 * M_PI );
+    if(wid->state==1) use_bg_color_scheme(wid, PRELIGHT_);
+    else use_bg_color_scheme(wid, NORMAL_);
+    cairo_fill_preserve(wid->crb);
+    knobShadowInset(wid->crb, w * 0.5 , h, centerW - centerH, 0);
+    cairo_stroke (wid->crb);
+
+    /** show label below the knob**/
+    cairo_text_extents_t extents;
+    cairo_select_font_face (wid->crb, "Sans", CAIRO_FONT_SLANT_NORMAL,
+                               CAIRO_FONT_WEIGHT_BOLD);
+    cairo_set_source_rgba(wid->crb, 0.4, 0.4, 0.4, 1);
+    cairo_set_font_size (wid->crb, wid->app->small_font/wid->scale.ascale);
+    cairo_text_extents(wid->crb,wid->label , &extents);
+    cairo_move_to (wid->crb, (w*0.5)-(extents.width/2), h*2 -(extents.height*0.4));
+    cairo_show_text(wid->crb, wid->label);
+    cairo_new_path (wid->crb);
+
+    cairo_pop_group_to_source (wid->crb);
+    cairo_paint (wid->crb);
+}
+
+void slider_released(void *w_, void* button_, void* user_data) {
+    Widget_t *w = (Widget_t*)w_;
+    XButtonEvent *xbutton = (XButtonEvent*)button_;
+    if (xbutton->button != Button1) return;
+    Adjustment_t *adj = w->adj;
+    float value = adj->value;
+    value = adj->value + adj->step;
+    if (value>adj->max_value) value = adj->min_value;
+    check_value_changed(adj, &value);
+}
+
+Widget_t* add_lv2_slider(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height) {
+    w = add_hslider(p, label, x, y, width, height);
+    w->scale.gravity = CENTER;
+    w->parent_struct = ui;
+    w->data = index;
+    w->func.expose_callback = draw_my_slider;
+    w->func.button_release_callback = slider_released;
+    w->func.value_changed_callback = value_changed;
+    return w;
+}
+
+void draw_my_label(void *w_, void* user_data) {
+    Widget_t *w = (Widget_t*)w_;
+    Metrics_t metrics;
+    os_get_window_metrics(w, &metrics);
+    int width = metrics.width;
+    int height = metrics.height;
+    float center = (float)width/2;
+    if (!metrics.visible) return;
+
+    cairo_text_extents_t extents;
+    char s[64];
+    float value = adj_get_value(w->adj);
+    snprintf(s, 63,"Latency: %.2fms",  value);
+    cairo_select_font_face (w->crb, "Sans", CAIRO_FONT_SLANT_NORMAL,
+                               CAIRO_FONT_WEIGHT_BOLD);
+    cairo_set_font_size (w->crb, w->app->small_font/w->scale.ascale);
+    cairo_set_source_rgba(w->crb, 0.4, 0.4, 0.4, 1);
+    cairo_text_extents(w->crb,"Latenco: 0.00ms" , &extents);
+    cairo_move_to (w->crb, center-extents.width/2, height-(extents.height*0.4) );
+    cairo_show_text(w->crb, s);
+    cairo_new_path (w->crb);
+}
+
+
+Widget_t* add_lv2_label(Widget_t *w, Widget_t *p, PortIndex index, const char * label,
+                                X11_UI* ui, int x, int y, int width, int height) {
+    w = add_label(p, label, x, y, width, height);
+    w->adj_y = add_adjustment(w,0.0, 0.0, 0.0, 127.0,0.01, CL_CONTINUOS);
+    w->adj = w->adj_y;
+    w->scale.gravity = CENTER;
+    w->parent_struct = ui;
+    w->data = index;
+    w->func.expose_callback = draw_my_label;
     w->func.value_changed_callback = value_changed;
     return w;
 }

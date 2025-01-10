@@ -1,4 +1,5 @@
-# Ratatouille.lv2
+# Ratatouille.lv2 [![build](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml/badge.svg)](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml)
+
 
 <p align="center">
     <img src="https://github.com/brummer10/Ratatouille.lv2/blob/main/Ratatouille.png?raw=true" />
@@ -52,8 +53,6 @@ make mod
 - libcairo2-dev
 - libx11-dev
 - lv2-dev
-
-[![build](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml/badge.svg)](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml)
 
 ## Building from source code
 

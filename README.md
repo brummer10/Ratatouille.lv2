@@ -28,16 +28,23 @@ IR-files could be normalised on load, so that they didn't influence the loudness
 Ratatouille.lv2 supports resampling when needed to match the expected sample rate of the 
 loaded models. Both models and the IR Files may have different expectations regarding the sample rate.
 
+## Packaging Status
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/ratatouille.lv2.svg?columns=3)](https://repology.org/project/ratatouille.lv2/versions)
+
 ## MOD Desktop
+
 For using it on the [MOD Desktop](https://github.com/moddevices/mod-desktop) you could build Ratatouille.lv2
 with a additional MOD UI included by running
 
-- make modapp
+```shell
+make modapp
+```
 
 To build Ratatouille.lv2 with only the MOD UI included (For usage in a MOD device like a Dwarf or a Duo (X)) run
-
-- make mod
-
+```shell
+make mod
+```
 
 ## Dependencies
 

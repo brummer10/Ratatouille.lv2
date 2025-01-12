@@ -528,21 +528,21 @@ runs:
     # upload artifacts (action)
     - name: Upload artifacts (Linux)
       if: ${{ startsWith(inputs.target, 'linux') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ARTIFACT_BASENAME }}
         path: |
           bin/*
     - name: Upload artifacts (macOS)
       if: ${{ startsWith(inputs.target, 'macos') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ARTIFACT_BASENAME }}
         path: |
           ${{ env.ARTIFACT_BASENAME }}.*
     - name: Upload artifacts (Windows)
       if: ${{ startsWith(inputs.target, 'win') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ARTIFACT_BASENAME }}
         path: |

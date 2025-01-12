@@ -114,7 +114,7 @@ bool ConvolverSelector::configure(std::string fname, float gain, unsigned int de
         fprintf(stderr, "Unable to open %s\n", fname.c_str() );
         return false;
     }
-    int asize = audio.size()/ audio.chan();
+    int asize = audio.size();
     //fprintf(stderr, "%i Run %s\n",asize, asize>16384 ? "DoubleThreadConvolver" : "SingelThreadConvolver");
     audio.close();
     if (asize > 16384) conv = &dconv;

@@ -111,8 +111,8 @@ private:
     phasecor::Dsp*               pdelay;
     ModelerSelector              slotA;
     ModelerSelector              slotB;
-    SingleThreadConvolver        conv;
-    SingleThreadConvolver        conv1;
+    ConvolverSelector        conv;
+    ConvolverSelector        conv1;
     ParallelThread               xrworker;
     ParallelThread               pro;
     ParallelThread               par;
@@ -270,8 +270,8 @@ Xratatouille::Xratatouille() :
     pdelay(phasecor::plugin()),
     slotA(&Sync),
     slotB(&Sync),
-    conv(SingleThreadConvolver()),
-    conv1(SingleThreadConvolver()),
+    conv(),
+    conv1(),
     rt_prio(0),
     rt_policy(0),
     input0(NULL),
@@ -650,10 +650,10 @@ void Xratatouille::do_work_mono()
         bufferoutput0 = new float[buffersize];
         memset(bufferoutput0, 0, buffersize*sizeof(float));
         bufferIsInit.store(true, std::memory_order_release);
-        par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.2)));
+        par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
     }
     // set wait function time out for parallel processor thread
-    pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.2)));
+    pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
     // set flag that work is done ready
     _execute.store(false, std::memory_order_release);
     // set flag that GUI need information about changed state
@@ -742,7 +742,18 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
             return;
         }
         // get the second part buffer from previous process 
-        par.processWait();
+        if (!par.processWait()) {
+            lv2_log_error(&logger,"thread RTBUF missing wait\n");
+            // if deadline was missing, erease models from processing
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(3, std::memory_order_release);
+                 model_file = "None";
+                 model_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }
+            
+        }
         memcpy(output0, bufferoutput0, partialBuffer*sizeof(float));
 
         // set bufsize for the first part
@@ -761,7 +772,17 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
         // set bufsize for the second part processed in background
         bufsize = partialBuffer;
         if (par.getProcess()) par.runProcess();
-        else lv2_log_error(&logger,"thread1 missing deadline\n");
+        else {
+            lv2_log_error(&logger,"thread RTBUF missing deadline\n");
+            // if deadline was missing, erease models from processing
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(3, std::memory_order_release);
+                 model_file = "None";
+                 model_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }
+        }
 
         // report latency
         if (*(_latency) != static_cast<float>(partialBuffer)) {
@@ -947,7 +968,7 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
 
     // process input volume slot A
     if (_neuralA.load(std::memory_order_acquire)) {
-        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+        for (uint32_t i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec0[0] = fSlow0 + 0.999 * fRec0[1];
             bufa[i0] = float(double(bufa[i0]) * fRec0[0]);
             fRec0[1] = fRec0[0];
@@ -956,7 +977,7 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
 
     // process input volume slot B
     if (_neuralB.load(std::memory_order_acquire)) {
-        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+        for (uint32_t i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec4[0] = fSlow4 + 0.999 * fRec4[1];
             bufb[i0] = float(double(bufb[i0]) * fRec4[0]);
             fRec4[1] = fRec4[0];
@@ -965,11 +986,20 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
 
     // process slot B in parallel thread
     _bufb = bufb;
-    if (_neuralB.load(std::memory_order_acquire) && pro.getProcess()) {
-        pro.setProcessor(0);
-        pro.runProcess();
-    } else {
-        processSlotB();
+    if (_neuralB.load(std::memory_order_acquire) ) {
+        if ( pro.getProcess()) {
+            pro.setProcessor(0);
+            pro.runProcess();
+        } else {
+            lv2_log_error(&logger,"thread RT missing deadline\n");
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(2, std::memory_order_release);
+                 model_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }
+            //processSlotB();
+        }
     }
 
     // process slot A
@@ -980,12 +1010,20 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
 
     //wait for parallel processed slot B when needed
     if (_neuralB.load(std::memory_order_acquire)) {
-        pro.processWait();
+        if (!pro.processWait()) {
+            lv2_log_error(&logger,"thread RT missing wait\n");
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(2, std::memory_order_release);
+                 model_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }            
+        }
     }
 
     // mix output when needed
     if (_neuralA.load(std::memory_order_acquire) && _neuralB.load(std::memory_order_acquire)) {
-        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+        for (uint32_t i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec2[0] = fSlow2 + 0.999 * fRec2[1];
             output[i0] = bufa[i0] * (1.0 - fRec2[0]) + bufb[i0] * fRec2[0];
             fRec2[1] = fRec2[0];
@@ -998,7 +1036,7 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
 
     if (_neuralA.load(std::memory_order_acquire) || _neuralB.load(std::memory_order_acquire)) {
         // output volume
-        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+        for (uint32_t i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec3[0] = fSlow3 + 0.999 * fRec3[1];
             output[i0] = float(double(output[i0]) * fRec3[0]);
             fRec3[1] = fRec3[0];
@@ -1019,7 +1057,14 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
             pro.setProcessor(1);
             pro.runProcess();
         } else {
-            processConv1();
+            lv2_log_error(&logger,"thread RT (conv) missing deadline\n");
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(8, std::memory_order_release);
+                 ir_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }            
+            //processConv1();
         }
     }
     // process conv
@@ -1027,12 +1072,22 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
         conv.compute(n_samples, bufa, bufa);
 
     // wait for parallel processed conv1 when needed
-    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable())
-        pro.processWait();
+    if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
+        if (!pro.processWait()) {
+            lv2_log_error(&logger,"thread RT (conv) missing wait\n");
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(8, std::memory_order_release);
+                 ir_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }          
+            
+        }
+    }
 
     // mix output when needed
     if ((!_execute.load(std::memory_order_acquire) && conv.is_runnable()) && conv1.is_runnable()) {
-        for (int i0 = 0; i0 < n_samples; i0 = i0 + 1) {
+        for (uint32_t i0 = 0; i0 < n_samples; i0 = i0 + 1) {
             fRec1[0] = fSlow1 + 0.999 * fRec1[1];
             output[i0] = bufa[i0] * (1.0 - fRec1[0]) + bufb[i0] * fRec1[0];
             fRec1[1] = fRec1[0];

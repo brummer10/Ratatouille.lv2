@@ -73,8 +73,26 @@ jobs:
       - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
+          postfix: -v3
           extraargs: modapp
           lto: true
+          pawpaw: true
+
+  windows:
+    strategy:
+      matrix:
+        target: [win64]
+    runs-on: ubuntu-20.04
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions
+        with:
+          target: ${{ matrix.target }}
+          extraargs: SSE_CFLAGS="" FFT_FLAG="" modapp
           pawpaw: true
 
   source:

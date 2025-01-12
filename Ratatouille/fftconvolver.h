@@ -25,6 +25,10 @@
 #include "gx_resampler.h"
 
 
+/****************************************************************
+ ** Audiofile - class to handle audio file read
+ */
+
 class Audiofile {
 public:
 
@@ -83,41 +87,69 @@ private:
     unsigned int _size;
 };
 
+/****************************************************************
+ ** ConvolverBase - virtual base class to select the convolver to use
+ */
 
-class DoubleThreadConvolver:  public fftconvolver::TwoStageFFTConvolver
+class ConvolverBase
+{
+public:
+    virtual bool start(int32_t policy, int32_t priority) {return true;}
+    virtual void set_normalisation(uint32_t norm) {}
+    virtual bool configure(std::string fname, float gain, unsigned int delay,
+                            unsigned int offset, unsigned int length,
+                            unsigned int size, unsigned int bufsize) {return false;}
+    virtual void compute(int32_t count, float* input, float *output) {}
+    virtual bool checkstate() { return true;}
+    virtual inline void set_not_runnable() {}
+    virtual inline bool is_runnable() { return false;}
+    virtual inline void set_buffersize(uint32_t sz) {}
+    virtual void set_samplerate(uint32_t sr) {}
+    virtual int stop_process() {return 0;}
+    virtual int cleanup() {return 0;}
+
+    ConvolverBase() {};
+    virtual ~ConvolverBase() {};
+};
+
+/****************************************************************
+ ** DoubleThreadConvolver - convolver for larger IR files, using a background thread to handle the tail
+ */
+
+class DoubleThreadConvolver: public ConvolverBase, public fftconvolver::TwoStageFFTConvolver
 {
 public:
     std::mutex mo;
     std::condition_variable co;
-    bool start(int32_t policy, int32_t priority) {
+    bool start(int32_t policy, int32_t priority) override {
         if (!pro.isRunning()) {
             pro.start(); 
             pro.setPriority(25, 1); //SCHED_FIFO
         }
         return ready;}
 
-    void set_normalisation(uint32_t norm);
+    void set_normalisation(uint32_t norm) override;
 
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
-                    unsigned int length, unsigned int size, unsigned int bufsize);
+                    unsigned int length, unsigned int size, unsigned int bufsize) override;
 
-    void compute(int32_t count, float* input, float *output);
+    void compute(int32_t count, float* input, float *output) override;
 
-    bool checkstate() { return true;}
+    bool checkstate() override { return true;}
 
-    inline void set_not_runnable() { ready = false;}
+    inline void set_not_runnable() override { ready = false;}
 
-    inline bool is_runnable() { return ready;}
+    inline bool is_runnable() override { return ready;}
 
-    inline void set_buffersize(uint32_t sz) { buffersize = sz;}
+    inline void set_buffersize(uint32_t sz) override { buffersize = sz;}
 
-    inline void set_samplerate(uint32_t sr) { samplerate = sr;}
+    inline void set_samplerate(uint32_t sr) override { samplerate = sr;}
 
-    int stop_process() {
+    int stop_process() override {
             ready = false;
             return 0;}
 
-    int cleanup () {
+    int cleanup () override {
             reset();
             return 0;}
 
@@ -131,8 +163,8 @@ public:
     ~DoubleThreadConvolver() { reset(); pro.stop();}
 
 protected:
-    virtual void startBackgroundProcessing();
-    virtual void waitForBackgroundProcessing();
+    void startBackgroundProcessing() override;
+    void waitForBackgroundProcessing() override;
 
 private:
     friend class ParallelThread;
@@ -149,34 +181,38 @@ private:
     void normalize(float* buffer, int asize);
 };
 
-class SingleThreadConvolver:  public fftconvolver::FFTConvolver
+/****************************************************************
+ ** SingleThreadConvolver - convolver for small IR files, process in a single thread
+ */
+
+class SingleThreadConvolver: public ConvolverBase, public fftconvolver::FFTConvolver
 {
 public:
-    bool start(int32_t policy, int32_t priority) {
+    bool start(int32_t policy, int32_t priority) override {
         return ready;}
 
-    void set_normalisation(uint32_t norm);
+    void set_normalisation(uint32_t norm) override;
 
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
-                    unsigned int length, unsigned int size, unsigned int bufsize);
+                    unsigned int length, unsigned int size, unsigned int bufsize) override;
 
-    void compute(int32_t count, float* input, float *output);
+    void compute(int32_t count, float* input, float *output) override;
 
-    bool checkstate() { return true;}
+    bool checkstate() override { return true;}
 
-    inline void set_not_runnable() { ready = false;}
+    inline void set_not_runnable() override { ready = false;}
 
-    inline bool is_runnable() { return ready;}
+    inline bool is_runnable() override { return ready;}
 
-    inline void set_buffersize(uint32_t sz) { buffersize = sz;}
+    inline void set_buffersize(uint32_t sz) override { buffersize = sz;}
 
-    inline void set_samplerate(uint32_t sr) { samplerate = sr;}
+    inline void set_samplerate(uint32_t sr) override { samplerate = sr;}
 
-    int stop_process() {
+    int stop_process() override {
             ready = false;
             return 0;}
 
-    int cleanup () {
+    int cleanup () override {
             reset();
             return 0;}
 
@@ -194,6 +230,65 @@ private:
     std::string filename;
     bool get_buffer(std::string fname, float **buffer, uint32_t* rate, int* size);
     void normalize(float* buffer, int asize);
+};
+
+/****************************************************************
+ ** ConvolverSelector - class to select the convolver to use based on the file size
+ */
+
+class ConvolverSelector
+{
+public:
+    bool start(int32_t policy, int32_t priority) {
+            return conv->start(policy, priority);}
+
+    void set_normalisation(uint32_t norm) {
+            sconv.set_normalisation(norm);
+            dconv.set_normalisation(norm);}
+
+    bool configure(std::string fname, float gain, unsigned int delay,
+                            unsigned int offset, unsigned int length,
+                            unsigned int size, unsigned int bufsize);
+
+    void compute(int32_t count, float* input, float *output) {
+            conv->compute(count, input, output);}
+
+    bool checkstate() {
+            return conv->checkstate();}
+
+    inline void set_not_runnable() {
+            conv->set_not_runnable();}
+
+    inline bool is_runnable() {
+            return conv->is_runnable();}
+
+    inline void set_buffersize(uint32_t sz) {
+            sconv.set_buffersize(sz);
+            dconv.set_buffersize(sz);}
+
+    void set_samplerate(uint32_t sr) {
+            sconv.set_samplerate(sr);
+            dconv.set_samplerate(sr);}
+
+    int stop_process() {
+            return conv->stop_process();}
+
+    int cleanup() {
+            return conv->cleanup();}
+
+    ConvolverSelector():
+            sconv(),
+            dconv(){        
+            dconv.start(25, 1);
+            conv = &sconv;
+            }
+
+    ~ ConvolverSelector() {}
+    
+private:
+    ConvolverBase *conv;
+    SingleThreadConvolver sconv;
+    DoubleThreadConvolver dconv;
 };
 
 #endif  // FFTCONVOLVER_H_

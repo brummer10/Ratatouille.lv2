@@ -102,6 +102,27 @@ int Audiofile::read(float *data, uint32_t frames) {
     return sf_readf_float(_sndfile, data, frames);
 }
 
+
+/****************************************************************
+ ** ConvolverSelector
+ */
+
+bool ConvolverSelector::configure(std::string fname, float gain, unsigned int delay,
+                    unsigned int offset, unsigned int length, unsigned int size, unsigned int bufsize) {
+    Audiofile audio;
+    if (audio.open_read(fname)) {
+        fprintf(stderr, "Unable to open %s\n", fname.c_str() );
+        return false;
+    }
+    int asize = audio.size()/ audio.chan();
+    //fprintf(stderr, "%i Run %s\n",asize, asize>16384 ? "DoubleThreadConvolver" : "SingelThreadConvolver");
+    audio.close();
+    if (asize > 16384) conv = &dconv;
+    else conv = &sconv;
+
+    return conv->configure(fname, gain, delay, offset, length, size,bufsize);}
+
+
 /****************************************************************
  ** DoubleThreadConvolver
  */
@@ -224,13 +245,7 @@ bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned in
     while (_head < buffersize) {
         _head *= 2;
     }
-    /* FIXME
-    int tail = 1;
-    while (tail < asize) {
-        tail *= 2;
-    }
-    asize = tail * 0.5;
-    */
+
     uint32_t _tail = _head > 8192 ? _head : 8192;
     //fprintf(stderr, "head %i tail %i irlen %i \n", _head, _tail, asize);
     if (init(_head, _tail, abuf, asize)) {

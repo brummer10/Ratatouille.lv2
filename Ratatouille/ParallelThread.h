@@ -155,6 +155,11 @@ public:
         if (!isRunning()) run();
     }
 
+    // check if thread is busy, return true when not
+    inline bool getState() const noexcept {
+        return isWaiting.load(std::memory_order_acquire);
+    }
+
     // helper function: check if thread is running
     inline bool isRunning() const noexcept {
         return (pRun.load(std::memory_order_acquire) && 
@@ -181,18 +186,16 @@ public:
     inline bool getProcess() noexcept {
         if (isRunning() && !getState()) {
             int maxDuration = 0;
+            pthread_mutex_lock(&pWaitProc);
             while (!getState()) {
-                pthread_mutex_lock(&pWaitProc);
-                if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) == ETIMEDOUT) {
-                    pthread_mutex_unlock(&pWaitProc);
+                if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) != 0) { //ETIMEDOUT
                     maxDuration +=1;
                     if (maxDuration > 2) {
                         break;
                     }
-                } else {
-                    pthread_mutex_unlock(&pWaitProc);;
                 }
             }
+            pthread_mutex_unlock(&pWaitProc);;
         }
         if (getState()) pWait.store(true, std::memory_order_release);
         return getState();
@@ -207,25 +210,27 @@ public:
     }
 
     // wait for the processed data from the thread, 
-    // in worst case this may fail silent
+    // in worst case this may fail
     // when to much time expires (5 * timeOut time)
     // to avoid Xruns or dead looks.
-    inline void processWait() noexcept {
+    // return true when data is ready
+    inline bool processWait() noexcept {
         if (isRunning()) {
             int maxDuration = 0;
+            pthread_mutex_lock(&pWaitProc);
             while (pWait.load(std::memory_order_acquire)) {
-                pthread_mutex_lock(&pWaitProc);
-                if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) == ETIMEDOUT) {
-                    pthread_mutex_unlock(&pWaitProc);
+                if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) != 0) { // ETIMEDOUT 
+                    //fprintf(stderr, "%s wait %i\n", threadName.c_str(), maxDuration);
                     maxDuration +=1;
                     if (maxDuration > 5) {
                         pWait.store(false, std::memory_order_release);
+                        break;
                     }
-                } else {
-                    pthread_mutex_unlock(&pWaitProc);;
                 }
             }
+            pthread_mutex_unlock(&pWaitProc);
         }
+        return getState();
     }
 
     // stop the thread (at least on Destruction)
@@ -301,11 +306,6 @@ private:
             }
             // when done
         });    
-    }
-
-    // check if thread is busy, return true when not
-    inline bool getState() const noexcept {
-        return isWaiting.load(std::memory_order_acquire);
     }
 
     // set thread scheduling class and priority level 

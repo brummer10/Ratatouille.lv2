@@ -59,7 +59,7 @@ jobs:
           lto: true
           pawpaw: true
 
-  windows:
+  windows-optimised:
     strategy:
       matrix:
         target: [win64]

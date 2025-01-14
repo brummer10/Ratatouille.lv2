@@ -204,6 +204,8 @@ ifeq ($(TARGET), Linux)
 	-Wno-vla-cxx-extension -Wno-nan-infinity-disabled
 	endif
 
+	CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
+
 	SLP_LDFLAGS += -fvisibility=hidden -Wl,-Bstatic `pkg-config --cflags --libs xputty` \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11 lilv-0` \
 	-shared -lm -fPIC -Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections
@@ -242,7 +244,8 @@ endif
 .PHONY : all mod install uninstall clean
 
 .NOTPARALLEL:
-
+$(info $(yellow) INFO: $(reset)cxxflags      $(blue)$(CXXFLAGS)$(reset))
+$(info =================================================)
 all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"

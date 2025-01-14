@@ -205,8 +205,11 @@ ifeq ($(TARGET), Linux)
 	-Wno-vla-cxx-extension -Wno-nan-infinity-disabled
 	endif
 
+	# remove unwanted flags from PawPaw
+	ifneq (,$(findstring clang, $(CXX)))
 	CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
 	LDFLAGS := $(filter-out -fno-gnu-unique,$(LDFLAGS))
+	endif
 
 	SLP_LDFLAGS += -fvisibility=hidden -Wl,-Bstatic `pkg-config --cflags --libs xputty` \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11 lilv-0` \
@@ -362,7 +365,7 @@ $(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
 
 $(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
-	$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp  \
+	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp  \
 	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $@
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 

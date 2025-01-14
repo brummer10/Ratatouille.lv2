@@ -205,6 +205,7 @@ ifeq ($(TARGET), Linux)
 	endif
 
 	CXXFLAGS := $(filter-out -fno-gnu-unique,$(CXXFLAGS))
+	CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
 
 	SLP_LDFLAGS += -fvisibility=hidden -Wl,-Bstatic `pkg-config --cflags --libs xputty` \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11 lilv-0` \

@@ -90,12 +90,12 @@ runs:
       if: ${{ runner.os == 'Linux' && env.UBUNTU_VERSION == '24.04' }}
       shell: bash
       run: |
-        ${SUDO} rm /etc/apt/sources.list.d/azure-cli.sources /etc/apt/sources.list.d/microsoft-prod.list
-        ${SUDO} sed -i 's|Types: deb|Types: deb\nArchitectures: amd64 i386|g' /etc/apt/sources.list.d/ubuntu.sources
-        ${SUDO} apt-get update -qq
-        ${SUDO} apt-get purge -yqq git-man clang* libclang* libgbm* libllvm* libmono* libnginx* moby* mono* nginx* perl php* libgdiplus libpcre2-posix3 libselinux1-dev libzip4
-        ${SUDO} apt-get install -y --allow-downgrades libatomic1/noble libc6/noble libgcc-s1/noble libstdc++6/noble clang/noble
-        ${SUDO} apt-get clean
+        sudo rm /etc/apt/sources.list.d/azure-cli.sources /etc/apt/sources.list.d/microsoft-prod.list
+        sudo sed -i 's|Types: deb|Types: deb\nArchitectures: amd64 i386|g' /etc/apt/sources.list.d/ubuntu.sources
+        sudo apt-get update -qq
+        sudo apt-get purge -yqq git-man clang* libclang* libgbm* libllvm* libmono* libnginx* moby* mono* nginx* perl php* libgdiplus libpcre2-posix3 libselinux1-dev libzip4
+        sudo apt-get install -y --allow-downgrades libatomic1/noble libc6/noble libgcc-s1/noble libstdc++6/noble clang/noble
+        sudo apt-get clean
 
     # setup build options
     - name: Setup build options

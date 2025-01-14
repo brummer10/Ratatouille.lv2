@@ -197,7 +197,8 @@ ifeq ($(TARGET), Linux)
 	ifeq (,$(findstring clang, $(CXX)))
 	CXXFLAGS += -fstrength-reduce -fno-fat-lto-objects -Wno-deprecated-declarations
 	else
-	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero -Wno-vla-cxx-extension
+	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero -Wno-vla-cxx-extension \
+	-Wno-unknown-argument -Wno-nan-infinity-disabled
 	endif
 	else
 	CXXFLAGS += -Wno-unused-private-field -fdenormal-fp-math=positive-zero \
@@ -241,11 +242,17 @@ else ifeq ($(TARGET), Windows)
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 endif
 
+ifneq ($(MAKECMDGOALS),install)
+  ifneq ($(MAKECMDGOALS),clean)
+    $(info $(yellow) INFO: $(reset)cxxflags      $(blue)$(CXXFLAGS)$(reset))
+    $(info =================================================)
+  endif
+endif
+
 .PHONY : all mod install uninstall clean
 
 .NOTPARALLEL:
-$(info $(yellow) INFO: $(reset)cxxflags      $(blue)$(CXXFLAGS)$(reset))
-$(info =================================================)
+
 all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"

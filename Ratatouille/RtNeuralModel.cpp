@@ -13,7 +13,7 @@
 namespace ratatouille {
 
 RtNeuralModel::RtNeuralModel(std::condition_variable *Sync)
-    : model(nullptr), smp(), SyncWait(Sync) {
+    : rawModel(nullptr), model(nullptr), smp(), SyncWait(Sync) {
     needResample = 0;
     phaseOffset = 0;
     isInited = false;
@@ -21,7 +21,7 @@ RtNeuralModel::RtNeuralModel(std::condition_variable *Sync)
  }
 
 RtNeuralModel::~RtNeuralModel() {
-    delete model;
+    if (model != nullptr) model.reset(nullptr);
 }
 
 inline void RtNeuralModel::clearState()
@@ -125,9 +125,8 @@ bool RtNeuralModel::loadModel() {
         std::unique_lock<std::mutex> lk(WMutex);
         ready.store(false, std::memory_order_release);
         SyncWait->wait(lk);
-        delete model;
+        if (model != nullptr) model.reset(nullptr);
        // fprintf(stderr, "delete model\n");
-        model = nullptr;
         modelSampleRate = 0;
         needResample = 0;
         phaseOffset = 0;
@@ -136,7 +135,7 @@ bool RtNeuralModel::loadModel() {
         try {
             get_samplerate(std::string(modelFile), &modelSampleRate);
             std::ifstream jsonStream(std::string(modelFile), std::ifstream::binary);
-            model = RTNeural::json_parser::parseJson<float>(jsonStream).release();
+            model = std::move(RTNeural::json_parser::parseJson<float>(jsonStream));
         } catch (const std::exception&) {
             modelFile = "None";
         }
@@ -185,12 +184,26 @@ void RtNeuralModel::unloadModel() {
     std::unique_lock<std::mutex> lk(WMutex);
     ready.store(false, std::memory_order_release);
     SyncWait->wait(lk);
-    delete model;
+    model.reset(nullptr);
    // fprintf(stderr, "delete model\n");
-    model = nullptr;
     modelSampleRate = 0;
     needResample = 0;
+    modelFile = "None";
     //clearState();
+    ready.store(true, std::memory_order_release);
+}
+
+void RtNeuralModel::cleanUp() {
+    ready.store(false, std::memory_order_release);
+    if (model != nullptr) {
+        rawModel = model.release();
+        model.get_deleter()(rawModel);
+        rawModel = nullptr;
+        model = nullptr;
+    }
+    modelSampleRate = 0;
+    needResample = 0;
+    modelFile = "None";
     ready.store(true, std::memory_order_release);
 }
 

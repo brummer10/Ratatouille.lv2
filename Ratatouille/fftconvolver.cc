@@ -117,7 +117,11 @@ bool ConvolverSelector::configure(std::string fname, float gain, unsigned int de
     int asize = audio.size();
     //fprintf(stderr, "%i Run %s\n",asize, asize>16384 ? "DoubleThreadConvolver" : "SingelThreadConvolver");
     audio.close();
-    if (asize > 16384) conv = &dconv;
+    int maxSize = 16384;
+    #ifdef __MOD_DEVICES__
+    maxSize = 4069;
+    #endif
+    if (asize > maxSize) conv = &dconv;
     else conv = &sconv;
 
     return conv->configure(fname, gain, delay, offset, length, size,bufsize);}
@@ -247,6 +251,10 @@ bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned in
     }
 
     uint32_t _tail = _head > 8192 ? _head : 8192;
+    #ifdef __MOD_DEVICES__
+    _head = 128;
+    _tail = 2048;
+    #endif
     //fprintf(stderr, "head %i tail %i irlen %i \n", _head, _tail, asize);
     if (init(_head, _tail, abuf, asize)) {
         ready = true;

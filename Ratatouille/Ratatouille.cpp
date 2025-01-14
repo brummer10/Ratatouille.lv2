@@ -304,6 +304,13 @@ Xratatouille::Xratatouille() :
 
 // destructor
 Xratatouille::~Xratatouille() {
+    slotA.cleanUp();
+    slotB.cleanUp();
+
+    pro.stop();
+    par.stop();
+    xrworker.stop();
+    delete[] bufferoutput0;
     dcb->del_instance(dcb);
     cdelay->del_instance(cdelay);
     pdelay->del_instance(pdelay);
@@ -311,10 +318,6 @@ Xratatouille::~Xratatouille() {
     conv.cleanup();
     conv1.stop_process();
     conv1.cleanup();
-    xrworker.stop();
-    pro.stop();
-    par.stop();
-    delete[] bufferoutput0;
 };
 
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
@@ -754,23 +757,29 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
             }
             
         }
-        memcpy(output0, bufferoutput0, partialBuffer*sizeof(float));
+        if ((*_buffered) < 0.9) {
+            memcpy(output0, bufferoutput0, partialBuffer*sizeof(float));
 
-        // set bufsize for the first part
-        bufsize = n_samples - partialBuffer;
+            // set bufsize for the first part
+            bufsize = n_samples - partialBuffer;
 
-        // process first part buffer in this cycle and append to output
-        memcpy(bufferoutput0, input0, bufsize*sizeof(float));
-        processDsp(bufsize, bufferoutput0, bufferoutput0);
-        memcpy(&output0[partialBuffer], bufferoutput0, bufsize*sizeof(float));
+            // process first part buffer in this cycle and append to output
+            memcpy(bufferoutput0, input0, bufsize*sizeof(float));
+            processDsp(bufsize, bufferoutput0, bufferoutput0);
+            memcpy(&output0[partialBuffer], bufferoutput0, bufsize*sizeof(float));
 
-        // process second part buffer in background, use in next cycle
-        // buffered size may have changed, so recalculate it
-        partialBuffer = n_samples * (*_buffered);
-        bufsize = n_samples - partialBuffer;
-        memcpy(bufferoutput0, &input0[bufsize], partialBuffer*sizeof(float));
-        // set bufsize for the second part processed in background
-        bufsize = partialBuffer;
+            // process second part buffer in background, use in next cycle
+            // buffered size may have changed, so recalculate it
+            partialBuffer = n_samples * (*_buffered);
+            bufsize = n_samples - partialBuffer;
+            memcpy(bufferoutput0, &input0[bufsize], partialBuffer*sizeof(float));
+            // set bufsize for the second part processed in background
+            bufsize = partialBuffer;
+        } else {
+            partialBuffer = bufsize = n_samples;
+            memcpy(output0, bufferoutput0, bufsize*sizeof(float));
+            memcpy(bufferoutput0, input0, bufsize*sizeof(float));
+        }
         if (par.getProcess()) par.runProcess();
         else {
             lv2_log_error(&logger,"thread RTBUF missing deadline\n");
@@ -1050,6 +1059,7 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
     memcpy(bufa, output, n_samples*sizeof(float));
     memcpy(bufb, output, n_samples*sizeof(float));
 
+    #ifndef __MOD_DEVICES__
     // process conv1 in parallel thread
     _bufb = bufb;
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
@@ -1067,12 +1077,14 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
             //processConv1();
         }
     }
+    #endif
     // process conv
     if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
         conv.compute(n_samples, bufa, bufa);
 
     // wait for parallel processed conv1 when needed
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
+        #ifndef __MOD_DEVICES__
         if (!pro.processWait()) {
             lv2_log_error(&logger,"thread RT (conv) missing wait\n");
             if (!_execute.load(std::memory_order_acquire)) {
@@ -1083,6 +1095,9 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
             }          
             
         }
+        #else
+        conv1.compute(n_samples, bufb, bufb);
+        #endif
     }
 
     // mix output when needed

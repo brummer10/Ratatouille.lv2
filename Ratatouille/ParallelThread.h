@@ -138,6 +138,10 @@ public:
          ,pWorkCond(false)
          #endif
     {
+        maxWait = 5;
+        #ifdef __MOD_DEVICES__
+        maxWait = 7;
+        #endif
         timeoutPeriod = 400;
         threadName = "anonymous";
         init();
@@ -215,6 +219,7 @@ public:
     // to avoid Xruns or dead looks.
     // return true when data is ready
     inline bool processWait() noexcept {
+        bool finishProcess = true;
         if (isRunning()) {
             int maxDuration = 0;
             pthread_mutex_lock(&pWaitProc);
@@ -222,15 +227,16 @@ public:
                 if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) != 0) { // ETIMEDOUT 
                     //fprintf(stderr, "%s wait %i\n", threadName.c_str(), maxDuration);
                     maxDuration +=1;
-                    if (maxDuration > 5) {
+                    if (maxDuration > maxWait) {
                         pWait.store(false, std::memory_order_release);
+                        finishProcess = false;
                         break;
                     }
                 }
             }
             pthread_mutex_unlock(&pWaitProc);
         }
-        return getState();
+        return finishProcess;
     }
 
     // stop the thread (at least on Destruction)
@@ -264,6 +270,7 @@ private:
     std::thread pThd;
     std::string threadName;
     uint32_t timeoutPeriod;
+    uint32_t maxWait;
 
     pthread_mutex_t pWaitProc;
     pthread_cond_t pProcCond;

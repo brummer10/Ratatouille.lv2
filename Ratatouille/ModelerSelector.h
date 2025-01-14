@@ -49,6 +49,7 @@ public:
     virtual inline void compute(int count, float *input0, float *output0) {}
     virtual bool loadModel() { return false;}
     virtual void unloadModel() {}
+    virtual void cleanUp() {}
 
     ModelerBase() {};
     virtual ~ModelerBase() {};
@@ -61,7 +62,8 @@ public:
 
 class NeuralModel : public ModelerBase {
 private:
-    nam::DSP*                       model;
+    nam::DSP*                       rawModel;
+    std::unique_ptr<nam::DSP>       model;
     gx_resample::FixedRateResampler smp;
 
     std::atomic<bool>               ready;
@@ -90,6 +92,7 @@ public:
     inline void compute(int count, float *input0, float *output0) override;
     bool loadModel() override;
     void unloadModel() override;
+    void cleanUp() override;
 
     NeuralModel(std::condition_variable *var);
     ~NeuralModel();
@@ -102,7 +105,8 @@ public:
 
 class RtNeuralModel : public ModelerBase {
 private:
-    RTNeural::Model<float>*         model;
+    RTNeural::Model<float>*         rawModel;
+    std::unique_ptr<RTNeural::Model<float>>   model;
     gx_resample::FixedRateResampler smp;
 
     std::atomic<bool>               ready;
@@ -130,6 +134,7 @@ public:
     inline void compute(int count, float *input0, float *output0) override;
     bool loadModel() override;
     void unloadModel() override;
+    void cleanUp() override;
 
     RtNeuralModel(std::condition_variable *var);
     ~RtNeuralModel();
@@ -174,6 +179,9 @@ public:
 
     void unloadModel() {
             return modeler->unloadModel();}
+
+    void cleanUp() {
+            return modeler->cleanUp();}
 
     ModelerSelector(std::condition_variable *var) :
             noModel(),

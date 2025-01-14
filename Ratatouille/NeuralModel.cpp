@@ -24,7 +24,7 @@ NeuralModel::NeuralModel(std::condition_variable *Sync)
  }
 
 NeuralModel::~NeuralModel() {
-    delete model;
+    if (model != nullptr) model.reset(nullptr);
 }
 
 inline void NeuralModel::clearState()
@@ -108,15 +108,14 @@ bool NeuralModel::loadModel() {
         std::unique_lock<std::mutex> lk(WMutex);
         ready.store(false, std::memory_order_release);
         SyncWait->wait(lk);
-        delete model;
+        if (model != nullptr) model.reset(nullptr);
        // fprintf(stderr, "delete model\n");
-        model = nullptr;
         needResample = 0;
         phaseOffset = 0;
         //clearState();
         int32_t warmUpSize = 4096;
         try {
-            model = nam::get_dsp(std::string(modelFile)).release();
+            model = std::move(nam::get_dsp(std::string(modelFile)));
         } catch (const std::exception&) {
             modelFile = "None";
         }
@@ -171,11 +170,24 @@ void NeuralModel::unloadModel() {
     std::unique_lock<std::mutex> lk(WMutex);
     ready.store(false, std::memory_order_release);
     SyncWait->wait(lk);
-    delete model;
+    if (model != nullptr) model.reset(nullptr);
    // fprintf(stderr, "delete model\n");
-    model = nullptr;
     needResample = 0;
     //clearState();
+    modelFile = "None";
+    ready.store(true, std::memory_order_release);
+}
+
+// clean up
+void NeuralModel::cleanUp() {
+    ready.store(false, std::memory_order_release);
+    if (model != nullptr) {
+        rawModel = model.release();
+        model.get_deleter()(rawModel);
+        rawModel = nullptr;
+        model = nullptr;
+    }
+    needResample = 0;
     modelFile = "None";
     ready.store(true, std::memory_order_release);
 }

@@ -7,9 +7,9 @@
 
 Ratatouille is a Neural Model loader and mixer for Linux/Windows.
 
-It can load two models, which can be [*.nam files](https://tonehunt.org/all) with the
+It can load two models, which can be [*.nam files](https://tonehunt.org/models?tags%5B0%5D=nam) with the
 [Neural Amp Modeler](https://github.com/sdatkinson/NeuralAmpModelerCore) module, or 
-[*.json or .aidax files](https://cloud.aida-x.cc/all) with the 
+[*.json or .aidax files](https://tonehunt.org/models?tags%5B0%5D=aida-x) with the 
 [RTNeural](https://github.com/jatinchowdhury18/RTNeural) module.
 
 You can also load just a single model file, in that case the "Blend" control will do nothing.
@@ -19,9 +19,15 @@ mix them to simulate your specific tone.
 Ratatouille using parallel processing for the neural models,
 so, loading a second neural model wouldn't be remarkable on the dsp load.
 
+Optional, Ratatouille could run the complete process in buffered mode. That reduce the dsp load
+even more. Possible been a half (sample buffer) or a full frame. The resulting latency will be reported to the host
+so that it could be compensated. For information the resulting latency will be shown on the GUI.
+
 The "Delay" control could add a small delay to overcome phasing issues,
 or to add some color/reverb to the sound. 
 The 'ctrl' key activate fine tuning to dial in a sample accurate delay.
+
+Optional, Ratatouille could detect the phase offset and compensate it internal.
 
 To round up your sound you can load two Impulse Response Files and mix them to your needs.
 IR-files could be normalised on load, so that they didn't influence the loudness. 

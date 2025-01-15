@@ -142,6 +142,7 @@ public:
         #ifdef __MOD_DEVICES__
         maxWait = 7;
         #endif
+        offsetCount = 0;
         timeoutPeriod = 400;
         threadName = "anonymous";
         init();
@@ -230,13 +231,14 @@ public:
                     if (maxDuration > maxWait) {
                         pWait.store(false, std::memory_order_release);
                         finishProcess = false;
+                        offsetCount +=1;
                         break;
                     }
-                }
+                } else offsetCount = 0;
             }
             pthread_mutex_unlock(&pWaitProc);
         }
-        return finishProcess;
+        return offsetCount > 2 ? finishProcess : true;
     }
 
     // stop the thread (at least on Destruction)
@@ -271,6 +273,7 @@ private:
     std::string threadName;
     uint32_t timeoutPeriod;
     uint32_t maxWait;
+    uint32_t offsetCount;
 
     pthread_mutex_t pWaitProc;
     pthread_cond_t pProcCond;

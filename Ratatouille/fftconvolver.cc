@@ -200,26 +200,19 @@ bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 }
 
 void DoubleThreadConvolver::normalize(float* buffer, int asize) {
-    // normalize
+    // normalize for convolution
     if (!norm) return;
     float gain = 0.0;
     float peak = 0.0;
-    // get normalization peak
+    // get peak and square gain factor
     for (int i = 0; i < asize; i++) {
         peak = std::max(peak, std::abs( buffer[i])) ;
+        float v = buffer[i] ;
+        gain += v*v;
     }
-    // apply normalize factor and get gain factor
-    if (peak != 0.0) {
-       for (int i = 0; i < asize; i++) {
-           buffer[i] /= peak;
-
-           double v = buffer[i] ;
-           gain += v*v;
-       }
-    }
-    // apply gain square root factor when needed
+    // apply normalize factor
     if (gain != 0.0) {
-        gain = 1.0 / gain;
+        gain = peak / gain;
 
         for (int i = 0; i < asize; i++) {
             buffer[i] *= gain;
@@ -328,26 +321,20 @@ bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 }
 
 void SingleThreadConvolver::normalize(float* buffer, int asize) {
-    // normalize
+    // normalize for convolution
     if (!norm) return;
     float gain = 0.0;
     float peak = 0.0;
-    // get normalization peak
+    // get peak nad square gain factor
     for (int i = 0; i < asize; i++) {
         peak = std::max(peak, std::abs( buffer[i])) ;
+        float v = buffer[i] ;
+        gain += v*v;
     }
-    // apply normalize factor and get gain factor
-    if (peak != 0.0) {
-       for (int i = 0; i < asize; i++) {
-           buffer[i] /= peak;
 
-           double v = buffer[i] ;
-           gain += v*v;
-       }
-    }
-    // apply gain square root factor when needed
-    if (gain != 0.0) {
-        gain = 1.0 / gain;
+    // apply normalize factor
+    if ((gain != 0.0) && (peak != 0.0)) {
+        gain = peak / gain;
 
         for (int i = 0; i < asize; i++) {
             buffer[i] *= gain;
@@ -370,8 +357,11 @@ bool SingleThreadConvolver::configure(std::string fname, float gain, unsigned in
         return false;
     }
     normalize(abuf, asize);
-
-    if (init(1024, abuf, asize)) {
+    uint32_t csize = 1024;
+    #ifdef __MOD_DEVICES__
+    csize = 256;
+    #endif
+    if (init(csize, abuf, asize)) {
         ready = true;
         delete[] abuf;
         return true;

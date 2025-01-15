@@ -1059,7 +1059,6 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
     memcpy(bufa, output, n_samples*sizeof(float));
     memcpy(bufb, output, n_samples*sizeof(float));
 
-    #ifndef __MOD_DEVICES__
     // process conv1 in parallel thread
     _bufb = bufb;
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
@@ -1073,18 +1072,17 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
                  ir_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }            
+            }
             //processConv1();
         }
     }
-    #endif
+
     // process conv
     if (!_execute.load(std::memory_order_acquire) && conv.is_runnable())
         conv.compute(n_samples, bufa, bufa);
 
     // wait for parallel processed conv1 when needed
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
-        #ifndef __MOD_DEVICES__
         if (!pro.processWait()) {
             lv2_log_error(&logger,"thread RT (conv) missing wait\n");
             if (!_execute.load(std::memory_order_acquire)) {
@@ -1092,12 +1090,8 @@ inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* ou
                  ir_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }          
-            
+            }
         }
-        #else
-        conv1.compute(n_samples, bufb, bufb);
-        #endif
     }
 
     // mix output when needed

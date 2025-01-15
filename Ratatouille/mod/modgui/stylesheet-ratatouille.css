@@ -55,6 +55,49 @@
     background-position: 0px 0px;
 }
 
+/* BUFFER SWITCH ON/OFF 
+================================================*/
+.mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch {
+    margin-left: 45px ;
+    margin-top: 12px ;
+    cursor: pointer;
+    float: left;
+    position: absolute;
+    height: 32px;
+    width: 30px;
+    z-index:40;
+}
+
+.mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch-image {
+    background-image: url(/resources/switches/powerswitch.png{{{ns}}});
+    background-position: 0px 0px;
+    background-repeat: no-repeat;
+    background-size: auto 15px;
+    height: 15px;
+    width: 30px;
+}
+
+.mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch-image.on {
+    background-position: -30px 0px;
+}
+
+.mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch-image.off {
+    background-position: 0px 0px;
+}
+
+.mod-pedal-ratatouille{{{cns}}} .mod-bufferswitch .mod-switch-title {
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 10px;
+    font-weight: bold;
+    left: 0;
+    color:#888;
+    position: absolute;
+    right: 0;
+    margin-top: 17px;
+    top: 0;
+    z-index: 1;
+}
+
 /* LATENCY REPORT
 ================================================*/
 .mod-pedal-ratatouille{{{cns}}} .buffertext {
@@ -72,7 +115,7 @@
 
 /* PHASE SWITCH ON/OFF 
 ================================================*/
-.mod-pedal-ratatouille{{{cns}}} .mod-effectswitch {
+.mod-pedal-ratatouille{{{cns}}} .mod-phaseswitch {
     margin-left: 95px ;
     margin-top: 12px ;
     cursor: pointer;
@@ -83,7 +126,7 @@
     z-index:40;
 }
 
-.mod-pedal-ratatouille{{{cns}}} .mod-effectswitch-image {
+.mod-pedal-ratatouille{{{cns}}} .mod-phaseswitch-image {
     background-image: url(/resources/switches/powerswitch.png{{{ns}}});
     background-position: 0px 0px;
     background-repeat: no-repeat;
@@ -92,15 +135,15 @@
     width: 30px;
 }
 
-.mod-pedal-ratatouille{{{cns}}} .mod-effectswitch-image.on {
+.mod-pedal-ratatouille{{{cns}}} .mod-phaseswitch-image.on {
     background-position: -30px 0px;
 }
 
-.mod-pedal-ratatouille{{{cns}}} .mod-effectswitch-image.off {
+.mod-pedal-ratatouille{{{cns}}} .mod-phaseswitch-image.off {
     background-position: 0px 0px;
 }
 
-.mod-pedal-ratatouille{{{cns}}} .mod-effectswitch .mod-switch-title {
+.mod-pedal-ratatouille{{{cns}}} .mod-phaseswitch .mod-switch-title {
     font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
     font-size: 10px;
     font-weight: bold;

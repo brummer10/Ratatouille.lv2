@@ -20,8 +20,8 @@ Ratatouille using parallel processing for the neural models,
 so, loading a second neural model wouldn't be remarkable on the dsp load.
 
 Optional, Ratatouille could run the complete process in buffered mode. That reduce the dsp load
-even more. Possible been a half (sample buffer) or a full frame. The resulting latency will be reported to the host
-so that it could be compensated. For information the resulting latency will be shown on the GUI.
+even more. The resulting latency will be reported to the hostso that it could be compensated. 
+For information the resulting latency will be shown on the GUI.
 
 The "Delay" control could add a small delay to overcome phasing issues,
 or to add some color/reverb to the sound. 

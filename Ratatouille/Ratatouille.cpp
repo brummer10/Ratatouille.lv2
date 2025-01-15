@@ -158,8 +158,6 @@ private:
     int                          phaseOffset;
     bool                         doit;
 
-    uint32_t                     partialBuffer;
-
     std::string                  model_file;
     std::string                  model_file1;
 
@@ -371,7 +369,6 @@ void Xratatouille::init_dsp_(uint32_t rate)
     ir_file1 = "None";
     bufsize = 0;
     buffersize = 0;
-    partialBuffer = 0;
     phaseOffset = 0;
     phase_cor = 0;
 
@@ -757,29 +754,11 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
             }
             
         }
-        if ((*_buffered) < 0.9) {
-            memcpy(output0, bufferoutput0, partialBuffer*sizeof(float));
 
-            // set bufsize for the first part
-            bufsize = n_samples - partialBuffer;
+        bufsize = n_samples;
+        memcpy(output0, bufferoutput0, bufsize*sizeof(float));
+        memcpy(bufferoutput0, input0, bufsize*sizeof(float));
 
-            // process first part buffer in this cycle and append to output
-            memcpy(bufferoutput0, input0, bufsize*sizeof(float));
-            processDsp(bufsize, bufferoutput0, bufferoutput0);
-            memcpy(&output0[partialBuffer], bufferoutput0, bufsize*sizeof(float));
-
-            // process second part buffer in background, use in next cycle
-            // buffered size may have changed, so recalculate it
-            partialBuffer = n_samples * (*_buffered);
-            bufsize = n_samples - partialBuffer;
-            memcpy(bufferoutput0, &input0[bufsize], partialBuffer*sizeof(float));
-            // set bufsize for the second part processed in background
-            bufsize = partialBuffer;
-        } else {
-            partialBuffer = bufsize = n_samples;
-            memcpy(output0, bufferoutput0, bufsize*sizeof(float));
-            memcpy(bufferoutput0, input0, bufsize*sizeof(float));
-        }
         if (par.getProcess()) par.runProcess();
         else {
             lv2_log_error(&logger,"thread RTBUF missing deadline\n");
@@ -794,9 +773,9 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
         }
 
         // report latency
-        if (*(_latency) != static_cast<float>(partialBuffer)) {
-            *(_latency) = static_cast<float>(partialBuffer);
-            *(_latencyms) = static_cast<float>(partialBuffer * s_time);
+        if (*(_latency) != static_cast<float>(bufsize)) {
+            *(_latency) = static_cast<float>(bufsize);
+            *(_latencyms) = static_cast<float>(bufsize * s_time);
         }
 
     } else {

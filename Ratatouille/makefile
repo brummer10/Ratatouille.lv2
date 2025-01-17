@@ -248,8 +248,9 @@ endif
 
 ifneq ($(MAKECMDGOALS),install)
   ifneq ($(MAKECMDGOALS),clean)
-    $(info $(yellow) INFO: $(reset)cxxflags      $(blue)$(CXXFLAGS)$(reset))
-    $(info =================== BUILD =======================)
+    $(info ==================$(yellow) CXXFLAGS $(reset)=====================)
+    $(info $(blue)$(CXXFLAGS)$(reset))
+    $(info ===================$(yellow) BUILD $(reset)=======================)
   endif
 endif
 

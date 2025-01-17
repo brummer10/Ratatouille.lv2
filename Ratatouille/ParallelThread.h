@@ -238,7 +238,7 @@ public:
             }
             pthread_mutex_unlock(&pWaitProc);
         }
-        return offsetCount > 2 ? finishProcess : true;
+        return offsetCount > 1 ? finishProcess : true;
     }
 
     // stop the thread (at least on Destruction)

@@ -45,6 +45,22 @@
 #define XLV2__GUI "urn:brummer:ratatouille#gui"
 
 
+#ifdef __SSE__
+ #include <immintrin.h>
+ #ifndef _IMMINTRIN_H_INCLUDED
+  #include <fxsrintrin.h>
+ #endif
+ #ifdef __SSE3__
+  #ifndef _PMMINTRIN_H_INCLUDED
+   #include <pmmintrin.h>
+  #endif
+ #else
+  #ifndef _XMMINTRIN_H_INCLUDED
+   #include <xmmintrin.h>
+  #endif
+ #endif //__SSE3__
+#endif //__SSE__
+
 #include "gx_resampler.h"
 
 #include "dcblocker.cc"
@@ -111,8 +127,8 @@ private:
     phasecor::Dsp*               pdelay;
     ModelerSelector              slotA;
     ModelerSelector              slotB;
-    ConvolverSelector        conv;
-    ConvolverSelector        conv1;
+    ConvolverSelector            conv;
+    ConvolverSelector            conv1;
     ParallelThread               xrworker;
     ParallelThread               pro;
     ParallelThread               par;
@@ -123,6 +139,7 @@ private:
     float*                       input0;
     float*                       output0;
     float*                       bufferoutput0;
+    float*                       bufferinput0;
     float*                       _inputGain;
     float*                       _inputGain1;
     float*                       _outputGain;
@@ -275,6 +292,7 @@ Xratatouille::Xratatouille() :
     input0(NULL),
     output0(NULL),
     bufferoutput0(NULL),
+    bufferinput0(NULL),
     _inputGain(0),
     _inputGain1(0),
     _outputGain(0),
@@ -309,6 +327,7 @@ Xratatouille::~Xratatouille() {
     par.stop();
     xrworker.stop();
     delete[] bufferoutput0;
+    delete[] bufferinput0;
     dcb->del_instance(dcb);
     cdelay->del_instance(cdelay);
     pdelay->del_instance(pdelay);
@@ -649,6 +668,10 @@ void Xratatouille::do_work_mono()
         bufferoutput0 = NULL;
         bufferoutput0 = new float[buffersize];
         memset(bufferoutput0, 0, buffersize*sizeof(float));
+        delete[] bufferinput0;
+        bufferinput0 = NULL;
+        bufferinput0 = new float[buffersize];
+        memset(bufferinput0, 0, buffersize*sizeof(float));
         bufferIsInit.store(true, std::memory_order_release);
         par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
     }
@@ -741,7 +764,7 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
                 memcpy(output0, input0, n_samples*sizeof(float));
             return;
         }
-        // get the second part buffer from previous process 
+        // get the buffer from previous process 
         if (!par.processWait()) {
             lv2_log_error(&logger,"thread RTBUF missing wait\n");
             // if deadline was missing, erease models from processing
@@ -754,10 +777,12 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
             }
             
         }
+        // internal buffer
+        memcpy(bufferinput0, input0, n_samples*sizeof(float));
 
         bufsize = n_samples;
         memcpy(output0, bufferoutput0, bufsize*sizeof(float));
-        memcpy(bufferoutput0, input0, bufsize*sizeof(float));
+        memcpy(bufferoutput0, bufferinput0, bufsize*sizeof(float));
 
         if (par.getProcess()) par.runProcess();
         else {

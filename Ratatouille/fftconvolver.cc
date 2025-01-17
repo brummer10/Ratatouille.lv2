@@ -200,19 +200,28 @@ bool DoubleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 }
 
 void DoubleThreadConvolver::normalize(float* buffer, int asize) {
-    // normalize for convolution
-    if (!norm) return;
+    // normalize
     float gain = 0.0;
     float peak = 0.0;
-    // get peak and square gain factor
+    // get normalization peak
     for (int i = 0; i < asize; i++) {
         peak = std::max(peak, std::abs( buffer[i])) ;
-        float v = buffer[i] ;
-        gain += v*v;
     }
-    // apply normalize factor
+    // apply normalize factor and get gain factor
+    if (peak != 0.0) {
+        peak = 0.8 / peak;
+        for (int i = 0; i < asize; i++) {
+           buffer[i] *= peak;
+
+           double v = buffer[i] ;
+           gain += v*v;
+        }
+    }
+    //if (!norm) return;
+    // apply gain square root factor when needed
     if (gain != 0.0) {
-        gain = peak / gain;
+        if (!norm) gain = 1.5 / gain;
+        else gain = 1.0 / gain;
 
         for (int i = 0; i < asize; i++) {
             buffer[i] *= gain;
@@ -321,20 +330,28 @@ bool SingleThreadConvolver::get_buffer(std::string fname, float **buffer, uint32
 }
 
 void SingleThreadConvolver::normalize(float* buffer, int asize) {
-    // normalize for convolution
-    if (!norm) return;
+    // normalize
     float gain = 0.0;
     float peak = 0.0;
-    // get peak nad square gain factor
+    // get normalization peak
     for (int i = 0; i < asize; i++) {
         peak = std::max(peak, std::abs( buffer[i])) ;
-        float v = buffer[i] ;
-        gain += v*v;
     }
+    // apply normalize factor and get gain factor
+    if (peak != 0.0) {
+        peak = 0.8/peak;
+        for (int i = 0; i < asize; i++) {
+           buffer[i] *= peak;
 
-    // apply normalize factor
-    if ((gain != 0.0) && (peak != 0.0)) {
-        gain = peak / gain;
+           double v = buffer[i] ;
+           gain += v*v;
+        }
+    }
+    //if (!norm) return;
+    // apply gain square root factor when needed
+    if (gain != 0.0) {
+        if (!norm) gain = 1.5 / gain;
+        else gain = 1.0 / gain;
 
         for (int i = 0; i < asize; i++) {
             buffer[i] *= gain;

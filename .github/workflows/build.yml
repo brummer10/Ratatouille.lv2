@@ -21,6 +21,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           extraargs: SSE_CFLAGS="" FFT_FLAG="" modapp
+          lto: false
           pawpaw: true
 
   arm64:

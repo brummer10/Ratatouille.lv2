@@ -301,6 +301,12 @@
 
 .mod-pedal-ratatouille{{{cns}}} .mod-enumerated .mod-enumerated-selected {
     border-radius:4px 4px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+           line-clamp: 1;
+    -webkit-box-orient: vertical;
 }
 
 .mod-pedal-ratatouille{{{cns}}} .mod-enumerated .mod-enumerated-list {

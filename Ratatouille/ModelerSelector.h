@@ -67,12 +67,15 @@ private:
     gx_resample::FixedRateResampler smp;
 
     std::atomic<bool>               ready;
+    std::atomic<bool>               do_ramp;
 
     int                             fSampleRate;
     int                             modelSampleRate;
     int                             needResample;
 
     float                           loudness;
+    float                           ramp;
+    float                           ramp_step;
 
     bool                            isInited;
     std::mutex                      WMutex;
@@ -110,10 +113,14 @@ private:
     gx_resample::FixedRateResampler smp;
 
     std::atomic<bool>               ready;
+    std::atomic<bool>               do_ramp;
 
     int                             fSampleRate;
     int                             modelSampleRate;
     int                             needResample;
+
+    float                           ramp;
+    float                           ramp_step;
 
     bool                            isInited;
     std::mutex                      WMutex;

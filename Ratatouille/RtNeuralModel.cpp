@@ -18,7 +18,8 @@ RtNeuralModel::RtNeuralModel(std::condition_variable *Sync)
     phaseOffset = 0;
     isInited = false;
     ready.store(false, std::memory_order_release);
- }
+    do_ramp.store(false, std::memory_order_release);
+}
 
 RtNeuralModel::~RtNeuralModel() {
     if (model != nullptr) model.reset(nullptr);
@@ -33,6 +34,8 @@ inline void RtNeuralModel::init(unsigned int sample_rate)
     fSampleRate = sample_rate;
     clearState();
     isInited = true;
+    ramp = 0.0;
+    ramp_step = 512.0;
     loadModel();
 }
 
@@ -92,6 +95,18 @@ inline void RtNeuralModel::compute(int count, float *input0, float *output0)
             }
         }
         memcpy(output0, bufa, count*sizeof(float));
+
+        if (do_ramp.load(std::memory_order_acquire)) {
+            for (int i = 0; i < count; i++) {
+                if (ramp < ramp_step) {
+                    ++ramp;
+                } else {
+                    do_ramp.store(false, std::memory_order_release);
+                    ramp = 0.0;
+                }
+                output0[i] *= (ramp / ramp_step);
+            }
+        }
     }
 }
 
@@ -174,6 +189,7 @@ bool RtNeuralModel::loadModel() {
             delete[] buffer;
         } 
         ready.store(true, std::memory_order_release);
+        do_ramp.store(true, std::memory_order_release);
     }
     if (model) return true;
     return false;

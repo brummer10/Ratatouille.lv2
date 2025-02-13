@@ -208,6 +208,8 @@ float *BufferResampler::process(int32_t fs_inp, int32_t ilen, float *input, int3
   assert(inp_count == 0);
   assert(out_count <= 1);
   *olen = nout - out_count;
+  delete[] input;
+  input = nullptr;
   //printf("resampled from %i to: %i\n",fs_inp, fs_outp );
   return p;
 }

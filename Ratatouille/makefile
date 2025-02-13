@@ -222,7 +222,7 @@ ifeq ($(TARGET), Linux)
 	-e '/<urn:brummer:ratatouille_ui>/,/] ./d' \
 	-e '7d' ../bin/$(BUNDLE)/$(NAME).ttl
 else ifeq ($(TARGET), Windows)
-	CXXFLAGS += -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O2 -Wall -funroll-loops \
+	CXXFLAGS += -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O3 -Wall -funroll-loops \
 	-ffast-math -fomit-frame-pointer -fstrength-reduce -Wno-deprecated-declarations \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(SSE_CFLAGS) $(FFT_FLAG) \
 	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \

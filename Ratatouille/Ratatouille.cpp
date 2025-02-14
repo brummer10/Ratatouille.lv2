@@ -173,6 +173,7 @@ private:
     uint32_t                     s_rate;
     double                       s_time;
     int                          phaseOffset;
+    int                          processCounter;
     bool                         doit;
 
     std::string                  model_file;
@@ -389,6 +390,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     bufsize = 0;
     buffersize = 0;
     phaseOffset = 0;
+    processCounter = 0;
     phase_cor = 0;
 
     _execute.store(false, std::memory_order_release);
@@ -547,7 +549,7 @@ void Xratatouille::do_work_mono()
             conv.set_not_runnable();
             conv.stop_process();
             std::unique_lock<std::mutex> lk(WMutex);
-            Sync.wait(lk);
+            Sync.wait_for(lk, std::chrono::milliseconds(160));
         }
 
         conv.cleanup();
@@ -566,7 +568,7 @@ void Xratatouille::do_work_mono()
             conv1.set_not_runnable();
             conv1.stop_process();
             std::unique_lock<std::mutex> lk(WMutex);
-            Sync.wait(lk);
+            Sync.wait_for(lk, std::chrono::milliseconds(160));
         }
 
         conv1.cleanup();
@@ -605,7 +607,7 @@ void Xratatouille::do_work_mono()
                 conv.set_not_runnable();
                 conv.stop_process();
                 std::unique_lock<std::mutex> lk(WMutex);
-                Sync.wait(lk);
+                Sync.wait_for(lk, std::chrono::milliseconds(160));
             }
 
             conv.cleanup();
@@ -629,7 +631,7 @@ void Xratatouille::do_work_mono()
                 conv1.set_not_runnable();
                 conv1.stop_process();
                 std::unique_lock<std::mutex> lk(WMutex);
-                Sync.wait(lk);
+                Sync.wait_for(lk, std::chrono::milliseconds(160));
             }
 
             conv1.cleanup();
@@ -672,8 +674,8 @@ void Xratatouille::do_work_mono()
         bufferinput0 = NULL;
         bufferinput0 = new float[buffersize];
         memset(bufferinput0, 0, buffersize*sizeof(float));
-        bufferIsInit.store(true, std::memory_order_release);
         par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
+        bufferIsInit.store(true, std::memory_order_release);
     }
     // set wait function time out for parallel processor thread
     pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
@@ -749,7 +751,19 @@ inline void Xratatouille::processBuffer() {
 
 inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
 {
+    // nothing to do for zero samples
     if(n_samples<1) return;
+
+    // copy input to output when needed
+    if(output0 != input0)
+        memcpy(output0, input0, n_samples*sizeof(float));
+
+    // the early bird die
+    if (processCounter < 5) {
+        processCounter++;
+        return;
+    }
+
     // check atom messages (full cycle)
     check_messages(n_samples);
     // process in buffered mode
@@ -760,8 +774,6 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
             bufferIsInit.store(false, std::memory_order_release);
             _execute.store(true, std::memory_order_release);
             xrworker.runProcess();
-            if(output0 != input0)
-                memcpy(output0, input0, n_samples*sizeof(float));
             return;
         }
         // get the buffer from previous process 
@@ -848,7 +860,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
                         bufsize = n_samples;
                         _execute.store(true, std::memory_order_release);
                         xrworker.runProcess();
-                        //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+                        //xrworker.runProcess();
                     }
                 }
             }
@@ -888,7 +900,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
         _execute.store(true, std::memory_order_release);
         bufsize = n_samples;
         xrworker.runProcess();
-        //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+        //xrworker.runProcess();
         _restore.store(false, std::memory_order_release);
     }
     // check if normalisation is pressed for conv
@@ -900,7 +912,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
         if (ir_file.compare("None") != 0) {
             _execute.store(true, std::memory_order_release);
             xrworker.runProcess();
-            //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+            //xrworker.runProcess();
             _restore.store(false, std::memory_order_release);
         }
     }
@@ -913,7 +925,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
         if (ir_file1.compare("None") != 0) {
             _execute.store(true, std::memory_order_release);
             xrworker.runProcess();
-            //schedule->schedule_work(schedule->handle,  sizeof(bool), &doit);
+            //xrworker.runProcess();
             _restore.store(false, std::memory_order_release);
         }
     }

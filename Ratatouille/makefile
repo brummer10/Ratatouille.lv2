@@ -189,7 +189,7 @@ ifeq ($(TARGET), Linux)
 	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -O3 -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \
 	-fomit-frame-pointer -fstack-protector -fvisibility=hidden -Wno-pessimizing-move \
-	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
+	-fdata-sections -I. -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) -DNDEBUG \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 
@@ -225,7 +225,7 @@ else ifeq ($(TARGET), Windows)
 	CXXFLAGS += -D_FORTIFY_SOURCE=2 -I. -fPIC -DPIC -O3 -Wall -funroll-loops \
 	-ffast-math -fomit-frame-pointer -fstrength-reduce -Wno-deprecated-declarations \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(SSE_CFLAGS) $(FFT_FLAG) \
-	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) \
+	-fdata-sections -I./ -I./zita-resampler-1.1.0 -I$(CONV_DIR) -DNDEBUG \
 	-DRTNEURAL_DEFAULT_ALIGNMENT=32 -DRTNEURAL_USE_EIGEN=1 -DRTNEURAL_NAMESPACE=RTNeural \
 	-DDSP_SAMPLE_FLOAT -DNAM_SAMPLE_FLOAT -Dneural_amp_modeler_EXPORTS
 

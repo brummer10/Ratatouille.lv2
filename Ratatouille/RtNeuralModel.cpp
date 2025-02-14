@@ -100,11 +100,11 @@ inline void RtNeuralModel::compute(int count, float *input0, float *output0)
             for (int i = 0; i < count; i++) {
                 if (ramp < ramp_step) {
                     ++ramp;
+                    output0[i] *= (ramp / ramp_step);
                 } else {
                     do_ramp.store(false, std::memory_order_release);
                     ramp = 0.0;
                 }
-                output0[i] *= (ramp / ramp_step);
             }
         }
     }
@@ -139,7 +139,7 @@ bool RtNeuralModel::loadModel() {
        // fprintf(stderr, "Load file %s\n", modelFile.c_str());
         std::unique_lock<std::mutex> lk(WMutex);
         ready.store(false, std::memory_order_release);
-        SyncWait->wait(lk);
+        SyncWait->wait_for(lk, std::chrono::milliseconds(60));
         if (model != nullptr) model.reset(nullptr);
        // fprintf(stderr, "delete model\n");
         modelSampleRate = 0;
@@ -199,7 +199,7 @@ bool RtNeuralModel::loadModel() {
 void RtNeuralModel::unloadModel() {
     std::unique_lock<std::mutex> lk(WMutex);
     ready.store(false, std::memory_order_release);
-    SyncWait->wait(lk);
+    SyncWait->wait_for(lk, std::chrono::milliseconds(160));
     model.reset(nullptr);
    // fprintf(stderr, "delete model\n");
     modelSampleRate = 0;

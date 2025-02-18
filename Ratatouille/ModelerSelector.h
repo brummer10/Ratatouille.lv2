@@ -68,6 +68,7 @@ private:
 
     std::atomic<bool>               ready;
     std::atomic<bool>               do_ramp;
+    std::atomic<bool>               do_ramp_down;
 
     int                             fSampleRate;
     int                             modelSampleRate;
@@ -75,11 +76,14 @@ private:
 
     float                           loudness;
     float                           ramp;
+    float                           ramp_down;
     float                           ramp_step;
+    float                           ramp_div;
 
     bool                            isInited;
     std::mutex                      WMutex;
     std::condition_variable*        SyncWait;
+    std::condition_variable         SyncIntern;
 
 public:
     std::string                     modelFile;
@@ -114,17 +118,21 @@ private:
 
     std::atomic<bool>               ready;
     std::atomic<bool>               do_ramp;
+    std::atomic<bool>               do_ramp_down;
 
     int                             fSampleRate;
     int                             modelSampleRate;
     int                             needResample;
 
     float                           ramp;
+    float                           ramp_down;
     float                           ramp_step;
+    float                           ramp_div;
 
     bool                            isInited;
     std::mutex                      WMutex;
     std::condition_variable*        SyncWait;
+    std::condition_variable         SyncIntern;
 
     void get_samplerate(std::string config_file, int *mSampleRate);
 

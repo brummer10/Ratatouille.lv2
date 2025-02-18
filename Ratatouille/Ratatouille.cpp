@@ -237,11 +237,17 @@ private:
     inline void processSlotB();
     inline void processConv1();
     inline void processBuffer();
+    inline void setModel(ModelerSelector *slot,
+                std::string *file, std::atomic<bool> *set);
+    inline void setIRFile(ConvolverSelector *co, std::string *file);
     inline void map_uris(LV2_URID_Map* map);
     inline LV2_Atom* write_set_file(LV2_Atom_Forge* forge,
-            const LV2_URID xlv2_model, const char* filename);
+                const LV2_URID xlv2_model, const char* filename);
     inline const LV2_Atom* read_set_file(const LV2_Atom_Object* obj);
-
+    inline void storeFile(LV2_State_Store_Function store,
+                LV2_State_Handle handle, const LV2_URID urid, const std::string file);
+    inline bool restoreFile(LV2_State_Retrieve_Function retrieve,
+                LV2_State_Handle handle, const LV2_URID urid, std::string *file);
 public:
     // LV2 Descriptor
     static const LV2_Descriptor descriptor;
@@ -288,6 +294,9 @@ Xratatouille::Xratatouille() :
     slotB(&Sync),
     conv(),
     conv1(),
+    xrworker(),
+    pro(),
+    par(),
     rt_prio(0),
     rt_policy(0),
     input0(NULL),
@@ -313,11 +322,9 @@ Xratatouille::Xratatouille() :
     _buffered(0),
     _phasecor(0) {
         xrworker.start();
-        xrworker.set<Xratatouille, &Xratatouille::do_work_mono>(this);
-        //xrworker.process = [=] () {do_work_mono();};
         pro.start();
         par.start();
-        };
+};
 
 // destructor
 Xratatouille::~Xratatouille() {
@@ -372,15 +379,18 @@ void Xratatouille::init_dsp_(uint32_t rate)
     slotA.init(rate);
     slotB.init(rate);
 
+    xrworker.setThreadName("Worker");
+    xrworker.set<Xratatouille, &Xratatouille::do_work_mono>(this);
+
     if (!rt_policy) rt_policy = 1; //SCHED_FIFO;
-    pro.setThreadName("RT");
+    pro.setThreadName("RT-Parallel");
     pro.setPriority(rt_prio, rt_policy);
     pro.set<0, Xratatouille, &Xratatouille::processSlotB>(this);
     pro.set<1, Xratatouille, &Xratatouille::processConv1>(this);
 
-    par.setThreadName("RTBUF");
+    par.setThreadName("RT-BUF");
     par.setPriority(rt_prio, rt_policy);
-    par.set<0, Xratatouille, &Xratatouille::processBuffer>(this);
+    par.set<Xratatouille, &Xratatouille::processBuffer>(this);
 
     model_file = "None";
     model_file1 = "None";
@@ -507,119 +517,64 @@ void Xratatouille::deactivate_f()
     // delete the internal DSP mem
 }
 
+inline void Xratatouille::setModel(ModelerSelector *slot,
+                std::string *file, std::atomic<bool> *set) {
+    slot->setModelFile(*file);
+    if (!slot->loadModel()) {
+        *file = "None";
+        set->store(false, std::memory_order_release);
+    } else {
+        set->store(true, std::memory_order_release);
+    }
+}
+
+inline void Xratatouille::setIRFile(ConvolverSelector *co, std::string *file) {
+    if (co->is_runnable()) {
+        co->set_not_runnable();
+        co->stop_process();
+        std::unique_lock<std::mutex> lk(WMutex);
+        Sync.wait_for(lk, std::chrono::milliseconds(160));
+    }
+
+    co->cleanup();
+    co->set_samplerate(s_rate);
+    co->set_buffersize(bufsize);
+
+    co->configure(*file, 1.0, 0, 0, 0, 0, 0);
+    while (!co->checkstate());
+    if(!co->start(rt_prio, rt_policy)) {
+        *file = "None";
+        lv2_log_error(&logger,"impulse convolver update fail\n");
+    }
+}
+
 void Xratatouille::do_work_mono()
 {
-    // load Model in slot A
     if (_ab.load(std::memory_order_acquire) == 1) {
-        slotA.setModelFile(model_file);
-        if (!slotA.loadModel()) {
-            model_file = "None";
-            _neuralA.store(false, std::memory_order_release);
-        } else {
-            _neuralA.store(true, std::memory_order_release);
-        }
-    // load Model in slot B
+        setModel(&slotA, &model_file, &_neuralA);
     } else if (_ab.load(std::memory_order_acquire) == 2) {
-        slotB.setModelFile(model_file1);
-        if (!slotB.loadModel()) {
-            model_file1 = "None";
-            _neuralB.store(false, std::memory_order_release);
-        } else {
-            _neuralB.store(true, std::memory_order_release);
-        }
-    // load Models in slots A and B
+        setModel(&slotB, &model_file1, &_neuralB);
     } else if (_ab.load(std::memory_order_acquire) == 3) {
-        slotA.setModelFile(model_file);
-        if (!slotA.loadModel()) {
-            model_file = "None";
-            _neuralA.store(false, std::memory_order_release);
-        } else {
-            _neuralA.store(true, std::memory_order_release);
-        }
-        slotB.setModelFile(model_file1);
-        if (!slotB.loadModel()) {
-            model_file1 = "None";
-            _neuralB.store(false, std::memory_order_release);
-        } else {
-            _neuralB.store(true, std::memory_order_release);
-        }
-    // load IR file in first convolver
+        setModel(&slotA, &model_file, &_neuralA);
+        setModel(&slotB, &model_file1, &_neuralB);
     } else if (_ab.load(std::memory_order_acquire) == 7) {
-        if (conv.is_runnable()) {
-            conv.set_not_runnable();
-            conv.stop_process();
-            std::unique_lock<std::mutex> lk(WMutex);
-            Sync.wait_for(lk, std::chrono::milliseconds(160));
-        }
-
-        conv.cleanup();
-        conv.set_samplerate(s_rate);
-        conv.set_buffersize(bufsize);
-
-        conv.configure(ir_file, 1.0, 0, 0, 0, 0, 0);
-        while (!conv.checkstate());
-        if(!conv.start(rt_prio, rt_policy)) {
-            ir_file = "None";
-            lv2_log_error(&logger,"impulse convolver update fail\n");
-        }
-    // load IR file in second convolver
+        setIRFile(&conv, &ir_file);
     } else if (_ab.load(std::memory_order_acquire) == 8) {
-        if (conv1.is_runnable()) {
-            conv1.set_not_runnable();
-            conv1.stop_process();
-            std::unique_lock<std::mutex> lk(WMutex);
-            Sync.wait_for(lk, std::chrono::milliseconds(160));
-        }
-
-        conv1.cleanup();
-        conv1.set_samplerate(s_rate);
-        conv1.set_buffersize(bufsize);
-
-        conv1.configure(ir_file1, 1.0, 0, 0, 0, 0, 0);
-        while (!conv1.checkstate());
-        if(!conv1.start(rt_prio, rt_policy)) {
-            ir_file1 = "None";
-            lv2_log_error(&logger,"impulse convolver1 update fail\n");
-        }
-    // load all models and IR files
+        setIRFile(&conv1, &ir_file1);
     } else if (_ab.load(std::memory_order_acquire) > 10) {
         if (model_file != "None") {
-            slotA.setModelFile(model_file);
-            if (!slotA.loadModel()) {
-                model_file = "None";
-                _neuralA.store(false, std::memory_order_release);
-            } else {
-                _neuralA.store(true, std::memory_order_release);
-            }
-        } 
+            setModel(&slotA, &model_file, &_neuralA);
+        } else {
+            slotA.unloadModel();
+        }
         if (model_file1 != "None") {
-            slotB.setModelFile(model_file1);
-            if (!slotB.loadModel()) {
-                model_file1 = "None";
-                _neuralB.store(false, std::memory_order_release);
-            } else {
-                _neuralB.store(true, std::memory_order_release);
-            }
-        } 
+            setModel(&slotB, &model_file1, &_neuralB);
+        } else {
+            slotB.unloadModel();
+        }
 
         if (ir_file != "None") {
-            if (conv.is_runnable()) {
-                conv.set_not_runnable();
-                conv.stop_process();
-                std::unique_lock<std::mutex> lk(WMutex);
-                Sync.wait_for(lk, std::chrono::milliseconds(160));
-            }
-
-            conv.cleanup();
-            conv.set_samplerate(s_rate);
-            conv.set_buffersize(bufsize);
-
-            conv.configure(ir_file, 1.0, 0, 0, 0, 0, 0);
-            while (!conv.checkstate());
-            if(!conv.start(rt_prio, rt_policy)) {
-                ir_file = "None";
-                lv2_log_error(&logger,"impulse convolver update fail\n");
-            }
+            setIRFile(&conv, &ir_file);
         } else {
             if (conv.is_runnable()) {
                 conv.set_not_runnable();
@@ -627,23 +582,7 @@ void Xratatouille::do_work_mono()
             }            
         }
         if (ir_file1 != "None") {
-            if (conv1.is_runnable()) {
-                conv1.set_not_runnable();
-                conv1.stop_process();
-                std::unique_lock<std::mutex> lk(WMutex);
-                Sync.wait_for(lk, std::chrono::milliseconds(160));
-            }
-
-            conv1.cleanup();
-            conv1.set_samplerate(s_rate);
-            conv1.set_buffersize(bufsize);
-
-            conv1.configure(ir_file1, 1.0, 0, 0, 0, 0, 0);
-            while (!conv1.checkstate());
-            if(!conv1.start(rt_prio, rt_policy)) {
-                ir_file1 = "None";
-                lv2_log_error(&logger,"impulse convolver1 update fail\n");
-            }
+            setIRFile(&conv1, &ir_file1);
         } else {
             if (conv1.is_runnable()) {
                 conv1.set_not_runnable();
@@ -860,7 +799,6 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
                         bufsize = n_samples;
                         _execute.store(true, std::memory_order_release);
                         xrworker.runProcess();
-                        //xrworker.runProcess();
                     }
                 }
             }
@@ -1136,6 +1074,27 @@ void Xratatouille::connect_all__ports(uint32_t port, void* data)
     cdelay->connect(port, data);
 }
 
+void Xratatouille::storeFile(LV2_State_Store_Function store,
+            LV2_State_Handle handle, const LV2_URID urid, const std::string file) {
+
+    store(handle, urid, file.data(), strlen(file.data()) + 1,
+          atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+}
+
+bool Xratatouille::restoreFile(LV2_State_Retrieve_Function retrieve,
+                LV2_State_Handle handle, const LV2_URID urid, std::string *file) {
+
+    size_t      size;
+    uint32_t    type;
+    uint32_t    fflags;
+    const void* name = retrieve(handle, urid, &size, &type, &fflags);
+    if (name) {
+        *file = (const char*)(name);
+        return (!(*file).empty() && ((*file) != "None"));
+    }
+    return false;
+}
+
 ////////////////////// STATIC CLASS  FUNCTIONS  ////////////////////////
 
 LV2_State_Status Xratatouille::save_state(LV2_Handle instance,
@@ -1145,22 +1104,13 @@ LV2_State_Status Xratatouille::save_state(LV2_Handle instance,
 
     Xratatouille* self = static_cast<Xratatouille*>(instance);
 
-    store(handle,self->xlv2_model_file,self->model_file.data(), strlen(self->model_file.data()) + 1,
-          self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
-
-    store(handle,self->xlv2_model_file1,self->model_file1.data(), strlen(self->model_file1.data()) + 1,
-          self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
-
-    store(handle,self->xlv2_ir_file,self->ir_file.data(), strlen(self->ir_file.data()) + 1,
-          self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
-
-    store(handle,self->xlv2_ir_file1,self->ir_file1.data(), strlen(self->ir_file1.data()) + 1,
-          self->atom_String, LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+    self->storeFile(store, handle, self->xlv2_model_file, self->model_file);
+    self->storeFile(store, handle, self->xlv2_model_file1, self->model_file1);
+    self->storeFile(store, handle, self->xlv2_ir_file, self->ir_file);
+    self->storeFile(store, handle, self->xlv2_ir_file1, self->ir_file1);
 
     return LV2_STATE_SUCCESS;
 }
-
-
 
 LV2_State_Status Xratatouille::restore_state(LV2_Handle instance,
                                         LV2_State_Retrieve_Function retrieve,
@@ -1169,44 +1119,14 @@ LV2_State_Status Xratatouille::restore_state(LV2_Handle instance,
 
     Xratatouille* self = static_cast<Xratatouille*>(instance);
 
-    size_t      size;
-    uint32_t    type;
-    uint32_t    fflags;
-    const void* name = retrieve(handle, self->xlv2_model_file, &size, &type, &fflags);
-
-    if (name) {
-        self->model_file = (const char*)(name);
-        if (!self->model_file.empty() && (self->model_file != "None")) {
-            self->_ab.fetch_add(1, std::memory_order_relaxed);
-        }
-    }
-
-    name = retrieve(handle, self->xlv2_model_file1, &size, &type, &fflags);
-
-    if (name) {
-        self->model_file1 = (const char*)(name);
-        if (!self->model_file1.empty() && (self->model_file1 != "None")) {
-            self->_ab.fetch_add(2, std::memory_order_relaxed);
-        }
-    }
-
-    name = retrieve(handle, self->xlv2_ir_file, &size, &type, &fflags);
-
-    if (name) {
-        self->ir_file = (const char*)(name);
-        if (!self->ir_file.empty() && (self->ir_file != "None")) {
-            self->_ab.fetch_add(12, std::memory_order_relaxed);
-        }
-    }
-
-    name = retrieve(handle, self->xlv2_ir_file1, &size, &type, &fflags);
-
-    if (name) {
-        self->ir_file1 = (const char*)(name);
-        if (!self->ir_file1.empty() && (self->ir_file1 != "None")) {
-            self->_ab.fetch_add(12, std::memory_order_relaxed);
-        }
-    }
+    if (self->restoreFile(retrieve, handle, self->xlv2_model_file, &self->model_file))
+        self->_ab.fetch_add(1, std::memory_order_relaxed);
+    if (self->restoreFile(retrieve, handle, self->xlv2_model_file1, &self->model_file1))
+        self->_ab.fetch_add(2, std::memory_order_relaxed);
+    if (self->restoreFile(retrieve, handle, self->xlv2_ir_file, &self->ir_file))
+        self->_ab.fetch_add(12, std::memory_order_relaxed);
+    if (self->restoreFile(retrieve, handle, self->xlv2_ir_file1, &self->ir_file1))
+        self->_ab.fetch_add(12, std::memory_order_relaxed);
 
     self-> _restore.store(true, std::memory_order_release);
     return LV2_STATE_SUCCESS;

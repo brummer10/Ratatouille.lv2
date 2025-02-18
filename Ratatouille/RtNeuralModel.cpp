@@ -19,6 +19,7 @@ RtNeuralModel::RtNeuralModel(std::condition_variable *Sync)
     isInited = false;
     ready.store(false, std::memory_order_release);
     do_ramp.store(false, std::memory_order_release);
+    do_ramp_down.store(false, std::memory_order_release);
 }
 
 RtNeuralModel::~RtNeuralModel() {
@@ -35,7 +36,9 @@ inline void RtNeuralModel::init(unsigned int sample_rate)
     clearState();
     isInited = true;
     ramp = 0.0;
-    ramp_step = 512.0;
+    ramp_step = 256.0;
+    ramp_down = ramp_step;
+    ramp_div = 1.0/ramp_step;
     loadModel();
 }
 
@@ -100,12 +103,22 @@ inline void RtNeuralModel::compute(int count, float *input0, float *output0)
             for (int i = 0; i < count; i++) {
                 if (ramp < ramp_step) {
                     ++ramp;
-                    output0[i] *= (ramp / ramp_step);
+                    output0[i] *= (ramp * ramp_div);
                 } else {
                     do_ramp.store(false, std::memory_order_release);
                     ramp = 0.0;
                 }
             }
+        }
+    }
+    if (do_ramp_down.load(std::memory_order_acquire)) {
+        for (int i = 0; i < count; i++) {
+            if (ramp_down > 0.0) {
+                --ramp_down;
+            } else {
+                SyncIntern.notify_all();
+            }
+            output0[i] *= (ramp_down * ramp_div);
         }
     }
 }
@@ -136,6 +149,11 @@ void RtNeuralModel::get_samplerate(std::string config_file, int *mSampleRate) {
 // non rt callback
 bool RtNeuralModel::loadModel() {
     if (!modelFile.empty() && isInited) {
+        if (model) {
+            do_ramp_down.store(true, std::memory_order_release);
+            std::unique_lock<std::mutex> lkr(WMutex);
+            SyncIntern.wait_for(lkr, std::chrono::milliseconds(30));
+        }
        // fprintf(stderr, "Load file %s\n", modelFile.c_str());
         std::unique_lock<std::mutex> lk(WMutex);
         ready.store(false, std::memory_order_release);
@@ -190,6 +208,8 @@ bool RtNeuralModel::loadModel() {
         } 
         ready.store(true, std::memory_order_release);
         do_ramp.store(true, std::memory_order_release);
+        do_ramp_down.store(false, std::memory_order_release);
+        ramp_down = ramp_step;
     }
     if (model) return true;
     return false;

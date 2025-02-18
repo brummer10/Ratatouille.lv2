@@ -124,7 +124,10 @@ public:
     bool start(int32_t policy, int32_t priority) override {
         if (!pro.isRunning()) {
             pro.start(); 
+            pro.setThreadName("Convolver");
             pro.setPriority(25, 1); //SCHED_FIFO
+            pro.setTimeOut(200);
+            pro.set<DoubleThreadConvolver, &DoubleThreadConvolver::backgroundProcessing>(this);
         }
         return ready;}
 
@@ -155,9 +158,6 @@ public:
 
     DoubleThreadConvolver()
         : resamp(), ready(false), samplerate(0), pro() {
-            pro.setTimeOut(200);
-            pro.set<DoubleThreadConvolver, &DoubleThreadConvolver::backgroundProcessing>(this);
-            pro.setThreadName("Convolver");
             norm = 0;}
 
     ~DoubleThreadConvolver() { reset(); pro.stop();}

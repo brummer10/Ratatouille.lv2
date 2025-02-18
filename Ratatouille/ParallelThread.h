@@ -174,6 +174,7 @@ public:
     // set a name for the thread (may help on diagnostics)
     void setThreadName(std::string name) noexcept {
         threadName = name;
+        //pthread_setname_np(pThd.native_handle(),threadName.c_str());
     }
 
     // set thread policy and priority class, this may fail silent

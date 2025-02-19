@@ -672,99 +672,7 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
     return file_path;
 }
 
-// process slotB in parallel thread
-inline void Xratatouille::processSlotB() {
-    slotB.compute(bufsize, _bufb, _bufb);
-    if (*(_normSlotB)) slotB.normalize(bufsize, _bufb);
-}
-
-// process second convolver in parallel thread
-inline void Xratatouille::processConv1() {
-    conv1.compute(bufsize, _bufb, _bufb);
-}
-
-// process dsp in buffered in a background thread
-inline void Xratatouille::processBuffer() {
-    processDsp(bufsize, bufferoutput0, bufferoutput0);
-}
-
-inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
-{
-    // nothing to do for zero samples
-    if(n_samples<1) return;
-
-    // copy input to output when needed
-    if(output0 != input0)
-        memcpy(output0, input0, n_samples*sizeof(float));
-
-    // the early bird die
-    if (processCounter < 5) {
-        processCounter++;
-        return;
-    }
-
-    // check atom messages (full cycle)
-    check_messages(n_samples);
-    // process in buffered mode
-    if (((*_buffered) > 0.0) && bufferIsInit.load(std::memory_order_acquire)) {
-        // avoid buffer overflow on frame size change
-        if ( buffersize < n_samples) {
-            bufsize = n_samples;
-            bufferIsInit.store(false, std::memory_order_release);
-            _execute.store(true, std::memory_order_release);
-            xrworker.runProcess();
-            return;
-        }
-        // get the buffer from previous process 
-        if (!par.processWait()) {
-            lv2_log_error(&logger,"thread RTBUF missing wait\n");
-            // if deadline was missing, erease models from processing
-            if (!_execute.load(std::memory_order_acquire)) {
-                _ab.store(3, std::memory_order_release);
-                 model_file = "None";
-                 model_file1 = "None";
-                _execute.store(true, std::memory_order_release);
-                xrworker.runProcess();
-            }
-            
-        }
-        // internal buffer
-        memcpy(bufferinput0, input0, n_samples*sizeof(float));
-
-        bufsize = n_samples;
-        memcpy(output0, bufferoutput0, bufsize*sizeof(float));
-        memcpy(bufferoutput0, bufferinput0, bufsize*sizeof(float));
-
-        if (par.getProcess()) par.runProcess();
-        else {
-            lv2_log_error(&logger,"thread RTBUF missing deadline\n");
-            // if deadline was missing, erease models from processing
-            if (!_execute.load(std::memory_order_acquire)) {
-                _ab.store(3, std::memory_order_release);
-                 model_file = "None";
-                 model_file1 = "None";
-                _execute.store(true, std::memory_order_release);
-                xrworker.runProcess();
-            }
-        }
-
-        // report latency
-        if (*(_latency) != static_cast<float>(bufsize)) {
-            *(_latency) = static_cast<float>(bufsize);
-            *(_latencyms) = static_cast<float>(bufsize * s_time);
-        }
-
-    } else {
-        // process latency free
-        processDsp(n_samples, input0, output0);
-        // report latency
-        if (*(_latency) != 0.0) {
-            *(_latency) = 0.0;
-            *(_latencyms) = 0.0;
-        }
-    }
-}
-
+// read all incoming atom messages
 inline void Xratatouille::check_messages(uint32_t n_samples)
 {
     if(n_samples<1) return;
@@ -883,6 +791,101 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
         write_set_file(&forge, xlv2_ir_file1, ir_file1.data());
         _ab.store(0, std::memory_order_release);
     }    
+}
+
+// process slotB in parallel thread
+inline void Xratatouille::processSlotB() {
+    slotB.compute(bufsize, _bufb, _bufb);
+    if (*(_normSlotB)) slotB.normalize(bufsize, _bufb);
+}
+
+// process second convolver in parallel thread
+inline void Xratatouille::processConv1() {
+    conv1.compute(bufsize, _bufb, _bufb);
+}
+
+// process dsp in buffered in a background thread
+inline void Xratatouille::processBuffer() {
+    processDsp(bufsize, bufferoutput0, bufferoutput0);
+}
+
+inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
+{
+    // nothing to do for zero samples
+    if(n_samples<1) return;
+
+    // copy input to output when they are not the same buffers
+    if(output0 != input0)
+        memcpy(output0, input0, n_samples*sizeof(float));
+
+    // the early bird die
+    if (processCounter < 5) {
+        processCounter++;
+        return;
+    }
+
+    // check atom messages (full cycle)
+    check_messages(n_samples);
+    // process in buffered mode
+    if (((*_buffered) > 0.0) && bufferIsInit.load(std::memory_order_acquire)) {
+        // avoid buffer overflow on frame size change
+        if ( buffersize < n_samples) {
+            bufsize = n_samples;
+            bufferIsInit.store(false, std::memory_order_release);
+            _execute.store(true, std::memory_order_release);
+            xrworker.runProcess();
+            return;
+        }
+        // get the buffer from previous process
+        if (!par.processWait()) {
+            lv2_log_error(&logger,"thread RTBUF missing wait\n");
+            // if deadline was missing, erease models from processing
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(3, std::memory_order_release);
+                 model_file = "None";
+                 model_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }
+        }
+        // copy incoming data to internal input buffer
+        memcpy(bufferinput0, input0, n_samples*sizeof(float));
+
+        bufsize = n_samples;
+        // copy processed data from last circle to output
+        memcpy(output0, bufferoutput0, bufsize*sizeof(float));
+        // copy internal input buffer to process buffer for next circle
+        memcpy(bufferoutput0, bufferinput0, bufsize*sizeof(float));
+
+        // process data in background thread
+        if (par.getProcess()) par.runProcess();
+        else {
+            lv2_log_error(&logger,"thread RTBUF missing deadline\n");
+            // if deadline was missing, erease models from processing
+            if (!_execute.load(std::memory_order_acquire)) {
+                _ab.store(3, std::memory_order_release);
+                 model_file = "None";
+                 model_file1 = "None";
+                _execute.store(true, std::memory_order_release);
+                xrworker.runProcess();
+            }
+        }
+
+        // report latency
+        if (*(_latency) != static_cast<float>(bufsize)) {
+            *(_latency) = static_cast<float>(bufsize);
+            *(_latencyms) = static_cast<float>(bufsize * s_time);
+        }
+
+    } else {
+        // process latency free
+        processDsp(n_samples, input0, output0);
+        // report latency
+        if (*(_latency) != 0.0) {
+            *(_latency) = 0.0;
+            *(_latencyms) = 0.0;
+        }
+    }
 }
 
 inline void Xratatouille::processDsp(uint32_t n_samples, float* input, float* output)

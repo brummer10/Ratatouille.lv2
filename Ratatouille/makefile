@@ -9,8 +9,10 @@
 	user = $(shell whoami)
 	ifeq ($(user),root)
 	INSTALL_DIR = /usr/lib/lv2
+	EXE_INSTALL_DIR = /usr/bin
 	else 
-	INSTALL_DIR = ~/.lv2
+	INSTALL_DIR = ~/lv2
+	EXE_INSTALL_DIR = ~/bin
 	endif
 
 
@@ -143,12 +145,33 @@ endif
 	UI_LIB:= $(LIB_DIR)libxputty.$(STATIC_LIB_EXT)
 	STRIP ?= strip
 
+	PREFIX ?= /usr
+	SHARE_DIR ?= $(PREFIX)/share
+	DESKAPPS_DIR ?= $(SHARE_DIR)/applications/
+	PIXMAPS_DIR ?= $(SHARE_DIR)/pixmaps/
+
 	RTN_DIR := ../RTNeural/RTNeural/
 	RTN_DEPEND_DIR := ../RTNeural/modules/
 	RTN_SOURCES := $(wildcard $(RTN_DIR)*.cpp)
 	RTN_OBJ := $(patsubst %.cpp,%.o,$(RTN_SOURCES))
 	RTN_INCLUDES := -I$(RTN_DIR) -I$(RTN_DEPEND_DIR)Eigen/ -I./ -I$(RTN_DEPEND_DIR)json/ 
 	RTN_LIB := librtneural.$(STATIC_LIB_EXT)
+
+	ENGINE_DIR := ./engine/
+	ENGINE_INCLUDE := -I./engine/
+
+	LV2_DIR := ./lv2/
+	LV2_INCLUDE := -I./lv2/
+
+	GUI_DIR := ./gui/
+	GUI_INCLUDE := -I./gui/
+
+	STANDALONE_DIR := ./standalone/
+	STANDALONE_INCLUDE := -I./standalone/
+	STANDALONE := $(STANDALONE_DIR)main
+
+	LV2_PLUGIN := $(LV2_DIR)$(EXEC_NAME)
+	LV2_GUI := $(GUI_DIR)$(EXEC_NAME)
 
 	NAM_DIR := ../NeuralAmpModelerCore/NAM/
 	NAM_DEPEND_DIR := ../NeuralAmpModelerCore/Dependencies/
@@ -157,7 +180,7 @@ endif
 	NAM_INCLUDES := -I$(NAM_DIR) -I$(NAM_DEPEND_DIR)eigen/ -I./ -I$(NAM_DEPEND_DIR)nlohmann/
 	NAM_LIB := libnam.$(STATIC_LIB_EXT)
 
-	MODELER_SOURCES := RtNeuralModel.cpp NeuralModel.cpp
+	MODELER_SOURCES := $(ENGINE_DIR)RtNeuralModel.cpp $(ENGINE_DIR)NeuralModel.cpp
 	MODELER_OBJ := $(patsubst %.cpp,%.o,$(MODELER_SOURCES))
 	MODELER_LIB := libmodeler.$(STATIC_LIB_EXT)
 
@@ -166,25 +189,30 @@ endif
 
 	CONV_DIR := ../FFTConvolver/
 	CONV_SOURCES :=  $(wildcard $(CONV_DIR)*.cpp)
+	CONV_SOURCES += ./engine/fftconvolver.cpp
 	CONV_OBJ := $(patsubst %.cpp,%.o,$(CONV_SOURCES))
 	CONV_LIB := libfftconvolver.$(STATIC_LIB_EXT)
 
 	RESAMP_DIR := ./zita-resampler-1.1.0/
-	RESAMP_SOURCES := $(wildcard $(RESAMP_DIR)*.cc) gx_resampler.cc
+	RESAMP_SOURCES := $(wildcard $(RESAMP_DIR)*.cc) $(ENGINE_DIR)gx_resampler.cc
 	RESAMP_OBJ := $(patsubst %.cc,%.o,$(RESAMP_SOURCES))
 	RESAMP_LIB := libzita-resampler.$(STATIC_LIB_EXT)
 
-	GUIIMPL_SOURCE := lv2_plugin.cc
+	GUIIMPL_SOURCE := $(LV2_DIR)lv2_plugin.cc $(GUI_DIR)widgets.cc
 
 	DEPS = $NEURAL_OBJ:%.o=%.d) $(CONV_OBJ:%.o=%.d) $(RESAMP_OBJ:%.o=%.d) Ratatouille.d
 
 ifeq ($(TARGET), Linux)
-	GUI_LDFLAGS += -I$(HEADER_DIR) -Wl,-Bstatic -L. $(UI_LIB) \
+	GUI_LDFLAGS += -I$(HEADER_DIR) $(GUI_INCLUDE) -Wl,-Bstatic -L. $(UI_LIB) \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11` 
 
 	LDFLAGS += -fvisibility=hidden -shared -lm -fPIC -pthread -lpthread \
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
 	`$(PKGCONFIG) --cflags --libs sndfile`
+
+	JACKLDFLAGS += -fvisibility=hidden -lm -fPIC -pthread -lpthread \
+	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
+	`$(PKGCONFIG) --cflags --libs sndfile jack` $(GUI_LDFLAGS)
 
 	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -O3 -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \
@@ -232,7 +260,10 @@ else ifeq ($(TARGET), Windows)
 	LDFLAGS += -I. -shared -lm $(PAWPAW_LFLAGS) -Wl,--gc-sections \
 	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile`
 
-	GUI_LDFLAGS += -I$(HEADER_DIR) -static-libgcc -static-libstdc++ \
+	JACKLDFLAGS += -I. -lm $(PAWPAW_LFLAGS) -Wl,--gc-sections \
+	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile jack` $(GUI_LDFLAGS)
+
+	GUI_LDFLAGS += -I$(HEADER_DIR) $(GUI_INCLUDE) -static-libgcc -static-libstdc++ \
 	`$(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags --libs cairo ` \
 	-L. $(LIB_DIR)libxputty.$(STATIC_LIB_EXT) -shared  -lm $(PAWPAW_LFLAGS)
 
@@ -258,11 +289,12 @@ endif
 
 .NOTPARALLEL:
 
-all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
+all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT) modapp standalone
 
+lv2: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
 	$(QUIET)mkdir -p ../bin/$(BUNDLE)
-	$(QUIET)cp ./*.ttl ../bin/$(BUNDLE)
+	$(QUIET)cp $(LV2_DIR)*.ttl ../bin/$(BUNDLE)
 	$(QUIET)$(TTLUPDATE)
 	$(QUIET)$(TTLUPDATEGUI)
 	$(QUIET)cp ./*.$(LIB_EXT) ../bin/$(BUNDLE)
@@ -277,7 +309,7 @@ mod: $(EXEC_NAME).$(LIB_EXT)
 
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
 	$(QUIET)mkdir -p ../bin/$(BUNDLE)
-	$(QUIET)cp ./*.ttl ../bin/$(BUNDLE)
+	$(QUIET)cp $(LV2_DIR)*.ttl ../bin/$(BUNDLE)
 	@$(B_ECHO) "Copy MOD UI to $(BUNDLE) $(reset)"
 	$(QUIET)cp -r ./mod/* ../bin/$(BUNDLE)
 	$(QUIET)$(TTLUPDATE)
@@ -294,7 +326,7 @@ modapp: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
 	$(QUIET)mkdir -p ../bin/$(BUNDLE)
-	$(QUIET)cp ./*.ttl ../bin/$(BUNDLE)
+	$(QUIET)cp $(LV2_DIR)*.ttl ../bin/$(BUNDLE)
 	@$(B_ECHO) "Copy MOD UI to $(BUNDLE) $(reset)"
 	$(QUIET)cp -r ./mod/* ../bin/$(BUNDLE)
 	$(QUIET)$(TTLUPDATE)
@@ -305,6 +337,11 @@ modapp: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 	else \
 		$(R_ECHO) "Sorry, build fail$(reset)"; \
 	fi
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
+standalone: $(EXEC_NAME)$(EXE_EXT)
+	$(QUIET)mkdir -p ../bin/
+	$(QUIET)cp ./$(EXEC_NAME)$(EXE_EXT) ../bin/
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
 -include $(DEPS)
@@ -338,7 +375,7 @@ $(CONV_LIB): $(CONV_OBJ)
 
 $(MODELER_OBJ): $(MODELER_SOURCES)
 	@$(ECHO) "Building object file $@ $(reset)"
-	$(QUIET)$(CXX) $(CXXFLAGS) -MMD  -c $(patsubst %.o,%.cpp,$@) -o $@ $(NAM_INCLUDES) $(RTN_INCLUDES)
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD  -c $(patsubst %.o,%.cpp,$@) -o $@ $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE)
 
 $(MODELER_LIB): $(MODELER_OBJ)
 	@$(B_ECHO) "Build static library $@ $(reset)"
@@ -352,33 +389,57 @@ $(NEURAL_LIB): $(NEURAL_OBJ)
 
 $(RESAMP_OBJ): $(RESAMP_SOURCES)
 	@$(ECHO) "Building object file $@ $(reset)"
-	$(QUIET)$(CXX) $(CXXFLAGS) -MMD  -c $(patsubst %.o,%.cc,$@) -o $@ -I./zita-resampler-1.1.0
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD  -c $(patsubst %.o,%.cc,$@) -o $@ -I./zita-resampler-1.1.0 $(ENGINE_INCLUDE)
 
 $(RESAMP_LIB): $(RESAMP_OBJ)
 	@$(B_ECHO) "Build static library $@ $(reset)"
 	$(QUIET)$(AR) rcs $(RESAMP_LIB) $(RESAMP_OBJ)
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
-$(EXEC_NAME)_ui.$(LIB_EXT): $(EXEC_NAME).c $(GUIIMPL_SOURCE) $(UI_LIB)
+$(EXEC_NAME)_ui.$(LIB_EXT): $(LV2_GUI).c $(GUIIMPL_SOURCE) $(UI_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME)_ui.$(LIB_EXT) $(reset)"
-	$(QUIET)$(CC) $(CFLAGS) $(EXEC_NAME).c -L. $(UI_LIB) -o $@ $(LDFLAGS) $(GUI_LDFLAGS) -I./
+	$(QUIET)$(CC) $(CFLAGS) $(LV2_GUI).c -L. $(UI_LIB) -o $@ $(LDFLAGS) $(GUI_LDFLAGS) -I./ $(LV2_INCLUDE)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)_ui.$(LIB_EXT)
 
-$(EXEC_NAME).$(LIB_EXT): $(EXEC_NAME).cpp $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
+$(EXEC_NAME).$(LIB_EXT): $(LV2_PLUGIN).cpp $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
-	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(EXEC_NAME).cpp  \
-	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $@
+	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) $(LV2_INCLUDE) $(LV2_PLUGIN).cpp  \
+	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
+
+$(EXEC_NAME)$(EXE_EXT): $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB) $(UI_LIB) $(STANDALONE).cpp
+	@$(B_ECHO) "Compiling $@ $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) \
+	$(STANDALONE_INCLUDE) $(STANDALONE).cpp -L. $(UI_LIB) \
+	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(JACKLDFLAGS) -o $@
+	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)$(EXE_EXT)
+
 
 install :
 ifeq ($(TARGET), Linux)
 ifneq ("$(wildcard ../bin/$(BUNDLE))","")
-	@$(B_ECHO) "Install $(NAME).lv2 $(reset)"
+	@$(B_ECHO) "Install $(NAME).lv2 to $(DESTDIR)$(INSTALL_DIR)/$(reset)"
 	$(QUIET)mkdir -p $(DESTDIR)$(INSTALL_DIR)/$(BUNDLE)
 	$(QUIET)cp -r ../bin/$(BUNDLE)/* $(DESTDIR)$(INSTALL_DIR)/$(BUNDLE)
 	@$(B_ECHO) ". ., done$(reset)"
 else
-	@$(R_ECHO) ". ., you must build first$(reset)"
+	@$(B_ECHO) "$(BUNDLE) skipped$(reset)"
+endif
+ifneq ("$(wildcard ../bin/$(EXEC_NAME)$(EXE_EXT))","")
+	@$(B_ECHO) "Install  $(EXEC_NAME)$(EXE_EXT) to $(DESTDIR)$(EXE_INSTALL_DIR)/$(reset)"
+	$(QUIET)mkdir -p $(DESTDIR)$(EXE_INSTALL_DIR)/
+	$(QUIET)cp -r ../bin/$(EXEC_NAME)$(EXE_EXT) $(DESTDIR)$(EXE_INSTALL_DIR)/$(EXEC_NAME)$(EXE_EXT)
+
+  ifeq ($(user),root)
+	$(QUIET)mkdir -p $(DESTDIR)$(DESKAPPS_DIR)
+	$(QUIET)cp $(STANDALONE_DIR)$(EXEC_NAME).desktop $(DESTDIR)$(DESKAPPS_DIR)$(EXEC_NAME).desktop
+	$(QUIET)mkdir -p $(DESTDIR)$(PIXMAPS_DIR)
+	$(QUIET)cp $(STANDALONE_DIR)$(EXEC_NAME).svg $(DESTDIR)$(PIXMAPS_DIR)$(EXEC_NAME).svg 
+	$(QUIET)update-desktop-database || true
+  endif
+	@$(B_ECHO) ". ., done$(reset)"
+else
+	@$(B_ECHO) "$(EXEC_NAME)$(EXE_EXT) standalone skipped$(reset)"
 endif
 
 else
@@ -390,6 +451,12 @@ ifeq ($(TARGET), Linux)
 	@$(B_ECHO) "Uninstall $(NAME).lv2 $(reset)"
 	$(QUIET)rm -rf $(INSTALL_DIR)/$(BUNDLE)
 	$(QUIET)echo ". ., done"
+
+	$(QUIET)rm -rf $(DESTDIR)$(EXE_INSTALL_DIR)/$(EXEC_NAME)
+  ifeq ($(user),root)
+	$(QUIET)rm -rf $(DESTDIR)$(DESKAPPS_DIR)/$(EXEC_NAME).desktop
+	$(QUIET)rm -rf $(DESTDIR)$(PIXMAPS_DIR)/$(EXEC_NAME).svg
+  endif
 else
 	$(QUIET)$(R_ECHO) "Uninstall is not implemented for windows, please delete the folder $(NAME).lv2 from Program Files/Common Files/LV2$(reset)"
 endif
@@ -398,10 +465,11 @@ clean:
 ifndef EXTRAQUIET
 	@$(ECHO) ". ., clean up$(reset)"
 endif
-	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll 
+	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll $(EXEC_NAME)
 	$(QUIET)rm -f $(RESAMP_DIR)*.a $(RESAMP_DIR)*.lib $(RESAMP_DIR)*.o $(RESAMP_DIR)*.d
 	$(QUIET)rm -f $(CONV_DIR)*.a $(CONV_DIR)*.lib $(CONV_DIR)*.o $(CONV_DIR)*.d
 	$(QUIET)rm -f $(NAM_DIR)*.a $(NAM_DIR)*.lib $(NAM_DIR)*.o $(NAM_DIR)*.d
 	$(QUIET)rm -f $(RTN_DIR)*.a $(RTN_DIR)*.lib $(RTN_DIR)*.o $(RTN_DIR)*.d
+	$(QUIET)rm -f $(ENGINE_DIR)*.a $(ENGINE_DIR)*.lib $(ENGINE_DIR)*.o $(ENGINE_DIR)*.d
 	$(QUIET)rm -rf ../bin
 

@@ -12,6 +12,22 @@
 #ifndef FFTCONVOLVER_H_
 #define FFTCONVOLVER_H_
 
+#ifdef __SSE__
+ #include <immintrin.h>
+ #ifndef _IMMINTRIN_H_INCLUDED
+  #include <fxsrintrin.h>
+ #endif
+ #ifdef __SSE3__
+  #ifndef _PMMINTRIN_H_INCLUDED
+   #include <pmmintrin.h>
+  #endif
+ #else
+  #ifndef _XMMINTRIN_H_INCLUDED
+   #include <xmmintrin.h>
+  #endif
+ #endif //__SSE3__
+#endif //__SSE__
+
 #include <stdint.h>
 #include <unistd.h>
 #include <thread>

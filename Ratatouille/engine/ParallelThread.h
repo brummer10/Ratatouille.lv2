@@ -102,6 +102,11 @@ public:
         memberFunc[s] = &wrap<C, Function>;
     }
 
+    template <void (*Function)()>
+    void set() {
+        instPtr[i] = nullptr;
+        memberFunc[i] = &wrap<Function>;
+    }
     void setProcessor(uint32_t i_) {
         i = i_;
     }
@@ -119,6 +124,11 @@ private:
     template <class C, void (C::*Function)()>
     static inline void wrap(InstancePtr instance) {
         return (static_cast<C*>(instance)->*Function)();
+    }
+
+    template <void (*Function)()>
+    static inline void wrap (InstancePtr instance) {
+        return (Function)();
     }
 
     InstancePtr instPtr[2];
@@ -160,6 +170,12 @@ public:
         if (!isRunning()) run();
     }
 
+    // start the new thread
+    void startTimeout(uint32_t timeout) noexcept {
+        timeoutPeriod = timeout;
+        if (!isRunning()) runTimeout();
+    }
+
     // check if thread is busy, return true when not
     inline bool getState() const noexcept {
         return isWaiting.load(std::memory_order_acquire);
@@ -174,7 +190,6 @@ public:
     // set a name for the thread (may help on diagnostics)
     void setThreadName(std::string name) noexcept {
         threadName = name;
-        //pthread_setname_np(pThd.native_handle(),threadName.c_str());
     }
 
     // set thread policy and priority class, this may fail silent
@@ -223,7 +238,7 @@ public:
     inline bool processWait() noexcept {
         bool finishProcess = true;
         if (isRunning()) {
-            int maxDuration = 0;
+            uint32_t maxDuration = 0;
             pthread_mutex_lock(&pWaitProc);
             while (pWait.load(std::memory_order_acquire)) {
                 if (pthread_cond_timedwait(&pProcCond, &pWaitProc, getTimeOut()) != 0) { // ETIMEDOUT 
@@ -314,6 +329,21 @@ private:
                 pWait.store(true, std::memory_order_release);
                 process();
                 pWait.store(false, std::memory_order_release);
+            }
+            // when done
+        });    
+    }
+
+    // run the thread, wait for signal and process the given function
+    inline void runTimeout() noexcept {
+        if( pRun.load(std::memory_order_acquire) ) {
+            stop();
+        };
+        pRun.store(true, std::memory_order_release);
+        pThd = std::thread([this]() {
+            while (pRun.load(std::memory_order_acquire)) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(timeoutPeriod));
+                process();
             }
             // when done
         });    

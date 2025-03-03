@@ -53,6 +53,16 @@ To build Ratatouille.lv2 with only the MOD UI included (For usage in a MOD devic
 make mod
 ```
 
+To build Ratatouille only as standalone JackAudioConnectionKit application run
+```shell
+make standalone
+```
+
+To build Ratatouille with all favours (currently as LV2 plugin with included MOD GUI and as standalone application) run
+```shell
+make
+```
+
 ## Dependencies
 
 - libsndfile1-dev
@@ -60,13 +70,13 @@ make mod
 - libx11-dev
 - lv2-dev
 
-## Building from source code
+## Building LV2 plug from source code
 
 ```shell
 git clone https://github.com/brummer10//Ratatouille.lv2.git
 cd Ratatouille.lv2
 git submodule update --init --recursive
-make
+make lv2
 make install # will install into ~/.lv2 ... AND/OR....
 sudo make install # will install into /usr/lib/lv2
 ```

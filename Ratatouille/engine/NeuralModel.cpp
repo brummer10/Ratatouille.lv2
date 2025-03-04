@@ -50,6 +50,10 @@ void NeuralModel::connect(uint32_t port,void* data)
 {
 }
 
+inline std::string NeuralModel::getModelFile() {
+    return modelFile;
+}
+
 inline void NeuralModel::normalize(int count, float *buf)
 {
     if (!model) return;

@@ -322,18 +322,21 @@ void Engine::do_work_mono() {
         setIRFile(&conv1, &ir_file1);
     } else if (_ab.load(std::memory_order_acquire) > 10) {
         if (model_file != "None") {
-            setModel(&slotA, &model_file, &_neuralA);
+            if (model_file.compare(slotA.getModelFile()) != 0)
+                setModel(&slotA, &model_file, &_neuralA);
         } else {
             slotA.unloadModel();
         }
         if (model_file1 != "None") {
-            setModel(&slotB, &model_file1, &_neuralB);
+            if (model_file1.compare(slotB.getModelFile()) != 0)
+                setModel(&slotB, &model_file1, &_neuralB);
         } else {
             slotB.unloadModel();
         }
 
         if (ir_file != "None") {
-            setIRFile(&conv, &ir_file);
+            if (ir_file.compare(conv.getIrFile()) !=0)
+                setIRFile(&conv, &ir_file);
         } else {
             if (conv.is_runnable()) {
                 conv.set_not_runnable();
@@ -341,7 +344,8 @@ void Engine::do_work_mono() {
             }            
         }
         if (ir_file1 != "None") {
-            setIRFile(&conv1, &ir_file1);
+            if (ir_file1.compare(conv1.getIrFile()) !=0)
+                setIRFile(&conv1, &ir_file1);
         } else {
             if (conv1.is_runnable()) {
                 conv1.set_not_runnable();

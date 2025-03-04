@@ -267,6 +267,10 @@ bool DoubleThreadConvolver::configure(std::string fname, float gain, unsigned in
     return false;
 }
 
+inline std::string DoubleThreadConvolver::getIrFile() {
+    return filename;
+}
+
 void DoubleThreadConvolver::compute(int32_t count, float* input, float* output)
 {
     if (ready) process(input, output, count);
@@ -385,6 +389,10 @@ bool SingleThreadConvolver::configure(std::string fname, float gain, unsigned in
     }
     delete[] abuf;
     return false;
+}
+
+inline std::string SingleThreadConvolver::getIrFile() {
+    return filename;
 }
 
 void SingleThreadConvolver::compute(int32_t count, float* input, float* output)

@@ -50,25 +50,19 @@ void sendValueChanged(X11_UI *ui, int port, float value) {
         break;
         case 9:
         {
-            r->engine._ab.store(7, std::memory_order_release);
+            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
             r->engine.conv.set_normalisation(static_cast<uint32_t>(value));
             if (r->engine.ir_file.compare("None") != 0) {
-                if (r->engine.xrworker.getProcess()) {
-                    r->engine._execute.store(true, std::memory_order_release);
-                    r->engine.xrworker.runProcess();
-                }
+                r->workToDo.store(true, std::memory_order_release);
             }
         }
         break;
         case 10:
         {
-            r->engine._ab.store(8, std::memory_order_release);
+            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
             r->engine.conv1.set_normalisation(static_cast<uint32_t>(value));
             if (r->engine.ir_file1.compare("None") != 0) {
-                if (r->engine.xrworker.getProcess()) {
-                    r->engine._execute.store(true, std::memory_order_release);
-                    r->engine.xrworker.runProcess();
-                }
+                r->workToDo.store(true, std::memory_order_release);
             }
         }
         break;
@@ -86,42 +80,30 @@ void sendValueChanged(X11_UI *ui, int port, float value) {
         break;
         case 15:
         {
-            r->engine._ab.store(1, std::memory_order_release);
+            r->engine._ab.fetch_add(1, std::memory_order_relaxed);
             r->engine.model_file = "None";
-            if (r->engine.xrworker.getProcess()) {
-                r->engine._execute.store(true, std::memory_order_release);
-                r->engine.xrworker.runProcess();
-            }
+            r->workToDo.store(true, std::memory_order_release);
         }
         break;
         case 16:
         {
-            r->engine._ab.store(2, std::memory_order_release);
+            r->engine._ab.fetch_add(2, std::memory_order_relaxed);
             r->engine.model_file1 = "None";
-            if (r->engine.xrworker.getProcess()) {
-                r->engine._execute.store(true, std::memory_order_release);
-                r->engine.xrworker.runProcess();
-            }
+            r->workToDo.store(true, std::memory_order_release);
          }
         break;
         case 17:
         {
-            r->engine._ab.store(7, std::memory_order_release);
+            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
             r->engine.ir_file = "None";
-            if (r->engine.xrworker.getProcess()) {
-                r->engine._execute.store(true, std::memory_order_release);
-                r->engine.xrworker.runProcess();
-            }
+            r->workToDo.store(true, std::memory_order_release);
         }
         break;
         case 18:
         {
-            r->engine._ab.store(8, std::memory_order_release);
+            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
             r->engine.ir_file1 = "None";
-            if (r->engine.xrworker.getProcess()) {
-                r->engine._execute.store(true, std::memory_order_release);
-                r->engine.xrworker.runProcess();
-            }
+            r->workToDo.store(true, std::memory_order_release);
         }
         break;
         // 19 latency
@@ -147,18 +129,18 @@ void sendFileName(X11_UI *ui, ModelPicker* m, int old){
         if (old == 1) {
             if ( m == &ps->ma) {
                 r->engine.model_file = m->filename;
-                r->engine._ab.store(1, std::memory_order_release);
+                r->engine._ab.fetch_add(1, std::memory_order_relaxed);
             } else {
                 r->engine.model_file1 = m->filename;
-                r->engine._ab.store(2, std::memory_order_release);
+                r->engine._ab.fetch_add(2, std::memory_order_relaxed);
             }
         } else if (old == 2) {
             if ( m == &ps->ir) {
                 r->engine.ir_file = m->filename;
-                r->engine._ab.store(7, std::memory_order_release);
+                r->engine._ab.fetch_add(12, std::memory_order_relaxed);
             } else {
                 r->engine.ir_file1 = m->filename;
-                r->engine._ab.store(8, std::memory_order_release);
+                r->engine._ab.fetch_add(12, std::memory_order_relaxed);
             }
         } else return;
     } else if (ends_with(m->filename, "nam") ||
@@ -166,24 +148,21 @@ void sendFileName(X11_UI *ui, ModelPicker* m, int old){
                ends_with(m->filename, "aidax")) {
         if ( m == &ps->ma) {
             r->engine.model_file = m->filename;
-            r->engine._ab.store(1, std::memory_order_release);
+            r->engine._ab.fetch_add(1, std::memory_order_relaxed);
         } else {
             r->engine.model_file1 = m->filename;
-            r->engine._ab.store(2, std::memory_order_release);
+            r->engine._ab.fetch_add(2, std::memory_order_relaxed);
         }
     } else if (ends_with(m->filename, "wav")) {
         if ( m == &ps->ir) {
             r->engine.ir_file = m->filename;
-            r->engine._ab.store(7, std::memory_order_release);
+            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
         } else {
             r->engine.ir_file1 = m->filename;
-            r->engine._ab.store(8, std::memory_order_release);
+            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
         }
     } else return;
-    if (r->engine.xrworker.getProcess()) {
-        r->engine._execute.store(true, std::memory_order_release);
-        r->engine.xrworker.runProcess();
-    }
+    r->workToDo.store(true, std::memory_order_release);
 }
 
 void jack_shutdown (void *arg) {
@@ -224,11 +203,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
     
     if(output != input)
         memcpy(output, input, nframes*sizeof(float));
-
-    // the early bird die
-    if (r->processCounter < 10) {
-        r->processCounter++;
-    }
 
     r->engine.process(nframes, output);
 

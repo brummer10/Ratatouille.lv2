@@ -115,6 +115,7 @@ public:
     virtual bool configure(std::string fname, float gain, unsigned int delay,
                             unsigned int offset, unsigned int length,
                             unsigned int size, unsigned int bufsize) {return false;}
+    virtual inline std::string getIrFile() { return "";}
     virtual void compute(int32_t count, float* input, float *output) {}
     virtual bool checkstate() { return true;}
     virtual inline void set_not_runnable() {}
@@ -151,6 +152,8 @@ public:
 
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
                     unsigned int length, unsigned int size, unsigned int bufsize) override;
+
+    inline std::string getIrFile() override;
 
     void compute(int32_t count, float* input, float *output) override;
 
@@ -212,6 +215,8 @@ public:
     bool configure(std::string fname, float gain, unsigned int delay, unsigned int offset,
                     unsigned int length, unsigned int size, unsigned int bufsize) override;
 
+    inline std::string getIrFile() override;
+
     void compute(int32_t count, float* input, float *output) override;
 
     bool checkstate() override { return true;}
@@ -265,6 +270,10 @@ public:
     bool configure(std::string fname, float gain, unsigned int delay,
                             unsigned int offset, unsigned int length,
                             unsigned int size, unsigned int bufsize);
+
+    inline std::string getIrFile() {
+        return conv->getIrFile();
+    }
 
     void compute(int32_t count, float* input, float *output) {
             conv->compute(count, input, output);}

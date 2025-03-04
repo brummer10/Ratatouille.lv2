@@ -47,6 +47,10 @@ void RtNeuralModel::connect(uint32_t port,void* data)
 {
 }
 
+inline std::string RtNeuralModel::getModelFile() {
+    return modelFile;
+}
+
 int RtNeuralModel::getPhaseOffset()
 {
     return phaseOffset;

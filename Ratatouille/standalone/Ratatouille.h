@@ -75,7 +75,7 @@ public:
     void initEngine(uint32_t rate, int32_t prio, int32_t policy) {
         engine.init(rate, prio, policy);
         s_time = (1.0 / (double)rate) * 1000;
-        fetch.startTimeout(240);
+        fetch.startTimeout(120);
         fetch.set<Ratatouille, &Ratatouille::checkEngine>(this);
     }
 
@@ -233,7 +233,12 @@ private:
 
     // timeout loop to check output ports from engine
     void checkEngine() {
-        if (processCounter < 10) return ;
+        // the early bird die
+        if (processCounter < 2) {
+            processCounter++;
+            return;
+        }
+
         #if defined(__linux__) || defined(__FreeBSD__) || \
             defined(__NetBSD__) || defined(__OpenBSD__)
         XLockDisplay(ui->main.dpy);

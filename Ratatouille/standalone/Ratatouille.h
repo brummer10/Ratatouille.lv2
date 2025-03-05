@@ -106,10 +106,10 @@ public:
                         engine._ab.fetch_add(2, std::memory_order_relaxed);
                     } else if (key.compare("[IrFile]") == 0) {
                         engine.ir_file = remove_sub(line, "[IrFile] ");
-                        engine._ab.fetch_add(12, std::memory_order_relaxed);
+                        engine._cd.fetch_add(1, std::memory_order_relaxed);
                     } else if (key.compare("[IrFile1]") == 0) {
                         engine.ir_file1 = remove_sub(line, "[IrFile1] ");
-                        engine._ab.fetch_add(12, std::memory_order_relaxed);
+                        engine._cd.fetch_add(2, std::memory_order_relaxed);
                     }
                 }
                 key.clear();
@@ -234,36 +234,36 @@ private:
     // timeout loop to check output ports from engine
     void checkEngine() {
         // the early bird die
-        if (processCounter < 2) {
+        if (processCounter < 1) {
             processCounter++;
             return;
         }
-
-        #if defined(__linux__) || defined(__FreeBSD__) || \
-            defined(__NetBSD__) || defined(__OpenBSD__)
-        XLockDisplay(ui->main.dpy);
-        #endif
-        adj_set_value(ui->widget[17]->adj,(float) engine.latency * s_time);
-        if (engine._notify_ui.load(std::memory_order_acquire)) {
-            engine._notify_ui.store(false, std::memory_order_release);
-            X11_UI_Private_t *ps = (X11_UI_Private_t*)ui->private_ptr;
-            get_file(engine.model_file, &ps->ma);
-            get_file(engine.model_file1, &ps->mb);
-            get_file(engine.ir_file, &ps->ir);
-            get_file(engine.ir_file1, &ps->ir1);
-            expose_widget(ui->win);
-        }
-        #if defined(__linux__) || defined(__FreeBSD__) || \
-            defined(__NetBSD__) || defined(__OpenBSD__)
-        XFlush(ui->main.dpy);
-        XUnlockDisplay(ui->main.dpy);
-        #endif
         if (workToDo.load(std::memory_order_acquire)) {
             if (engine.xrworker.getProcess()) {
                 workToDo.store(false, std::memory_order_release);
                 engine._execute.store(true, std::memory_order_release);
                 engine.xrworker.runProcess();
             }
+        } else if (engine._notify_ui.load(std::memory_order_acquire)) {
+            engine._notify_ui.store(false, std::memory_order_release);
+            #if defined(__linux__) || defined(__FreeBSD__) || \
+                defined(__NetBSD__) || defined(__OpenBSD__)
+            XLockDisplay(ui->main.dpy);
+            #endif
+            X11_UI_Private_t *ps = (X11_UI_Private_t*)ui->private_ptr;
+            get_file(engine.model_file, &ps->ma);
+            get_file(engine.model_file1, &ps->mb);
+            get_file(engine.ir_file, &ps->ir);
+            get_file(engine.ir_file1, &ps->ir1);
+            adj_set_value(ui->widget[17]->adj,(float) engine.latency * s_time);
+            expose_widget(ui->win);
+            engine._ab.store(0, std::memory_order_release);
+            engine._cd.store(0, std::memory_order_release);
+            #if defined(__linux__) || defined(__FreeBSD__) || \
+                defined(__NetBSD__) || defined(__OpenBSD__)
+            XFlush(ui->main.dpy);
+            XUnlockDisplay(ui->main.dpy);
+            #endif
         }
     }
 

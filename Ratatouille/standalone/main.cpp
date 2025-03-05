@@ -27,7 +27,7 @@ jack_client_t *client;
 jack_port_t *in_port;
 jack_port_t *out_port;
 
-// send value changes to the engine
+// send value changes from GUI to the engine
 void sendValueChanged(X11_UI *ui, int port, float value) {
     switch (port) {
         // 0 + 1 audio ports
@@ -50,7 +50,7 @@ void sendValueChanged(X11_UI *ui, int port, float value) {
         break;
         case 9:
         {
-            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+            r->engine._cd.fetch_add(1, std::memory_order_relaxed);
             r->engine.conv.set_normalisation(static_cast<uint32_t>(value));
             if (r->engine.ir_file.compare("None") != 0) {
                 r->workToDo.store(true, std::memory_order_release);
@@ -59,7 +59,7 @@ void sendValueChanged(X11_UI *ui, int port, float value) {
         break;
         case 10:
         {
-            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+            r->engine._cd.fetch_add(2, std::memory_order_relaxed);
             r->engine.conv1.set_normalisation(static_cast<uint32_t>(value));
             if (r->engine.ir_file1.compare("None") != 0) {
                 r->workToDo.store(true, std::memory_order_release);
@@ -94,14 +94,14 @@ void sendValueChanged(X11_UI *ui, int port, float value) {
         break;
         case 17:
         {
-            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+            r->engine._cd.fetch_add(1, std::memory_order_relaxed);
             r->engine.ir_file = "None";
             r->workToDo.store(true, std::memory_order_release);
         }
         break;
         case 18:
         {
-            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+            r->engine._cd.fetch_add(2, std::memory_order_relaxed);
             r->engine.ir_file1 = "None";
             r->workToDo.store(true, std::memory_order_release);
         }
@@ -110,6 +110,7 @@ void sendValueChanged(X11_UI *ui, int port, float value) {
         case 20:
         {
             r->engine.buffered = value;
+            r->engine._notify_ui.store(true, std::memory_order_release);
         }
         break;
         case 21:
@@ -122,7 +123,7 @@ void sendValueChanged(X11_UI *ui, int port, float value) {
     }
 }
 
-// send a file name to the engine
+// send a file name from GUI to the engine
 void sendFileName(X11_UI *ui, ModelPicker* m, int old){
     X11_UI_Private_t *ps = (X11_UI_Private_t*)r->ui->private_ptr;
     if ((strcmp(m->filename, "None") == 0)) {
@@ -137,10 +138,10 @@ void sendFileName(X11_UI *ui, ModelPicker* m, int old){
         } else if (old == 2) {
             if ( m == &ps->ir) {
                 r->engine.ir_file = m->filename;
-                r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+                r->engine._cd.fetch_add(1, std::memory_order_relaxed);
             } else {
                 r->engine.ir_file1 = m->filename;
-                r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+                r->engine._cd.fetch_add(2, std::memory_order_relaxed);
             }
         } else return;
     } else if (ends_with(m->filename, "nam") ||
@@ -156,10 +157,10 @@ void sendFileName(X11_UI *ui, ModelPicker* m, int old){
     } else if (ends_with(m->filename, "wav")) {
         if ( m == &ps->ir) {
             r->engine.ir_file = m->filename;
-            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+            r->engine._cd.fetch_add(1, std::memory_order_relaxed);
         } else {
             r->engine.ir_file1 = m->filename;
-            r->engine._ab.fetch_add(12, std::memory_order_relaxed);
+            r->engine._cd.fetch_add(2, std::memory_order_relaxed);
         }
     } else return;
     r->workToDo.store(true, std::memory_order_release);

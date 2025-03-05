@@ -298,9 +298,9 @@ inline const LV2_Atom* Xratatouille::read_set_file(const LV2_Atom_Object* obj) {
         else if (((LV2_Atom_URID*)property)->body == xlv2_model_file1)
             engine._ab.store(2, std::memory_order_release);
         else if (((LV2_Atom_URID*)property)->body == xlv2_ir_file)
-            engine._ab.store(7, std::memory_order_release);
+            engine._cd.store(1, std::memory_order_release);
         else if (((LV2_Atom_URID*)property)->body == xlv2_ir_file1)
-            engine._ab.store(8, std::memory_order_release);
+            engine._cd.store(2, std::memory_order_release);
         else return NULL;
     }
 
@@ -340,9 +340,9 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
                         engine.model_file = (const char*)(file_path+1);
                     else if (engine._ab.load(std::memory_order_acquire) == 2)
                         engine.model_file1 = (const char*)(file_path+1);
-                    else if (engine._ab.load(std::memory_order_acquire) == 7)
+                    else if (engine._cd.load(std::memory_order_acquire) == 1)
                         engine.ir_file = (const char*)(file_path+1);
-                    else if (engine._ab.load(std::memory_order_acquire) == 8)
+                    else if (engine._cd.load(std::memory_order_acquire) == 2)
                         engine.ir_file1 = (const char*)(file_path+1);
                     if (!engine._execute.load(std::memory_order_acquire)) {
                         engine.bufsize = n_samples;
@@ -370,26 +370,26 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
     // check if a model or IR file is to be removed
     if (!engine._execute.load(std::memory_order_acquire)) {
         if ((*_eraseSlotA)) {
-            engine._ab.store(1, std::memory_order_release);
+            engine._ab.fetch_add(1, std::memory_order_relaxed);
              engine.model_file = "None";
             engine._execute.store(true, std::memory_order_release);
             engine.xrworker.runProcess();
             (*_eraseSlotA) = 0.0;
         } else if ((*_eraseSlotB)) {
-            engine._ab.store(2, std::memory_order_release);
+            engine._ab.fetch_add(2, std::memory_order_relaxed);
              engine.model_file1 = "None";
             engine._execute.store(true, std::memory_order_release);
             engine.xrworker.runProcess();
             (*_eraseSlotB) = 0.0;
         } else if ((*_eraseIr)) {
-            engine._ab.store(7, std::memory_order_release);
-             engine.ir_file = "None";
+            engine._cd.fetch_add(1, std::memory_order_relaxed);
+            engine.ir_file = "None";
             engine._execute.store(true, std::memory_order_release);
             engine.xrworker.runProcess();
             (*_eraseIr) = 0.0;
         } else if ((*_eraseIr1)) {
-            engine._ab.store(8, std::memory_order_release);
-             engine.ir_file1 = "None";
+            engine._cd.fetch_add(2, std::memory_order_relaxed);
+            engine.ir_file1 = "None";
             engine._execute.store(true, std::memory_order_release);
             engine.xrworker.runProcess();
             (*_eraseIr1) = 0.0;
@@ -406,7 +406,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
     if (normA != static_cast<uint32_t>(*(_normA)) && !engine._execute.load(std::memory_order_acquire)) {
         normA = static_cast<uint32_t>(*(_normA));
         engine.bufsize = n_samples;
-        engine._ab.store(7, std::memory_order_release);
+        engine._cd.fetch_add(1, std::memory_order_relaxed);
         engine.conv.set_normalisation(normA);
         if (engine.ir_file.compare("None") != 0) {
             engine._execute.store(true, std::memory_order_release);
@@ -418,7 +418,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
     if (normB != static_cast<uint32_t>(*(_normB)) && !engine._execute.load(std::memory_order_acquire)) {
         normB = static_cast<uint32_t>(*(_normB));
         engine.bufsize = n_samples;
-        engine._ab.store(8, std::memory_order_release);
+        engine._cd.fetch_add(2, std::memory_order_relaxed);
         engine.conv1.set_normalisation(normB);
         if (engine.ir_file1.compare("None") != 0) {
             engine._execute.store(true, std::memory_order_release);
@@ -441,6 +441,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
         write_set_file(&forge, xlv2_ir_file, engine.ir_file.data());
         write_set_file(&forge, xlv2_ir_file1, engine.ir_file1.data());
         engine._ab.store(0, std::memory_order_release);
+        engine._cd.store(0, std::memory_order_release);
     }    
 }
 
@@ -529,9 +530,9 @@ LV2_State_Status Xratatouille::restore_state(LV2_Handle instance,
     if (self->restoreFile(retrieve, handle, self->xlv2_model_file1, &self->engine.model_file1))
         self->engine._ab.fetch_add(2, std::memory_order_relaxed);
     if (self->restoreFile(retrieve, handle, self->xlv2_ir_file, &self->engine.ir_file))
-        self->engine._ab.fetch_add(12, std::memory_order_relaxed);
+        self->engine._cd.fetch_add(1, std::memory_order_relaxed);
     if (self->restoreFile(retrieve, handle, self->xlv2_ir_file1, &self->engine.ir_file1))
-        self->engine._ab.fetch_add(12, std::memory_order_relaxed);
+        self->engine._cd.fetch_add(2, std::memory_order_relaxed);
 
     self-> _restore.store(true, std::memory_order_release);
     return LV2_STATE_SUCCESS;

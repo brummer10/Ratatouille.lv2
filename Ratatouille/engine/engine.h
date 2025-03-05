@@ -132,6 +132,7 @@ public:
     std::atomic<bool>            _neuralB;
     std::atomic<bool>            bufferIsInit;
     std::atomic<int>             _ab;
+    std::atomic<int>             _cd;
 
     inline Engine();
     inline ~Engine();
@@ -247,6 +248,7 @@ inline void Engine::init(uint32_t rate, int32_t rt_prio_, int32_t rt_policy_) {
     _notify_ui.store(false, std::memory_order_release);
     bufferIsInit.store(false, std::memory_order_release);
     _ab.store(0, std::memory_order_release);
+    _cd.store(0, std::memory_order_release);
 
     xrworker.setThreadName("Worker");
     xrworker.set<Engine, &Engine::do_work_mono>(this);
@@ -279,12 +281,14 @@ void Engine::clean_up()
 
 inline void Engine::setModel(ModelerSelector *slot,
                 std::string *file, std::atomic<bool> *set) {
-    slot->setModelFile(*file);
-    if (!slot->loadModel()) {
-        *file = "None";
-        set->store(false, std::memory_order_release);
-    } else {
-        set->store(true, std::memory_order_release);
+    if ((*file).compare(slot->getModelFile()) != 0) {
+        slot->setModelFile(*file);
+        if (!slot->loadModel()) {
+            *file = "None";
+            set->store(false, std::memory_order_release);
+        } else {
+            set->store(true, std::memory_order_release);
+        }
     }
 }
 
@@ -300,59 +304,36 @@ inline void Engine::setIRFile(ConvolverSelector *co, std::string *file) {
     co->set_samplerate(s_rate);
     co->set_buffersize(bufsize);
 
-    co->configure(*file, 1.0, 0, 0, 0, 0, 0);
-    while (!co->checkstate());
-    if(!co->start(rt_prio, rt_policy)) {
-        *file = "None";
-       // lv2_log_error(&logger,"impulse convolver update fail\n");
+    if (*file != "None") {
+        co->configure(*file, 1.0, 0, 0, 0, 0, 0);
+        while (!co->checkstate());
+        if(!co->start(rt_prio, rt_policy)) {
+            *file = "None";
+           // lv2_log_error(&logger,"impulse convolver update fail\n");
+        }
     }
 }
 
 void Engine::do_work_mono() {
+    // set neural models
     if (_ab.load(std::memory_order_acquire) == 1) {
         setModel(&slotA, &model_file, &_neuralA);
     } else if (_ab.load(std::memory_order_acquire) == 2) {
         setModel(&slotB, &model_file1, &_neuralB);
-    } else if (_ab.load(std::memory_order_acquire) == 3) {
+    } else if (_ab.load(std::memory_order_acquire) > 2) {
         setModel(&slotA, &model_file, &_neuralA);
         setModel(&slotB, &model_file1, &_neuralB);
-    } else if (_ab.load(std::memory_order_acquire) == 7) {
-        setIRFile(&conv, &ir_file);
-    } else if (_ab.load(std::memory_order_acquire) == 8) {
-        setIRFile(&conv1, &ir_file1);
-    } else if (_ab.load(std::memory_order_acquire) > 10) {
-        if (model_file != "None") {
-            if (model_file.compare(slotA.getModelFile()) != 0)
-                setModel(&slotA, &model_file, &_neuralA);
-        } else {
-            slotA.unloadModel();
-        }
-        if (model_file1 != "None") {
-            if (model_file1.compare(slotB.getModelFile()) != 0)
-                setModel(&slotB, &model_file1, &_neuralB);
-        } else {
-            slotB.unloadModel();
-        }
-
-        if (ir_file != "None") {
-            if (ir_file.compare(conv.getIrFile()) !=0)
-                setIRFile(&conv, &ir_file);
-        } else {
-            if (conv.is_runnable()) {
-                conv.set_not_runnable();
-                conv.stop_process();
-            }            
-        }
-        if (ir_file1 != "None") {
-            if (ir_file1.compare(conv1.getIrFile()) !=0)
-                setIRFile(&conv1, &ir_file1);
-        } else {
-            if (conv1.is_runnable()) {
-                conv1.set_not_runnable();
-                conv1.stop_process();
-            }            
-        }
     }
+    // set ir files
+    if (_cd.load(std::memory_order_acquire) == 1) {
+        setIRFile(&conv, &ir_file);
+    } else if (_cd.load(std::memory_order_acquire) == 2) {
+        setIRFile(&conv1, &ir_file1);
+    } else if (_cd.load(std::memory_order_acquire) > 2) {
+        setIRFile(&conv, &ir_file);
+        setIRFile(&conv1, &ir_file1);
+    }
+
     // calculate phase offset
     if (_neuralA.load(std::memory_order_acquire) && _neuralB.load(std::memory_order_acquire)) {
         phaseOffset = slotB.getPhaseOffset() - slotA.getPhaseOffset();
@@ -536,7 +517,7 @@ inline void Engine::processDsp(uint32_t n_samples, float* output)
         } else {
             //lv2_log_error(&logger,"thread RT (conv) missing deadline\n");
             if (!_execute.load(std::memory_order_acquire)) {
-                _ab.store(8, std::memory_order_release);
+                _cd.store(2, std::memory_order_release);
                  ir_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
@@ -554,7 +535,7 @@ inline void Engine::processDsp(uint32_t n_samples, float* output)
         if (!pro.processWait()) {
             //lv2_log_error(&logger,"thread RT (conv) missing wait\n");
             if (!_execute.load(std::memory_order_acquire)) {
-                _ab.store(8, std::memory_order_release);
+                _cd.store(2, std::memory_order_release);
                  ir_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();

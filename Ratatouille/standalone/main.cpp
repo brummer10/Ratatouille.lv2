@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <signal.h>
+#include <stdlib.h> 
 
 #include <atomic>
 #include <iostream>
@@ -78,6 +79,9 @@ int main(int argc, char *argv[]){
 
     #if defined(__linux__) || defined(__FreeBSD__) || \
         defined(__NetBSD__) || defined(__OpenBSD__)
+    #if defined(PAWPAW)
+    setenv("FONTCONFIG_PATH", "/etc/fonts", true);
+    #endif
     if(0 == XInitThreads()) 
         fprintf(stderr, "Warning: XInitThreads() failed\n");
     #endif

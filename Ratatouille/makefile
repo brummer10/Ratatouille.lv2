@@ -239,6 +239,10 @@ endif
 endif
 endif
 
+ifeq ($(PAWPAW_BUILD),1)
+	CXXFLAGS += -DPAWPAW=1
+endif
+
 ifeq ($(TARGET), Linux)
 
 	GUI_LDFLAGS += -I$(HEADER_DIR) $(GUI_INCLUDE) -Wl,-Bstatic -L. $(UI_LIB) \

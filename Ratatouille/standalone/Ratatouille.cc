@@ -400,8 +400,8 @@ private:
 
     // timeout loop to check output ports from engine
     void checkEngine() {
-        // the early bird die
-        if (processCounter < 1) {
+        // come back later
+        if (processCounter < 2) {
             processCounter++;
             return;
         }

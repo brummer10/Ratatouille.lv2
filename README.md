@@ -53,7 +53,7 @@ To build Ratatouille.lv2 with only the MOD UI included (For usage in a MOD devic
 make mod
 ```
 
-To build Ratatouille only as standalone JackAudioConnectionKit application run
+To build Ratatouille only as standalone application run
 ```shell
 make standalone
 ```
@@ -69,6 +69,11 @@ make
 - libcairo2-dev
 - libx11-dev
 - lv2-dev
+
+## Optional Dependencies to build the standalone version
+
+- libjack(-jackd2)-dev
+- portaudio19-dev
 
 ## Building LV2 plug from source code
 

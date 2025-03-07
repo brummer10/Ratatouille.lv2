@@ -103,20 +103,22 @@ CXX_v = $(shell $(CXX) -dumpversion)
 CXX_VERSION   := $(subst ., ,$(lastword $(CXX_v)))
 CXX_MAJOR_VER := $(word 1,$(CXX_VERSION))
 ifneq ($(MAKECMDGOALS),install)
-  ifneq ($(MAKECMDGOALS),clean)
-    ifneq ($(NO_x86_64), $(x86_64_LEVEL))
-      ifeq ($(TARGET_ARCH), aarch64)
-        CXXFLAGS += -march=armv8-a
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8-a $(SSE_CFLAGS)$(reset))
-      else ifeq ($(shell awk -v a="$(CXX_MAJOR_VER)" -v b="11" 'BEGIN{print(a<b)}'), 1)
-        SSE_CFLAGS += -march=native
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
-      else ifeq ($(TARGET_ARCH), x86_64)
-        SSE_CFLAGS += -march=x86-64$(x86_64_LEVEL)
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
-      else
-        SSE_CFLAGS += -march=native
-        $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
+  ifeq (,$(filter uninstall,$(MAKECMDGOALS)))
+    ifneq ($(MAKECMDGOALS),clean)
+      ifneq ($(NO_x86_64), $(x86_64_LEVEL))
+        ifeq ($(TARGET_ARCH), aarch64)
+          CXXFLAGS += -march=armv8-a
+          $(info $(yellow) INFO: $(reset)optimised for $(blue)-march=armv8-a $(SSE_CFLAGS)$(reset))
+        else ifeq ($(shell awk -v a="$(CXX_MAJOR_VER)" -v b="11" 'BEGIN{print(a<b)}'), 1)
+          SSE_CFLAGS += -march=native
+          $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
+        else ifeq ($(TARGET_ARCH), x86_64)
+          SSE_CFLAGS += -march=x86-64$(x86_64_LEVEL)
+          $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
+        else
+          SSE_CFLAGS += -march=native
+          $(info $(yellow) INFO: $(reset)optimised for $(blue)$(SSE_CFLAGS)$(reset))
+        endif
       endif
     endif
   endif
@@ -125,13 +127,15 @@ endif
 # check for c++ level
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
   ifeq (,$(filter install,$(MAKECMDGOALS)))
-    $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX) $(CXX_v)$(reset))
-    ifeq ($(shell awk -v a="$(CXX_MAJOR_VER)" -v b="11" 'BEGIN{print(a<b)}'), 1)
-      CXXFLAGS += -std=c++17
-      $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++17$(reset))
-    else
-      CXXFLAGS += -std=c++20
-      $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++20$(reset))
+    ifeq (,$(filter uninstall,$(MAKECMDGOALS)))
+      $(info $(yellow) INFO: $(reset)build with    $(blue)$(CXX) $(CXX_v)$(reset))
+      ifeq ($(shell awk -v a="$(CXX_MAJOR_VER)" -v b="11" 'BEGIN{print(a<b)}'), 1)
+        CXXFLAGS += -std=c++17
+        $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++17$(reset))
+      else
+        CXXFLAGS += -std=c++20
+        $(info $(yellow) INFO: $(reset)using         $(blue)-std=c++20$(reset))
+    endif
     endif
   endif
 endif
@@ -202,7 +206,41 @@ endif
 
 	DEPS = $NEURAL_OBJ:%.o=%.d) $(CONV_OBJ:%.o=%.d) $(RESAMP_OBJ:%.o=%.d) Ratatouille.d
 
+ifeq (,$(filter clean,$(MAKECMDGOALS)))
+ifeq (,$(filter install,$(MAKECMDGOALS)))
+ifeq (,$(filter uninstall,$(MAKECMDGOALS)))
+ifeq (,$(filter mod,$(MAKECMDGOALS)))
+ifeq (,$(filter modapp,$(MAKECMDGOALS)))
+ifeq (,$(filter lv2,$(MAKECMDGOALS)))
+	INFOSTRING = with
+	HAVEJACK = $(shell $(PKGCONFIG) --cflags  --libs jack 2>/dev/null)
+	ifneq ($(HAVEJACK), )
+	JACKFLAGS += -DHAVE_JACK
+	INFOSTRING += JACK
+	endif
+	HAVEPA = $(shell $(PKGCONFIG) --cflags  --libs portaudio-2.0 2>/dev/null)
+	ifneq ($(HAVEPA), )
+	ifneq ($(HAVEJACK), )
+	INFOSTRING += and
+	endif
+	JACKFLAGS += -DHAVE_PA
+	INFOSTRING += PortAudio
+	endif
+	ifneq ($(JACKFLAGS), )
+	INFOSTRING += support
+    $(info $(yellow) INFO: $(reset)Stand-alone   $(blue)$(INFOSTRING)$(reset))
+    else
+    $(info $(yellow) INFO: $(reset)Stand-alone   $(red)not supported$(reset))
+	endif
+endif
+endif
+endif
+endif
+endif
+endif
+
 ifeq ($(TARGET), Linux)
+
 	GUI_LDFLAGS += -I$(HEADER_DIR) $(GUI_INCLUDE) -Wl,-Bstatic -L. $(UI_LIB) \
 	-Wl,-Bdynamic `pkg-config --cflags --libs cairo x11` 
 
@@ -212,7 +250,7 @@ ifeq ($(TARGET), Linux)
 
 	JACKLDFLAGS += -fvisibility=hidden -lm -fPIC -pthread -lpthread \
 	-Wl,-z,noexecstack -Wl,--no-undefined -Wl,--gc-sections  -Wl,--exclude-libs,ALL \
-	`$(PKGCONFIG) --cflags --libs sndfile jack` $(GUI_LDFLAGS)
+	`$(PKGCONFIG) --cflags --libs sndfile ` $(HAVEPA) $(HAVEJACK) $(GUI_LDFLAGS)
 
 	CXXFLAGS += -MMD -flto=auto -fPIC -DPIC -O3 -Wall -funroll-loops $(SSE_CFLAGS) \
 	-Wno-sign-compare -Wno-reorder -Wno-infinite-recursion -DUSE_ATOM $(FFT_FLAG) \
@@ -261,7 +299,7 @@ else ifeq ($(TARGET), Windows)
 	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile`
 
 	JACKLDFLAGS += -I. -lm $(PAWPAW_LFLAGS) -Wl,--gc-sections \
-	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile jack` $(GUI_LDFLAGS)
+	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile ` $(HAVEPA) $(HAVEJACK) $(GUI_LDFLAGS)
 
 	GUI_LDFLAGS += -I$(HEADER_DIR) $(GUI_INCLUDE) -static-libgcc -static-libstdc++ \
 	`$(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags --libs cairo ` \
@@ -340,9 +378,11 @@ modapp: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
 standalone: $(EXEC_NAME)$(EXE_EXT)
+ifneq ($(JACKFLAGS), )
 	$(QUIET)mkdir -p ../bin/
 	$(QUIET)cp ./$(EXEC_NAME)$(EXE_EXT) ../bin/
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
+endif
 
 -include $(DEPS)
 
@@ -408,11 +448,13 @@ $(EXEC_NAME).$(LIB_EXT): $(LV2_PLUGIN).cpp $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LI
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 $(EXEC_NAME)$(EXE_EXT): $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB) $(UI_LIB) $(STANDALONE).cpp
+ifneq ($(JACKFLAGS), )
 	@$(B_ECHO) "Compiling $@ $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) \
-	$(STANDALONE_INCLUDE) $(STANDALONE).cpp -L. $(UI_LIB) \
+	$(STANDALONE_INCLUDE) $(JACKFLAGS) $(STANDALONE).cpp -L. $(UI_LIB) \
 	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(JACKLDFLAGS) -o $@
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)$(EXE_EXT)
+endif
 
 
 install :
@@ -465,7 +507,7 @@ clean:
 ifndef EXTRAQUIET
 	@$(ECHO) ". ., clean up$(reset)"
 endif
-	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll $(EXEC_NAME)
+	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll $(EXEC_NAME) $(EXEC_NAME).exe
 	$(QUIET)rm -f $(RESAMP_DIR)*.a $(RESAMP_DIR)*.lib $(RESAMP_DIR)*.o $(RESAMP_DIR)*.d
 	$(QUIET)rm -f $(CONV_DIR)*.a $(CONV_DIR)*.lib $(CONV_DIR)*.o $(CONV_DIR)*.d
 	$(QUIET)rm -f $(NAM_DIR)*.a $(NAM_DIR)*.lib $(NAM_DIR)*.o $(NAM_DIR)*.d

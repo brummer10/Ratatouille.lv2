@@ -60,6 +60,25 @@ jobs:
           lto: false
           pawpaw: true
 
+  linux-standalone:
+    strategy:
+      matrix:
+        target: [linux-x86_64]
+    runs-on: ubuntu-latest
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions
+        with:
+          target: ${{ matrix.target }}
+          postfix: -app
+          extraargs: standalone
+          lto: false
+          pawpaw: true
+
   windows-optimised:
     strategy:
       matrix:
@@ -76,6 +95,24 @@ jobs:
           target: ${{ matrix.target }}
           postfix: -v3
           extraargs: modapp
+          pawpaw: true
+
+  windows-standalone:
+    strategy:
+      matrix:
+        target: [win64]
+    runs-on: ubuntu-latest
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions
+        with:
+          target: ${{ matrix.target }}
+          postfix: -app
+          extraargs: standalone
           pawpaw: true
 
   windows:

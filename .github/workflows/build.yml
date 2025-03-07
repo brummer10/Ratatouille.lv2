@@ -97,24 +97,6 @@ jobs:
           extraargs: modapp
           pawpaw: true
 
-  windows-standalone:
-    strategy:
-      matrix:
-        target: [win64]
-    runs-on: ubuntu-latest
-    permissions:
-        contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: ./.github/actions
-        with:
-          target: ${{ matrix.target }}
-          postfix: -app
-          extraargs: standalone
-          pawpaw: true
-
   windows:
     strategy:
       matrix:

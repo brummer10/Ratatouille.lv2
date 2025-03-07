@@ -55,20 +55,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
     return 0;
 }
 
-void signal_handler (int sig) {
-    switch (sig) {
-        case SIGINT:
-        case SIGHUP:
-        case SIGTERM:
-        case SIGQUIT:
-            fprintf (stderr, "\nsignal %i received, exiting ...\n", sig);
-            r->quitGui();
-        break;
-        default:
-        break;
-    }
-}
-
 void startJack() {
 
     if ((client = jack_client_open ("ratatouille", JackNoStartServer, NULL)) == 0) {

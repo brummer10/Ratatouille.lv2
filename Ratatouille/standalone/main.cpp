@@ -57,6 +57,23 @@ static int process(const void* inputBuffer, void* outputBuffer,
 }
 #endif
 
+#if defined(__linux__) || defined(__FreeBSD__) || \
+    defined(__NetBSD__) || defined(__OpenBSD__)
+void signal_handler (int sig) {
+    switch (sig) {
+        case SIGINT:
+        case SIGHUP:
+        case SIGTERM:
+        case SIGQUIT:
+            fprintf (stderr, "\nsignal %i received, exiting ...\n", sig);
+            r->quitGui();
+        break;
+        default:
+        break;
+    }
+}
+#endif
+
 int main(int argc, char *argv[]){
 
     #if defined(__linux__) || defined(__FreeBSD__) || \

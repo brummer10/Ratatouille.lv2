@@ -124,9 +124,10 @@ public:
         devices.clear();
         #else
         const PaDeviceInfo *info;
+        SampleRate = 48000;
         info = Pa_GetDeviceInfo(Pa_GetDefaultOutputDevice());
         std::cout << "using (" << info->name << ") " << getHostName(info->hostApi) 
-            << " with " << info->defaultSampleRate << "hz Sample Rate" << std::endl;
+            << " with " << SampleRate << "hz Sample Rate" << std::endl;
 
         PaStreamParameters inputParameters;
         inputParameters.device = Pa_GetDefaultInputDevice();
@@ -142,10 +143,10 @@ public:
         outputParameters.sampleFormat = paFloat32|paNonInterleaved;
         outputParameters.suggestedLatency = 0.050;
         outputParameters.hostApiSpecificStreamInfo = nullptr;
-        SampleRate = info->defaultSampleRate;
+        //SampleRate = info->defaultSampleRate;
         err = Pa_OpenStream(&stream, ichannels ? &inputParameters : nullptr, 
                             ochannels ? &outputParameters : nullptr, SampleRate,
-                            paFramesPerBufferUnspecified, paClipOff, process, arg);
+                            256, paClipOff, process, arg);
         #endif
 
         return err == paNoError ? true : false;

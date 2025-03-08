@@ -213,12 +213,12 @@ ifeq (,$(filter mod,$(MAKECMDGOALS)))
 ifeq (,$(filter modapp,$(MAKECMDGOALS)))
 ifeq (,$(filter lv2,$(MAKECMDGOALS)))
 	INFOSTRING = with
-	HAVEJACK = $(shell $(PKGCONFIG) --cflags  --libs jack 2>/dev/null)
+	HAVEJACK = $(shell $(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags  --libs jack 2>/dev/null)
 	ifneq ($(HAVEJACK), )
 	JACKFLAGS += -DHAVE_JACK
 	INFOSTRING += JACK
 	endif
-	HAVEPA = $(shell $(PKGCONFIG) --cflags  --libs portaudio-2.0 2>/dev/null)
+	HAVEPA = $(shell $(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags  --libs portaudio-2.0 2>/dev/null)
 	ifneq ($(HAVEPA), )
 	ifneq ($(HAVEJACK), )
 	INFOSTRING += and
@@ -302,12 +302,12 @@ else ifeq ($(TARGET), Windows)
 	LDFLAGS += -I. -shared -lm $(PAWPAW_LFLAGS) -Wl,--gc-sections \
 	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile`
 
-	JACKLDFLAGS += -I. -lm $(PAWPAW_LFLAGS) -Wl,--gc-sections \
-	-Wl,--exclude-libs,ALL `$(PKGCONFIG) --cflags --libs sndfile ` $(HAVEPA) $(HAVEJACK) $(GUI_LDFLAGS)
+	JACKLDFLAGS += -I. -lm $(PAWPAW_LFLAGS) -Wl,--gc-sections -pthread  $(PKGCONFIG_FLAGS) -lpthread  \
+	-Wl,--exclude-libs,ALL `$(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags --libs sndfile ` $(HAVEPA) $(HAVEJACK) $(GUI_LDFLAGS)
 
 	GUI_LDFLAGS += -I$(HEADER_DIR) $(GUI_INCLUDE) -static-libgcc -static-libstdc++ \
 	`$(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags --libs cairo ` \
-	-L. $(LIB_DIR)libxputty.$(STATIC_LIB_EXT) -shared  -lm $(PAWPAW_LFLAGS)
+	-L. $(LIB_DIR)libxputty.$(STATIC_LIB_EXT) -lm $(PAWPAW_LFLAGS)
 
 	CFLAGS := -O2 -D_FORTIFY_SOURCE=2 -Wall -fstack-protector -fvisibility=hidden \
 	-fdata-sections -Wl,--gc-sections -Wl,--exclude-libs,ALL -DUSE_ATOM

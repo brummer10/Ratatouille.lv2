@@ -359,9 +359,9 @@ void Engine::do_work_mono() {
         memset(bufferinput0, 0, buffersize*sizeof(float));
         par.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
         bufferIsInit.store(true, std::memory_order_release);
+        // set wait function time out for parallel processor thread
+        pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
     }
-    // set wait function time out for parallel processor thread
-    pro.setTimeOut(std::max(100,static_cast<int>((bufsize/(s_rate*0.000001))*0.1)));
     // set flag that work is done ready
     _execute.store(false, std::memory_order_release);
     // set flag that GUI need information about changed state
@@ -387,13 +387,13 @@ inline void Engine::processBuffer() {
 inline void Engine::processDsp(uint32_t n_samples, float* output)
 {
     if(n_samples<1) return;
-    MXCSR.set_();
 
     // basic bypass
     if (!bypass) {
         Sync.notify_all();
         return;
     }
+    MXCSR.set_();
 
     // get controller values from host
     double fSlow0 = 0.0010000000000000009 * std::pow(1e+01, 0.05 * double(inputGain));

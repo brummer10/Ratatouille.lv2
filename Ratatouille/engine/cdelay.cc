@@ -19,6 +19,7 @@ private:
 
 
 public:
+	float delay;
 	void connect(uint32_t port,void* data);
 	void del_instance(Dsp *p);
 	void clear_state_f();
@@ -48,12 +49,13 @@ inline void Dsp::clear_state_f()
 inline void Dsp::init(uint32_t sample_rate)
 {
 	fSampleRate = sample_rate;
+	delay = 0.0;
 	clear_state_f();
 }
 
 void Dsp::compute(int count, float *input0, float *output0)
 {
-	double fSlow0 = 0.0001000000000000009 * std::fabs(*(fHslider0_));
+	double fSlow0 = 0.0001000000000000009 * std::fabs(delay);
 	for (int i0 = 0; i0 < count; i0 = i0 + 1) {
 		double fTemp0 = double(input0[i0]);
 		fVec0[IOTA0 & 16383] = fTemp0;

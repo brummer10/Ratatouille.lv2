@@ -144,6 +144,7 @@ public:
         : pRun(false)
          ,pWait(false)
          ,isWaiting(false)
+         ,clientCall(false)
          #if __cplusplus > 201703L
          ,pWorkCond(false)
          #endif
@@ -224,6 +225,7 @@ public:
 
     // notify the thread that work is to be done
     inline void runProcess() noexcept {
+        clientCall.store(true, std::memory_order_release);
         #if __cplusplus > 201703L
         pWorkCond.store(true);
         #endif
@@ -277,6 +279,7 @@ private:
     std::atomic<bool> pRun;
     std::atomic<bool> pWait;
     std::atomic<bool> isWaiting;
+    std::atomic<bool> clientCall;
 
     #if __cplusplus > 201703L
     std::atomic<bool> pWorkCond;
@@ -327,7 +330,10 @@ private:
                 #endif
                 isWaiting.store(false, std::memory_order_release);
                 pWait.store(true, std::memory_order_release);
-                process();
+                if (clientCall.load(std::memory_order_acquire)) {
+                    process();
+                    clientCall.store(false, std::memory_order_release);
+                }
                 pWait.store(false, std::memory_order_release);
             }
             // when done

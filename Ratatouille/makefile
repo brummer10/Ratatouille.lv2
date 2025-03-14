@@ -11,7 +11,7 @@
 	INSTALL_DIR = /usr/lib/lv2
 	EXE_INSTALL_DIR = /usr/bin
 	else 
-	INSTALL_DIR = ~/lv2
+	INSTALL_DIR = ~/.lv2
 	EXE_INSTALL_DIR = ~/bin
 	endif
 

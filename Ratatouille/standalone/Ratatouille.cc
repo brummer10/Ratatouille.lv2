@@ -33,7 +33,7 @@ public:
         processCounter = 0;
         settingsHaveChanged = false;
         s_time = 0.0;
-        engine.cdelay->connect(8,(void*) &s_time);
+        engine.cdelay->delay = 0.0;
         ui = (X11_UI*)malloc(sizeof(X11_UI));
         ui->private_ptr = NULL;
         ui->need_resize = 1;
@@ -115,8 +115,10 @@ public:
                 engine.mix = value;
             break;
             case 8:
+            {
                 engine.delay = value;
-                engine.cdelay->connect(8,(void*) &value);
+                engine.cdelay->delay = value;
+            {
             break;
             case 9:
             {

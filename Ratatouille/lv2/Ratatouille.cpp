@@ -152,7 +152,6 @@ Xratatouille::Xratatouille() :
 
 // destructor
 Xratatouille::~Xratatouille() {
-
 };
 
 ///////////////////////// PRIVATE CLASS  FUNCTIONS /////////////////////
@@ -166,7 +165,7 @@ void Xratatouille::init_dsp_(uint32_t rate)
     engine.init(rate, rt_prio, rt_policy);
 
     processCounter = 0;
-
+    doit = false;
     _restore.store(false, std::memory_order_release);
 }
 
@@ -321,6 +320,8 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
     lv2_atom_forge_set_buffer(&forge, (uint8_t*)notify, notify_capacity);
     lv2_atom_forge_sequence_head(&forge, &notify_frame, 0);
 
+    engine.bufsize = n_samples;
+
     LV2_ATOM_SEQUENCE_FOREACH(control, ev) {
         if (lv2_atom_forge_is_object_type(&forge, ev->body.type)) {
             const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
@@ -344,11 +345,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
                         engine.ir_file = (const char*)(file_path+1);
                     else if (engine._cd.load(std::memory_order_acquire) == 2)
                         engine.ir_file1 = (const char*)(file_path+1);
-                    if (!engine._execute.load(std::memory_order_acquire)) {
-                        engine.bufsize = n_samples;
-                        engine._execute.store(true, std::memory_order_release);
-                        engine.xrworker.runProcess();
-                    }
+                    if (!doit) doit = true;
                 }
             }
         }
@@ -364,73 +361,65 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
     engine.blend = *_blend;
     engine.mix = *_mix;
     engine.delay = *_delay;
+    engine.cdelay->delay = engine.delay;
     engine.phasecor_ = *_phasecor;
     engine.buffered = *_buffered;
 
     // check if a model or IR file is to be removed
-    if (!engine._execute.load(std::memory_order_acquire)) {
-        if ((*_eraseSlotA)) {
-            engine._ab.fetch_add(1, std::memory_order_relaxed);
-             engine.model_file = "None";
-            engine._execute.store(true, std::memory_order_release);
-            engine.xrworker.runProcess();
-            (*_eraseSlotA) = 0.0;
-        } else if ((*_eraseSlotB)) {
-            engine._ab.fetch_add(2, std::memory_order_relaxed);
-             engine.model_file1 = "None";
-            engine._execute.store(true, std::memory_order_release);
-            engine.xrworker.runProcess();
-            (*_eraseSlotB) = 0.0;
-        } else if ((*_eraseIr)) {
-            engine._cd.fetch_add(1, std::memory_order_relaxed);
-            engine.ir_file = "None";
-            engine._execute.store(true, std::memory_order_release);
-            engine.xrworker.runProcess();
-            (*_eraseIr) = 0.0;
-        } else if ((*_eraseIr1)) {
-            engine._cd.fetch_add(2, std::memory_order_relaxed);
-            engine.ir_file1 = "None";
-            engine._execute.store(true, std::memory_order_release);
-            engine.xrworker.runProcess();
-            (*_eraseIr1) = 0.0;
-        }
+    if ((*_eraseSlotA)) {
+        engine._ab.fetch_add(1, std::memory_order_relaxed);
+        engine.model_file = "None";
+        if (!doit) doit = true;
+        (*_eraseSlotA) = 0.0;
+    } else if ((*_eraseSlotB)) {
+        engine._ab.fetch_add(2, std::memory_order_relaxed);
+        engine.model_file1 = "None";
+        if (!doit) doit = true;
+        (*_eraseSlotB) = 0.0;
+    } else if ((*_eraseIr)) {
+        engine._cd.fetch_add(1, std::memory_order_relaxed);
+        engine.ir_file = "None";
+        if (!doit) doit = true;
+        (*_eraseIr) = 0.0;
+    } else if ((*_eraseIr1)) {
+        engine._cd.fetch_add(2, std::memory_order_relaxed);
+        engine.ir_file1 = "None";
+        if (!doit) doit = true;
+        (*_eraseIr1) = 0.0;
     }
 
-    if (!engine._execute.load(std::memory_order_acquire) && _restore.load(std::memory_order_acquire)) {
-        engine._execute.store(true, std::memory_order_release);
-        engine.bufsize = n_samples;
-        engine.xrworker.runProcess();
+    if (_restore.load(std::memory_order_acquire)) {
+        if (!doit) doit = true;
         _restore.store(false, std::memory_order_release);
     }
     // check if normalisation is pressed for conv
-    if (normA != static_cast<uint32_t>(*(_normA)) && !engine._execute.load(std::memory_order_acquire)) {
+    if (normA != static_cast<uint32_t>(*(_normA))) {
         normA = static_cast<uint32_t>(*(_normA));
-        engine.bufsize = n_samples;
         engine._cd.fetch_add(1, std::memory_order_relaxed);
         engine.conv.set_normalisation(normA);
         if (engine.ir_file.compare("None") != 0) {
-            engine._execute.store(true, std::memory_order_release);
-            engine.xrworker.runProcess();
-            _restore.store(false, std::memory_order_release);
+            if (!doit) doit = true;
         }
     }
     // check if normalisation is pressed for conv1
-    if (normB != static_cast<uint32_t>(*(_normB)) && !engine._execute.load(std::memory_order_acquire)) {
+    if (normB != static_cast<uint32_t>(*(_normB))) {
         normB = static_cast<uint32_t>(*(_normB));
-        engine.bufsize = n_samples;
         engine._cd.fetch_add(2, std::memory_order_relaxed);
         engine.conv1.set_normalisation(normB);
         if (engine.ir_file1.compare("None") != 0) {
-            engine._execute.store(true, std::memory_order_release);
-            engine.xrworker.runProcess();
-            _restore.store(false, std::memory_order_release);
+            if (!doit) doit = true;
         }
     }
     // init buffer for background processing when needed
-    if (!engine.bufferIsInit.load(std::memory_order_acquire) && !engine._execute.load(std::memory_order_acquire)) {
+    if (!engine.bufferIsInit.load(std::memory_order_acquire)) {
+        if (!doit) doit = true;
+    }
+    // run worker thread when needed
+    if (doit && !engine._execute.load(std::memory_order_acquire)) {
         engine._execute.store(true, std::memory_order_release);
         engine.xrworker.runProcess();
-    }
+        doit = false;
+    } 
     // notify UI on changed model files
     if (engine._notify_ui.load(std::memory_order_acquire)) {
         engine._notify_ui.store(false, std::memory_order_release);
@@ -442,7 +431,7 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
         write_set_file(&forge, xlv2_ir_file1, engine.ir_file1.data());
         engine._ab.store(0, std::memory_order_release);
         engine._cd.store(0, std::memory_order_release);
-    }    
+    }
 }
 
 inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
@@ -475,7 +464,7 @@ void Xratatouille::connect_all__ports(uint32_t port, void* data)
     connect_(port,data);
     engine.slotA.connect(port,data);
     engine.slotB.connect(port,data);
-    engine.cdelay->connect(port, data);
+   // engine.cdelay->connect(port, data);
 }
 
 // write file path to state

@@ -23,7 +23,9 @@
 
 <rata:me>
    a foaf:Person ;
-   foaf:name "brummer" .
+   foaf:name "brummer" ;
+   foaf:mbox <mailto:brummer@web.de> ;
+   foaf:homepage <https://github.com/brummer10> .
 
 rata:Neural_Model
     a lv2:Parameter ;
@@ -56,15 +58,16 @@ rata:irfile1
    doap:name "Ratatouille" ;
    doap:license <https://spdx.org/licenses/BSD-3-Clause> ;
    lv2:project <urn:brummer:ratatouille> ;
-   lv2:optionalFeature lv2:hardRTCapable ,
-       opts:options ;
+   lv2:optionalFeature lv2:hardRTCapable ;
    lv2:requiredFeature urid:map ,
        bufsz:boundedBlockLength ,
-       work:schedule ;
+       work:schedule ,
+       opts:options ;
+   opts:supportedOption bufsz:maxBlockLength ;
    lv2:extensionData work:interface ,
                     state:interface ;
    lv2:minorVersion 9 ;
-   lv2:microVersion 5 ;
+   lv2:microVersion 9 ;
 
 guiext:ui <urn:brummer:ratatouille_ui> ;
 

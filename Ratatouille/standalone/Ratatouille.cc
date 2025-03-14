@@ -118,7 +118,7 @@ public:
             {
                 engine.delay = value;
                 engine.cdelay->delay = value;
-            {
+            }
             break;
             case 9:
             {

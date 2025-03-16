@@ -109,6 +109,7 @@ public:
     float                        phase_cor;
     float                        buffered;
     float                        latency;
+    float                        XrunCounter;
 
     int32_t                      normSlotA;
     int32_t                      normSlotB;
@@ -235,6 +236,7 @@ inline void Engine::init(uint32_t rate, int32_t rt_prio_, int32_t rt_policy_) {
     phase_cor = 0;
     buffered = 0.0;
     latency = 0.0;
+    XrunCounter = 0.0;
 
     model_file = "None";
     model_file1 = "None";
@@ -449,13 +451,15 @@ inline void Engine::processDsp(uint32_t n_samples, float* output)
             pro.setProcessor(0);
             pro.runProcess();
         } else {
+            XrunCounter += 1;
+            _notify_ui.store(true, std::memory_order_release);
             //lv2_log_error(&logger,"thread RT missing deadline\n");
-            if (!_execute.load(std::memory_order_acquire)) {
+            /*if (!_execute.load(std::memory_order_acquire)) {
                 _ab.store(2, std::memory_order_release);
                  model_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }
+            }*/
             //processSlotB();
         }
     }
@@ -469,13 +473,15 @@ inline void Engine::processDsp(uint32_t n_samples, float* output)
     //wait for parallel processed slot B when needed
     if (_neuralB.load(std::memory_order_acquire)) {
         if (!pro.processWait()) {
+            XrunCounter += 1;
+            _notify_ui.store(true, std::memory_order_release);
             //lv2_log_error(&logger,"thread RT missing wait\n");
-            if (!_execute.load(std::memory_order_acquire)) {
+            /*if (!_execute.load(std::memory_order_acquire)) {
                 _ab.store(2, std::memory_order_release);
                  model_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }            
+            }*/
         }
     }
 
@@ -515,13 +521,15 @@ inline void Engine::processDsp(uint32_t n_samples, float* output)
             pro.setProcessor(1);
             pro.runProcess();
         } else {
+            XrunCounter += 1;
+            _notify_ui.store(true, std::memory_order_release);
             //lv2_log_error(&logger,"thread RT (conv) missing deadline\n");
-            if (!_execute.load(std::memory_order_acquire)) {
+            /*if (!_execute.load(std::memory_order_acquire)) {
                 _cd.store(2, std::memory_order_release);
                  ir_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }
+            }*/
             //processConv1();
         }
     }
@@ -533,13 +541,15 @@ inline void Engine::processDsp(uint32_t n_samples, float* output)
     // wait for parallel processed conv1 when needed
     if (!_execute.load(std::memory_order_acquire) && conv1.is_runnable()) {
         if (!pro.processWait()) {
+            XrunCounter += 1;
+            _notify_ui.store(true, std::memory_order_release);
             //lv2_log_error(&logger,"thread RT (conv) missing wait\n");
-            if (!_execute.load(std::memory_order_acquire)) {
+            /*if (!_execute.load(std::memory_order_acquire)) {
                 _cd.store(2, std::memory_order_release);
                  ir_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }
+            }*/
         }
     }
 
@@ -574,15 +584,17 @@ inline void Engine::process(uint32_t n_samples, float* output) {
         }
         // get the buffer from previous process
         if (!par.processWait()) {
+            XrunCounter += 1;
+            _notify_ui.store(true, std::memory_order_release);
            // lv2_log_error(&logger,"thread RTBUF missing wait\n");
             // if deadline was missing, erase models from processing
-            if (!_execute.load(std::memory_order_acquire)) {
+            /*if (!_execute.load(std::memory_order_acquire)) {
                 _ab.store(3, std::memory_order_release);
                  model_file = "None";
                  model_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }
+            }*/
         }
         // copy incoming data to internal input buffer
         memcpy(bufferinput0, output, n_samples*sizeof(float));
@@ -596,15 +608,17 @@ inline void Engine::process(uint32_t n_samples, float* output) {
         // process data in background thread
         if (par.getProcess()) par.runProcess();
         else {
-           // lv2_log_error(&logger,"thread RTBUF missing deadline\n");
+            XrunCounter += 1;
+            _notify_ui.store(true, std::memory_order_release);
+            // lv2_log_error(&logger,"thread RTBUF missing deadline\n");
             // if deadline was missing, erase models from processing
-            if (!_execute.load(std::memory_order_acquire)) {
+           /* if (!_execute.load(std::memory_order_acquire)) {
                 _ab.store(3, std::memory_order_release);
                  model_file = "None";
                  model_file1 = "None";
                 _execute.store(true, std::memory_order_release);
                 xrworker.runProcess();
-            }
+            }*/
         }
         latency = n_samples;
     } else {

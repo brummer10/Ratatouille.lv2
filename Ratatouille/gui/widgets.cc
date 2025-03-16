@@ -669,7 +669,8 @@ void draw_my_label(void *w_, void* user_data) {
     cairo_text_extents_t extents;
     char s[64];
     float value = adj_get_value(w->adj);
-    snprintf(s, 63,"Latency: %.2fms",  value);
+    if (w->data == 22) snprintf(s, 63,"Latency: %.2fms",  value);
+    else snprintf(s, 63,"Xruns: %.0f",  value);
     cairo_select_font_face (w->crb, "Sans", CAIRO_FONT_SLANT_NORMAL,
                                CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size (w->crb, w->app->small_font/w->scale.ascale);

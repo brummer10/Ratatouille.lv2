@@ -63,6 +63,7 @@ private:
     float*                       _latencyms;
     float*                       _buffered;
     float*                       _phasecor;
+    float*                       _xrun;
     uint32_t                     s_rate;
     double                       s_time;
     int                          processCounter;
@@ -147,7 +148,8 @@ Xratatouille::Xratatouille() :
     _latency(0),
     _latencyms(0),
     _buffered(0),
-    _phasecor(0) {
+    _phasecor(0),
+    _xrun(0) {
 };
 
 // destructor
@@ -242,6 +244,9 @@ void Xratatouille::connect_(uint32_t port,void* data)
             break;
         case 22:
             _latencyms = static_cast<float*>(data);
+            break;
+        case 23:
+            _xrun = static_cast<float*>(data);
             break;
         default:
             break;
@@ -456,14 +461,15 @@ inline void Xratatouille::runBufferedDsp(uint32_t n_samples)
     // report lanency
     *(_latency) = engine.latency;
     *(_latencyms) = engine.latency * s_time;
+    *(_xrun) = engine.XrunCounter;
 }
 
 void Xratatouille::connect_all__ports(uint32_t port, void* data)
 {
     // connect the Ports used by the plug-in class
     connect_(port,data);
-    engine.slotA.connect(port,data);
-    engine.slotB.connect(port,data);
+   // engine.slotA.connect(port,data);
+   // engine.slotB.connect(port,data);
    // engine.cdelay->connect(port, data);
 }
 
@@ -558,15 +564,15 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
     }
 
     if (!self->schedule) {
-        lv2_log_error(&self->logger, "Missing feature work:schedule.\n");
+        fprintf(stderr,"Missing feature work:schedule.\n");
         self->engine._execute.store(true, std::memory_order_release);
     }
 
     if (!self->map) {
-        lv2_log_error(&self->logger, "Missing feature uri:map.\n");
+        fprintf(stderr,"Missing feature uri:map.\n");
     }
     else if (!options) {
-        lv2_log_error(&self->logger, "Missing feature options.\n");
+        fprintf(stderr,"Missing feature options.\n");
     }
     else {
         LV2_URID bufsz_max = self->map->map(self->map->handle, LV2_BUF_SIZE__maxBlockLength);
@@ -593,10 +599,10 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
         }
 
         if (bufsize == 0) {
-            lv2_log_error(&self->logger, "No maximum buffer size given.\n");
+            fprintf(stderr,"No maximum buffer size given.\n");
         } else {
             self->engine.bufsize = bufsize;
-            lv2_log_note(&self->logger, "using block size: %d\n", bufsize);
+            fprintf(stderr, "using block size: %d\n", bufsize);
         }
     }
 

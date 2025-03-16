@@ -179,6 +179,7 @@ void plugin_create_controller_widgets(X11_UI *ui, const char * plugin_uri) {
     ui->widget[15] = add_lv2_switch (ui->widget[15], ui->win, 20, "Buffer", ui, 50,  22, 30, 30);
 
     ui->widget[17] = add_lv2_label (ui->widget[17], ui->win, 22, "Latency", ui, 115,  22, 130, 30);
+    ui->widget[18] = add_lv2_label (ui->widget[18], ui->win, 23, "Xrun", ui, 510,  205, 100, 30);
 
     ui->widget[16] = add_lv2_switch (ui->widget[16], ui->win, 21, "Phase", ui, 90,  22, 30, 30);
     ui->widget[10] = add_lv2_switch (ui->widget[10], ui->win, 14, "", ui, 505,  22, 50, 50);

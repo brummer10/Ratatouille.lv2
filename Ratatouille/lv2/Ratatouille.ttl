@@ -306,6 +306,15 @@ and moves the complete processing into a background thread, that reduce the CPU 
       lv2:name "Latency ms" ;
       lv2:minimum 0.0 ;
       lv2:maximum 171.0 ;
+    ], [
+      a lv2:OutputPort,
+           lv2:ControlPort ;
+      lv2:index 23 ;
+      lv2:portProperty lv2:integer ;
+      lv2:symbol "Xrun" ;
+      lv2:name "Xrun " ;
+      lv2:minimum 0 ;
+      lv2:maximum 192000 ;
     ].
 
 <urn:brummer:ratatouille_ui>

@@ -425,6 +425,7 @@ private:
             get_file(engine.ir_file, &ps->ir);
             get_file(engine.ir_file1, &ps->ir1);
             adj_set_value(ui->widget[17]->adj,(float) engine.latency * s_time);
+            adj_set_value(ui->widget[18]->adj,(float) engine.XrunCounter);
             expose_widget(ui->win);
             engine._ab.store(0, std::memory_order_release);
             engine._cd.store(0, std::memory_order_release);

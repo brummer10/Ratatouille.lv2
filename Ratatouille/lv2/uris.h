@@ -51,7 +51,7 @@ public:
     LV2_Atom_Forge               forge;
     LV2_Atom_Forge_Frame         notify_frame;
     LV2_Log_Log*                 log;
-    LV2_Log_Logger               logger;
+    LV2_Log_Logger*              logger;
 
     LV2_URID                     xlv2_model_file;
     LV2_URID                     xlv2_model_file1;

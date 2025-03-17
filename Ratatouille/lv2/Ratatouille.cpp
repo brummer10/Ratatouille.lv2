@@ -150,6 +150,12 @@ Xratatouille::Xratatouille() :
     _buffered(0),
     _phasecor(0),
     _xrun(0) {
+        map = nullptr;
+        schedule = nullptr;
+        control = nullptr;
+        notify = nullptr;
+        log = nullptr;
+        logger = nullptr;
 };
 
 // destructor
@@ -559,25 +565,30 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
         }
     }
 
+    if (!self->map) {
+        fprintf(stderr,"Missing required feature uri:map.\n EXIT here!!\n");
+        cleanup((LV2_Handle)self);
+        return nullptr;
+    } else {
+        self->map_uris(self->map);
+    }
+
     if (self->log) {
-        lv2_log_logger_init(&self->logger, self->map, self->log);
+        lv2_log_logger_init(self->logger, self->map, self->log);
     }
 
     if (!self->schedule) {
         fprintf(stderr,"Missing feature work:schedule.\n");
-        self->engine._execute.store(true, std::memory_order_release);
+        //self->engine._execute.store(true, std::memory_order_release);
     }
 
-    if (!self->map) {
-        fprintf(stderr,"Missing feature uri:map.\n");
-    }
-    else if (!options) {
+    if (!options) {
         fprintf(stderr,"Missing feature options.\n");
     }
     else {
         LV2_URID bufsz_max = self->map->map(self->map->handle, LV2_BUF_SIZE__maxBlockLength);
         LV2_URID bufsz_    = self->map->map(self->map->handle,"http://lv2plug.in/ns/ext/buf-size#nominalBlockLength");
-        LV2_URID atom_Int = self->map->map(self->map->handle, LV2_ATOM__Int);
+        LV2_URID atom_Int  = self->map->map(self->map->handle, LV2_ATOM__Int);
         LV2_URID tshed_pol = self->map->map (self->map->handle, "http://ardour.org/lv2/threads/#schedPolicy");
         LV2_URID tshed_pri = self->map->map (self->map->handle, "http://ardour.org/lv2/threads/#schedPriority");
 
@@ -606,7 +617,6 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
         }
     }
 
-    self->map_uris(self->map);
     lv2_atom_forge_init(&self->forge, self->map);
     self->init_dsp_((uint32_t)rate);
 

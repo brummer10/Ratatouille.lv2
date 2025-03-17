@@ -155,7 +155,7 @@ Xratatouille::Xratatouille() :
         control = nullptr;
         notify = nullptr;
         log = nullptr;
-        logger = nullptr;
+        memset(&logger,0,sizeof(logger));
 };
 
 // destructor
@@ -574,16 +574,16 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
     }
 
     if (self->log) {
-        lv2_log_logger_init(self->logger, self->map, self->log);
+        lv2_log_logger_init(&self->logger, self->map, self->log);
     }
 
     if (!self->schedule) {
-        fprintf(stderr,"Missing feature work:schedule.\n");
+        lv2_log_error(&self->logger, "Missing feature work:schedule.\n");
         //self->engine._execute.store(true, std::memory_order_release);
     }
 
     if (!options) {
-        fprintf(stderr,"Missing feature options.\n");
+        lv2_log_error(&self->logger, "Missing feature options.\n");
     }
     else {
         LV2_URID bufsz_max = self->map->map(self->map->handle, LV2_BUF_SIZE__maxBlockLength);
@@ -610,10 +610,10 @@ Xratatouille::instantiate(const LV2_Descriptor* descriptor,
         }
 
         if (bufsize == 0) {
-            fprintf(stderr,"No maximum buffer size given.\n");
+            lv2_log_error(&self->logger, "No maximum buffer size given.\n");
         } else {
             self->engine.bufsize = bufsize;
-            fprintf(stderr, "using block size: %d\n", bufsize);
+            lv2_log_note(&self->logger, "using block size: %d\n", bufsize);
         }
     }
 

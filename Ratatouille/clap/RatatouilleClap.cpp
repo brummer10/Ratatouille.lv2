@@ -1,5 +1,5 @@
 /*
- * Ratatouille.cpp
+ * RatatouilleClap.cpp
  *
  * SPDX-License-Identifier:  BSD-3-Clause
  *
@@ -62,7 +62,7 @@ void sendFileName(X11_UI *ui, ModelPicker* m, int old){
 // Audio Ports
 static uint32_t audio_ports_count(const clap_plugin_t *plugin, bool is_input) {
     if (is_input) return 1; // 1 input
-    else return 2; // and 2 output
+    else return 1; // and 1 output
 }
 
 static bool audio_ports_get(const clap_plugin_t *plugin, uint32_t index, bool is_input, clap_audio_port_info_t *info) {
@@ -330,7 +330,7 @@ static const clap_plugin_descriptor_t ratatouille_descriptor = {
     .url = "https://github.com/brummer10/Ratatouille",
     .manual_url = "https://github.com/brummer10/Ratatouille",
     .support_url = "https://github.com/brummer10/Ratatouille",
-    .version = "0.1.7",
+    .version = "0.9.11",
     .description = "CLAP plugin wrapper for Ratatouille",
     .features = (const char *[]){ CLAP_PLUGIN_FEATURE_AUDIO_EFFECT, NULL },
 };

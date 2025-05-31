@@ -29,6 +29,7 @@ public:
 };
 
 Dsp::Dsp() {
+    fHslider0 = 0.0;
 }
 
 Dsp::~Dsp() {
@@ -49,7 +50,6 @@ inline void Dsp::init(uint32_t sample_rate)
 {
 	fSampleRate = sample_rate;
 	clear_state_f();
-    fHslider0 = 0.0;
 }
 
 void Dsp::compute(int count, float *input0, float *output0)

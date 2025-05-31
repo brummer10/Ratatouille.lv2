@@ -60,6 +60,44 @@ jobs:
           lto: false
           pawpaw: true
 
+  linux-clap:
+    strategy:
+      matrix:
+        target: [linux-x86_64]
+    runs-on: ubuntu-latest
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions
+        with:
+          target: ${{ matrix.target }}
+          postfix: -clap
+          extraargs: clap
+          lto: false
+          pawpaw: true
+
+  linux-vst:
+    strategy:
+      matrix:
+        target: [linux-x86_64]
+    runs-on: ubuntu-latest
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions
+        with:
+          target: ${{ matrix.target }}
+          postfix: -vst2
+          extraargs: vst2
+          lto: false
+          pawpaw: true
+
   linux-standalone:
     strategy:
       matrix:
@@ -95,6 +133,42 @@ jobs:
           target: ${{ matrix.target }}
           postfix: -v3
           extraargs: modapp
+          pawpaw: true
+
+  windows-clap:
+    strategy:
+      matrix:
+        target: [win64]
+    runs-on: ubuntu-latest
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions
+        with:
+          target: ${{ matrix.target }}
+          postfix: -clap
+          extraargs: clap
+          pawpaw: true
+
+  windows-vst:
+    strategy:
+      matrix:
+        target: [win64]
+    runs-on: ubuntu-latest
+    permissions:
+        contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions
+        with:
+          target: ${{ matrix.target }}
+          postfix: -vst2
+          extraargs: vst2
           pawpaw: true
 
   windows:

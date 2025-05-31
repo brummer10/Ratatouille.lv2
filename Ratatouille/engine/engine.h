@@ -229,8 +229,8 @@ inline void Engine::init(uint32_t rate, int32_t rt_prio_, int32_t rt_policy_) {
     inputGain = 0.0;
     inputGain1 = 0.0;
     outputGain = 0.0;
-    blend = 0.0;
-    mix = 0.0;
+    blend = 0.5;
+    mix = 0.5;
     delay = 0.0;
     phasecor_ = 0.0;
     phase_cor = 0;

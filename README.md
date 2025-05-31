@@ -58,7 +58,17 @@ To build Ratatouille only as standalone application run
 make standalone
 ```
 
-To build Ratatouille with all favours (currently as LV2 plugin with included MOD GUI and as standalone application) run
+To build Ratatouille only as Clap plugin run
+```shell
+make clap
+```
+
+To build Ratatouille only as vst plugin run
+```shell
+make vst2
+```
+
+To build Ratatouille with all favours (currently as LV2 plugin with included MOD GUI, as Clap plugin, as vst2 plugin, and as standalone application) run
 ```shell
 make
 ```

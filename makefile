@@ -1,9 +1,9 @@
 
 include libxputty/Build/Makefile.base
 
-NOGOAL := install all features mod modapp standalone lv2 jack
+NOGOAL := install all features mod modapp standalone lv2 jack clap vst2
 
-SWITCHGOAL := all modapp standalone lv2 jack
+SWITCHGOAL := all modapp standalone lv2 jack clap vst2
 
 PASS := features 
 

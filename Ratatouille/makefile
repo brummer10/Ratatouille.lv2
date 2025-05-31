@@ -10,9 +10,13 @@
 	ifeq ($(user),root)
 	INSTALL_DIR = /usr/lib/lv2
 	EXE_INSTALL_DIR = /usr/bin
+	CLAP_INSTAL_DIR = /usr/lib/clap
+	VST2_INSTAL_DIR = /usr/lib/vst
 	else 
 	INSTALL_DIR = ~/.lv2
 	EXE_INSTALL_DIR = ~/bin
+	CLAP_INSTAL_DIR = ~/.clap
+	VST2_INSTAL_DIR = ~/.vst
 	endif
 
 
@@ -164,6 +168,14 @@ endif
 	ENGINE_DIR := ./engine/
 	ENGINE_INCLUDE := -I./engine/
 
+	CLAP_DIR := ./clap/
+	CLAP_INCLUDE := -I./engine/ -I./clap/clap/ -I./clap/
+	CLAP_SOURCES := $(CLAP_DIR)RatatouilleClap.cpp
+
+	VST2_DIR := ./vst2/
+	VST2_INCLUDE := -I./engine/ -I./clap/ -I./vst2/
+	VST2_SOURCES := $(VST2_DIR)Ratatouillevst.cpp
+
 	LV2_DIR := ./lv2/
 	LV2_INCLUDE := -I./lv2/
 
@@ -212,6 +224,8 @@ ifeq (,$(filter uninstall,$(MAKECMDGOALS)))
 ifeq (,$(filter mod,$(MAKECMDGOALS)))
 ifeq (,$(filter modapp,$(MAKECMDGOALS)))
 ifeq (,$(filter lv2,$(MAKECMDGOALS)))
+ifeq (,$(filter clap,$(MAKECMDGOALS)))
+ifeq (,$(filter vst2,$(MAKECMDGOALS)))
 	INFOSTRING = with
 	HAVEJACK = $(shell $(PKGCONFIG) $(PKGCONFIG_FLAGS) --cflags  --libs jack 2>/dev/null)
 	ifneq ($(HAVEJACK), )
@@ -232,6 +246,8 @@ ifeq (,$(filter lv2,$(MAKECMDGOALS)))
     else
     $(info $(yellow) INFO: $(reset)Stand-alone   $(red)not supported$(reset))
 	endif
+endif
+endif
 endif
 endif
 endif
@@ -331,7 +347,7 @@ endif
 
 .NOTPARALLEL:
 
-all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT) modapp standalone
+all: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT) modapp standalone clap vst2
 
 lv2: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"
@@ -387,6 +403,16 @@ ifneq ($(JACKFLAGS), )
 	$(QUIET)cp ./$(EXEC_NAME)$(EXE_EXT) ../bin/
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 endif
+
+vst2: $(NAME)vst.$(LIB_EXT)
+	$(QUIET)mkdir -p ../bin/
+	$(QUIET)cp ./$(NAME)vst.$(LIB_EXT) ../bin/
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
+
+clap: $(NAME).clap
+	$(QUIET)mkdir -p ../bin/
+	$(QUIET)cp ./$(NAME).clap ../bin/
+	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
 -include $(DEPS)
 
@@ -460,6 +486,22 @@ ifneq ($(JACKFLAGS), )
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)$(EXE_EXT)
 endif
 
+$(NAME)vst.$(LIB_EXT): $(VST2_SOURCES) $(CLAP_DIR)$(NAME).cc $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
+	@$(B_ECHO) "Compiling $(NAME)vst.$(LIB_EXT) $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) -Wno-multichar $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) $(VST2_INCLUDE) $(VST2_SOURCES)  \
+	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(GUI_LDFLAGS) $(LDFLAGS) -o $(NAME)vst.$(LIB_EXT)
+ifeq (,$(filter yes,$(DEBUG)))
+	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(NAME)vst.$(LIB_EXT)
+endif
+
+$(NAME).clap: $(CLAP_SOURCES) $(CLAP_DIR)$(NAME).cc $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
+	@$(B_ECHO) "Compiling $(NAME).clap $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) $(CLAP_INCLUDE) $(CLAP_SOURCES)  \
+	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(GUI_LDFLAGS) $(LDFLAGS) -o $(NAME).clap
+ifeq (,$(filter yes,$(DEBUG)))
+	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(NAME).clap
+endif
+
 
 install :
 ifeq ($(TARGET), Linux)
@@ -487,6 +529,20 @@ ifneq ("$(wildcard ../bin/$(EXEC_NAME)$(EXE_EXT))","")
 else
 	@$(B_ECHO) "$(EXEC_NAME)$(EXE_EXT) standalone skipped$(reset)"
 endif
+ifneq ("$(wildcard ../bin/$(NAME).clap)","")
+	@$(B_ECHO) "Install  $(NAME).clap to $(DESTDIR)$(CLAP_INSTAL_DIR)/$(reset)"
+	$(QUIET)mkdir -p $(DESTDIR)$(CLAP_INSTAL_DIR)/
+	$(QUIET)cp -r ../bin/$(NAME).clap $(DESTDIR)$(CLAP_INSTAL_DIR)/$(NAME).clap
+else
+	@$(B_ECHO) "$(NAME).clap Clap skipped$(reset)"
+endif
+ifneq ("$(wildcard ../bin/$(NAME)vst.$(LIB_EXT))","")
+	@$(B_ECHO) "Install  $(NAME)vst.$(LIB_EXT) to $(DESTDIR)$(VST2_INSTAL_DIR)/$(reset)"
+	$(QUIET)mkdir -p $(DESTDIR)$(VST2_INSTAL_DIR)/
+	$(QUIET)cp -r ../bin/$(NAME)vst.$(LIB_EXT) $(DESTDIR)$(VST2_INSTAL_DIR)/$(NAME)vst.$(LIB_EXT)
+else
+	@$(B_ECHO) "$(NAME)vst.$(LIB_EXT) vst2 skipped$(reset)"
+endif
 
 else
 	$(QUIET)$(R_ECHO) "Install is not implemented for windows, please copy the folder $(NAME).lv2 to Program Files/Common Files/LV2$(reset)"
@@ -496,9 +552,10 @@ uninstall :
 ifeq ($(TARGET), Linux)
 	@$(B_ECHO) "Uninstall $(NAME).lv2 $(reset)"
 	$(QUIET)rm -rf $(INSTALL_DIR)/$(BUNDLE)
-	$(QUIET)echo ". ., done"
-
+	$(QUIET)rm -rf $(DESTDIR)$(CLAP_INSTAL_DIR)/$(NAME)clap.clap
+	$(QUIET)rm -rf $(DESTDIR)$(VST2_INSTAL_DIR)/$(NAME)vst.so
 	$(QUIET)rm -rf $(DESTDIR)$(EXE_INSTALL_DIR)/$(EXEC_NAME)
+	$(QUIET)echo ". ., done"
   ifeq ($(user),root)
 	$(QUIET)rm -rf $(DESTDIR)$(DESKAPPS_DIR)/$(EXEC_NAME).desktop
 	$(QUIET)rm -rf $(DESTDIR)$(PIXMAPS_DIR)/$(EXEC_NAME).svg
@@ -511,7 +568,7 @@ clean:
 ifndef EXTRAQUIET
 	@$(ECHO) ". ., clean up$(reset)"
 endif
-	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll $(EXEC_NAME) $(EXEC_NAME).exe
+	$(QUIET)rm -f *.a  *.lib *.o *.d *.so *.dll $(EXEC_NAME) $(EXEC_NAME).exe *.clap
 	$(QUIET)rm -f $(RESAMP_DIR)*.a $(RESAMP_DIR)*.lib $(RESAMP_DIR)*.o $(RESAMP_DIR)*.d
 	$(QUIET)rm -f $(CONV_DIR)*.a $(CONV_DIR)*.lib $(CONV_DIR)*.o $(CONV_DIR)*.d
 	$(QUIET)rm -f $(NAM_DIR)*.a $(NAM_DIR)*.lib $(NAM_DIR)*.o $(NAM_DIR)*.d

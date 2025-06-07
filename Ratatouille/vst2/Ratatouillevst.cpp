@@ -43,23 +43,8 @@ struct ratatouille_plugin_t {
     float SampleRate;
     std::string state;
     bool isInited;
+    bool guiIsCreated;
 };
-
-/****************************************************************
- ** connect value change messages from the GUI to the engine
- */
-
-// send value changes from GUI to the engine
-void sendValueChanged(X11_UI *ui, int port, float value) {
-    Ratatouille *r = (Ratatouille*)ui->win->private_struct;
-    r->sendValueChanged(port, value);
-}
-
-// send a file name from GUI to the engine
-void sendFileName(X11_UI *ui, ModelPicker* m, int old){
-    Ratatouille *r = (Ratatouille*)ui->win->private_struct;
-    r->sendFileName(m, old);
-}
 
 /****************************************************************
  ** Parameter handling not used here
@@ -152,11 +137,17 @@ static intptr_t dispatcher(AEffect* effect, int32_t opCode, int32_t index, intpt
             plug->r->enableEngine(1);
             plug->r->setParent(hostWin);
             plug->r->showGui();
+            plug->guiIsCreated = true;
             break;
         }
-        case effEditClose:
+        case effEditClose: {
+            if (plug->guiIsCreated) {
+                plug->r->cleanup();
+                plug->r->quitMain();
+            }
             plug->r->quitGui();
             break;
+        }
         case effEditIdle:
             break;
         //case effGetProgram:
@@ -195,6 +186,7 @@ AEffect* VSTPluginMain(audioMasterCallback audioMaster) {
     plug->editorRect = {0, 0, (short) plug->height, (short) plug->width};
     plug->SampleRate = 48000.0;
     plug->isInited = false;
+    plug->guiIsCreated = false;
 
     effect->magic = kEffectMagic;
     effect->dispatcher = dispatcher;

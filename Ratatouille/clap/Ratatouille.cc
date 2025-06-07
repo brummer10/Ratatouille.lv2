@@ -21,6 +21,7 @@
 
 #include "engine.h"
 #include "ParallelThread.h"
+#include "Parameter.h"
 #define CLAPPLUG
 #include "Ratatouille.c"
 
@@ -28,8 +29,9 @@ class Ratatouille
 {
 public:
     Widget_t*               TopWin;
+    Params                  param;
 
-    Ratatouille() : engine() {
+    Ratatouille() : engine(), param() {
         workToDo.store(false, std::memory_order_release);
         s_time = 0.0;
         engine.cdelay->delay = 0.0;
@@ -42,6 +44,7 @@ public:
         ui->f_index = 0;
         firstLoop = true;
         p = 0;
+        registerParameters();
         for(int i = 0;i<CONTROLS;i++)
             ui->widget[i] = NULL;
     }
@@ -51,6 +54,20 @@ public:
         free(ui->private_ptr);
         free(ui);
         //cleanup();
+    }
+
+    void registerParameters() {
+        param.registerParam("Input A", "Main", -20.0, 20.0, 0.0, 0.2, (void*)&engine.inputGain, false, Is_FLOAT);
+        param.registerParam("Input B", "Main", -20.0, 20.0, 0.0, 0.2, (void*)&engine.inputGain1, false, Is_FLOAT);
+        param.registerParam("Blend(A|B)", "Main", 0.0, 1.0, 0.5, 0.01, (void*)&engine.blend, false, Is_FLOAT);
+        param.registerParam("Delay(Δ)", "Main", -4096.0, 4096.0, 0.0, 16.0, (void*)&engine.delay, false, Is_FLOAT);
+        param.registerParam("Mix(IR)", "Main", 0.0, 1.0, 0.5, 0.01, (void*)&engine.mix, false, Is_FLOAT);
+        param.registerParam("Output", "Main", -20.0, 20.0, 0.0, 0.2, (void*)&engine.outputGain, false, Is_FLOAT);
+        param.registerParam("Phase Correction", "Main", 0.0, 1.0, 0.0, 1.0, (void*)&engine.phasecor_, true, Is_FLOAT);
+        param.registerParam("Buffer", "Main", 0.0, 1.0, 0.0, 1.0, (void*)&engine.buffered, true, Is_FLOAT);
+        param.registerParam("Norm SlotA", "Main", 0.0, 1.0, 0.0, 1.0, (void*)&engine.normSlotA, true, IS_INT);
+        param.registerParam("Norm SlotB", "Main", 0.0, 1.0, 0.0, 1.0, (void*)&engine.normSlotB, true, IS_INT);
+        param.registerParam("Enable", "Main", 0.0, 1.0, 1.0, 1.0, (void*)&engine.bypass, true, IS_UINT);
     }
 
     void startGui(Window window) {
@@ -134,6 +151,10 @@ public:
         (*latency) = static_cast<uint32_t>(engine.latency);
     }
 
+    void quitMain() {
+        main_quit(&ui->main);
+    }
+
     void hideGui() {
         widget_hide(TopWin);
         firstLoop = false;
@@ -150,6 +171,10 @@ public:
             firstLoop = false;
         }
         run_embedded(&ui->main);
+        if (param.paramChanged.load(std::memory_order_acquire)) {
+            getEngineValues();
+            param.paramChanged.store(false, std::memory_order_release);
+        }
     }
 
     // timeout loop to check output ports from engine
@@ -243,7 +268,7 @@ public:
                 engine.normSlotB = static_cast<int32_t>(value);
             break;
             case 14:
-                engine.bypass = static_cast<int32_t>(value);
+                engine.bypass = static_cast<uint32_t>(value);
             break;
             case 15:
             {
@@ -288,6 +313,7 @@ public:
             default:
             break;
         }
+        param.controllerChanged.store(true, std::memory_order_release);
     }
 
     // send a file name from GUI to the engine
@@ -459,8 +485,8 @@ public:
 
     void cleanup() {
         plugin_cleanup(ui);
-        // Xputty free all memory used
-        // main_quit(&ui->main);
+        free(ui->private_ptr);
+        ui->private_ptr = NULL;
     }
 
 private:
@@ -518,3 +544,20 @@ private:
     }
 
 };
+
+
+/****************************************************************
+ ** connect value change messages from the GUI to the engine
+ */
+
+// send value changes from GUI to the engine
+void sendValueChanged(X11_UI *ui, int port, float value) {
+    Ratatouille *r = (Ratatouille*)ui->win->private_struct;
+    r->sendValueChanged(port, value);
+}
+
+// send a file name from GUI to the engine
+void sendFileName(X11_UI *ui, ModelPicker* m, int old){
+    Ratatouille *r = (Ratatouille*)ui->win->private_struct;
+    r->sendFileName(m, old);
+}

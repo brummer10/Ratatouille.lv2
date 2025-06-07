@@ -39,21 +39,110 @@ typedef struct {
 
 
 /****************************************************************
- ** connect value change messages from the GUI to the engine
+ ** Parameter handling
  */
 
-// send value changes from GUI to the engine
-void sendValueChanged(X11_UI *ui, int port, float value) {
-    Ratatouille *r = (Ratatouille*)ui->win->private_struct;
-    r->sendValueChanged(port, value);
+
+static uint32_t params_count(const clap_plugin_t* plugin) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    return (uint32_t)plug->r->param.parameter.size();
 }
 
-// send a file name from GUI to the engine
-void sendFileName(X11_UI *ui, ModelPicker* m, int old){
-    Ratatouille *r = (Ratatouille*)ui->win->private_struct;
-    r->sendFileName(m, old);
+static bool params_get_info(const clap_plugin_t* plugin, uint32_t param_index, clap_param_info_t* param_info) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    if (param_index >= plug->r->param.parameter.size()) return false;
+    const auto& def = plug->r->param.parameter[param_index];
+    memset(param_info, 0, sizeof(*param_info));
+    param_info->id = def.id;
+    strncpy(param_info->name, def.name.c_str(), CLAP_NAME_SIZE-1);
+    strncpy(param_info->module, def.group.c_str(), CLAP_PATH_SIZE-1);
+    param_info->default_value = def.def;
+    param_info->min_value = def.min;
+    param_info->max_value = def.max;
+    uint32_t flags = CLAP_PARAM_IS_AUTOMATABLE;
+    if (def.isStepped) flags |= CLAP_PARAM_IS_STEPPED;
+    param_info->flags = flags;
+    param_info->cookie = nullptr;
+    return true;
 }
 
+static bool params_get_value(const clap_plugin_t* plugin, clap_id param_id, double* value) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    if (param_id < 0 || param_id >= plug->r->param.parameter.size()) return false;
+    *value = plug->r->param.getParam(param_id);
+    return true;
+}
+
+static bool params_value_to_text(const clap_plugin_t* plugin, clap_id param_id, double value, char* out, uint32_t size) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    if (param_id < 0 || param_id >= plug->r->param.parameter.size()) return false;
+    snprintf(out, size, "%.2f", value);
+    return true;
+}
+
+static bool params_text_to_value(const clap_plugin_t* plugin, clap_id param_id, const char* text, double* out_value) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    if (param_id < 0 || param_id >= plug->r->param.parameter.size()) return false;
+    *out_value = atof(text);
+    return true;
+}
+
+static void sync_params_to_plug(const clap_plugin_t *plugin, const clap_event_header_t *hdr) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    if (hdr->space_id == CLAP_CORE_EVENT_SPACE_ID) {
+        switch (hdr->type) {
+            case CLAP_EVENT_PARAM_VALUE: {
+                const clap_event_param_value_t *ev = (const clap_event_param_value_t *)hdr;
+                plug->r->param.setParam(ev->param_id, ev->value);
+                break;
+            }
+        }
+    }
+}
+
+static void sync_params_to_host(const clap_plugin_t *plugin, const clap_output_events_t *out) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    for (uint32_t i = 0; i < plug->r->param.parameter.size(); i++) {
+        clap_event_param_value_t event = {};
+        event.header.size = sizeof(event);
+        event.header.time = 0;
+        event.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+        event.header.type = CLAP_EVENT_PARAM_VALUE;
+        event.header.flags = 0;
+        event.param_id = i;
+        event.cookie = NULL;
+        event.note_id = -1;
+        event.port_index = -1;
+        event.channel = -1;
+        event.key = -1;
+        event.value = plug->r->param.getParam(i);
+        out->try_push(out, &event.header);
+    }
+}
+
+static void params_flush(const clap_plugin_t *plugin,
+                        const clap_input_events_t *in,
+                        const clap_output_events_t *out) {
+    ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    for (uint32_t i = 0; i < in->size(in); ++i) {
+        const clap_event_header_t *ev = in->get(in, i);
+        if (ev->type == CLAP_EVENT_PARAM_VALUE) {
+            auto *p = (const clap_event_param_value_t *)ev;
+            if (p->param_id >= 0 && p->param_id < plug->r->param.parameter.size()) {
+                plug->r->param.setParam(p->param_id, p->value);
+            }
+        }
+    }
+}
+
+const clap_plugin_params_t ratatouille_params = {
+    .count         = params_count,
+    .get_info      = params_get_info,
+    .get_value     = params_get_value,
+    .value_to_text = params_value_to_text,
+    .text_to_value = params_text_to_value,
+    .flush         = params_flush,
+};
 
 /****************************************************************
  ** define the audio ports
@@ -195,6 +284,10 @@ static bool ratatouille_gui_create(const clap_plugin *plugin, const char *api, b
 
 static void ratatouille_gui_destroy(const clap_plugin *plugin) {
     ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
+    if (plug->guiIsCreated) {
+        plug->r->cleanup();
+        plug->r->quitMain();
+    }
     plug->r->quitGui();
     plug->guiIsCreated = false;
 }
@@ -293,6 +386,33 @@ static clap_process_status ratatouille_process(const clap_plugin_t *plugin, cons
     float *input = process->audio_inputs[0].data32[0]; // Mono input channel
     float *output = process->audio_outputs[0].data32[0]; // Mono output
     uint32_t nframes = process->frames_count;
+    const uint32_t nev = process->in_events->size(process->in_events);
+    uint32_t ev_index = 0;
+    uint32_t next_ev_frame = nev > 0 ? 0 : nframes;
+
+    if (plug->r->param.controllerChanged.load(std::memory_order_acquire)) {
+        sync_params_to_host(plugin, process->out_events);
+        plug->r->param.controllerChanged.store(false, std::memory_order_release);
+    }
+
+    for (uint32_t i = 0; i < nframes;++i) {
+        while (ev_index < nev && next_ev_frame == i) {
+            const clap_event_header_t *hdr = process->in_events->get(process->in_events, ev_index);
+            if (hdr->time != i) {
+                next_ev_frame = hdr->time;
+                break;
+            }
+            sync_params_to_plug(plugin, hdr);
+            ++ev_index;
+
+            if (ev_index == nev) {
+                // we reached the end of the event list
+                next_ev_frame = nframes;
+                break;
+            }
+        }
+    }
+
     // in-place processing
     if(output != input)
         memcpy(output, input, nframes*sizeof(float));
@@ -340,6 +460,7 @@ static const void *ratatouille_get_extension(const clap_plugin_t *plugin, const 
     if (!strcmp(id, CLAP_EXT_AUDIO_PORTS)) return &audio_ports;
     if (!strcmp(id, CLAP_EXT_LATENCY)) return &latency_extension;
     if (!strcmp(id, CLAP_EXT_GUI)) return &extensionGUI;
+    if (!strcmp(id, CLAP_EXT_PARAMS)) return &ratatouille_params;
     if (!strcmp(id, CLAP_EXT_STATE)) return &state_extension;
     return NULL;
 }

@@ -20,6 +20,13 @@
 extern "C" {
 #endif
 
+#ifndef LV2LOG
+#define LV2LOG 0
+#endif
+
+#define log_gprint(...) \
+            ((void)((LV2LOG) ? fprintf(stderr, __VA_ARGS__) : 0))
+
 #define CONTROLS 19
 
 #define GUI_ELEMENTS 0

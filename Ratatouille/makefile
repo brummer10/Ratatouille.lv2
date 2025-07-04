@@ -363,6 +363,10 @@ lv2: $(EXEC_NAME).$(LIB_EXT) $(EXEC_NAME)_ui.$(LIB_EXT)
 	fi
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
+lv2log: CXXFLAGS += -DLV2LOG=1 
+lv2log: CFLAGS += -DLV2LOG=1
+lv2log: lv2
+
 mod: $(EXEC_NAME).$(LIB_EXT)
 
 	@$(B_ECHO) "Create $(BUNDLE) $(reset)"

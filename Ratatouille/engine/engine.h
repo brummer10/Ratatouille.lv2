@@ -34,6 +34,13 @@
  #endif //__SSE3__
 #endif //__SSE__
 
+#ifndef LV2LOG
+#define LV2LOG 0
+#endif
+
+#define log_print(...) \
+            ((void)((LV2LOG) ? fprintf(stderr, __VA_ARGS__) : 0))
+
 #include "dcblocker.cc"
 #include "cdelay.cc"
 #include "phasecor.cc"
@@ -285,9 +292,11 @@ void Engine::clean_up()
 inline void Engine::setModel(ModelerSelector *slot,
                 std::string *file, std::atomic<bool> *set) {
     if ((*file).compare(slot->getModelFile()) != 0) {
+        log_print("engine setModel %s\n", (*file).c_str());
         slot->setModelFile(*file);
         if (!slot->loadModel()) {
             *file = "None";
+            log_print("engine setModel fail\n");
             set->store(false, std::memory_order_release);
         } else {
             set->store(true, std::memory_order_release);
@@ -309,9 +318,11 @@ inline void Engine::setIRFile(ConvolverSelector *co, std::string *file) {
 
     if (*file != "None") {
         co->configure(*file, 1.0, 0, 0, 0, 0, 0);
+        log_print("engine setIRFile %s\n", (*file).c_str());
         while (!co->checkstate());
         if(!co->start(rt_prio, rt_policy)) {
             *file = "None";
+            log_print("engine setIRFile fail\n");
            // lv2_log_error(&logger,"impulse convolver update fail\n");
         }
     }

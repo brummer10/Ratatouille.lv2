@@ -94,6 +94,7 @@ void sendFileName(X11_UI *ui, ModelPicker* m, int old) {
         if ( m == &ps->ir) urid = ui->itf.uris.conv_ir_file;
         else urid = ui->itf.uris.conv_ir_file1;
     } else return;
+    log_gprint("GUI sendFileName %s\n", m->filename);
     uint8_t obj_buf[OBJ_BUF_SIZE];
     lv2_atom_forge_set_buffer(&ui->itf.forge, obj_buf, OBJ_BUF_SIZE);
     LV2_Atom* msg = (LV2_Atom*)write_set_file(urid, &ui->itf.forge, &ui->itf.uris, m->filename);
@@ -179,6 +180,7 @@ static inline void get_file(const LV2_Atom* file_uri, X11_UI* ui, ModelPicker *m
         m->filename = strdup("None");
         expose_widget(ui->win);
     }
+    log_gprint("GUI get_file %s\n", m->filename);
 }
 
 void plugin_port_event(LV2UI_Handle handle, uint32_t port_index,

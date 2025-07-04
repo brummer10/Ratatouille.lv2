@@ -31,7 +31,7 @@ struct Parameter {
     double max;         // max value
     double def;         // default value
     double step;        // default step from controller
-    void* value;        // pointer to the variable holding the value
+    void* value;        // void pointer to the variable holding the value
     bool isStepped;     // is parameter toggled or use integer steps 
     int type;           // controller type 0 = float, 1 = double, 2 = int32_t, 3 = uint32_t,
 };

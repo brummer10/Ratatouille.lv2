@@ -285,8 +285,8 @@ static bool ratatouille_gui_create(const clap_plugin *plugin, const char *api, b
 static void ratatouille_gui_destroy(const clap_plugin *plugin) {
     ratatouille_plugin_t *plug = (ratatouille_plugin_t *)plugin->plugin_data;
     if (plug->guiIsCreated) {
-        plug->r->cleanup();
         plug->r->quitMain();
+        plug->r->cleanup();
     }
     plug->r->quitGui();
     plug->guiIsCreated = false;

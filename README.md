@@ -1,4 +1,4 @@
-# Ratatouille.lv2 [![build](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml/badge.svg)](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml)
+# Ratatouille [![build](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml/badge.svg)](https://github.com/brummer10/Ratatouille.lv2/actions/workflows/build.yml)
 
 
 <p align="center">
@@ -32,12 +32,12 @@ Optional, Ratatouille could detect the phase offset and compensate it internal.
 To round up your sound you can load two Impulse Response Files and mix them to your needs.
 IR-files could be normalised on load, so that they didn't influence the loudness. 
 
-Ratatouille.lv2 supports resampling when needed to match the expected sample rate of the 
+Ratatouille supports resampling when needed to match the expected sample rate of the 
 loaded models. Both models and the IR Files may have different expectations regarding the sample rate.
 
 ## Packaging Status
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/ratatouille.lv2.svg?columns=3)](https://repology.org/project/ratatouille.lv2/versions)
+[![Packaging status](https://repology.org/badge/vertical-allrepos/ratatouille.svg?columns=3)](https://repology.org/project/ratatouille.lv2/versions)
 
 ## MOD Desktop
 

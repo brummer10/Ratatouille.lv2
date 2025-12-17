@@ -152,11 +152,12 @@ public:
     }
 
     void quitMain() {
+        fetch.stop();
         main_quit(&ui->main);
     }
 
     void hideGui() {
-        widget_hide(TopWin);
+        //widget_hide_all(TopWin);
         firstLoop = false;
     }
 

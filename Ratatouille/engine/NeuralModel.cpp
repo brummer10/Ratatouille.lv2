@@ -97,7 +97,8 @@ inline void NeuralModel::compute(int count, float *input0, float *output0)
             } else {
                 memcpy(buf1, buf, ReCounta * sizeof(float));
             }
-            model->process(buf1, buf1, ReCounta);
+            float* buf1Ptrs[1] = { buf1 };
+            model->process(buf1Ptrs, buf1Ptrs, ReCounta);
 
             if (needResample == 1) {
                 smp.down(buf1, buf);
@@ -105,7 +106,8 @@ inline void NeuralModel::compute(int count, float *input0, float *output0)
                 smp.up(ReCounta, buf1, buf);
             }
         } else {
-            model->process(buf, buf, count);
+            float* bufPtrs[1] = { buf };
+            model->process(bufPtrs, bufPtrs, count);
         }
         memcpy(output0, buf, count*sizeof(float));
 
@@ -152,7 +154,7 @@ bool NeuralModel::loadModel() {
         //clearState();
         int32_t warmUpSize = 4096;
         try {
-            model = std::move(nam::get_dsp(std::string(modelFile)));
+            model = std::move(nam::get_dsp(std::filesystem::path(modelFile)));
         } catch (const std::exception&) {
             modelFile = "None";
         }
@@ -183,7 +185,8 @@ bool NeuralModel::loadModel() {
                 angle += (2 * 3.14159365) / 2048;
             }
 
-            model->process(buffer, buffer, warmUpSize);
+            float* bufPtrs[1] = { buffer };
+            model->process(bufPtrs, bufPtrs, warmUpSize);
 
             for(int i=0;i<2048;i++){
                 if (!std::signbit(buffer[i+1]) != !std::signbit(buffer[i])) {

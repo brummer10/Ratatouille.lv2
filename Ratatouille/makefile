@@ -192,7 +192,9 @@ endif
 	NAM_DIR := ../NeuralAmpModelerCore/NAM/
 	NAM_DEPEND_DIR := ../NeuralAmpModelerCore/Dependencies/
 	NAM_SOURCES := $(wildcard $(NAM_DIR)*.cpp)
+	NAM_SOURCES_WAVENET += $(wildcard $(NAM_DIR)wavenet/*.cpp)
 	NAM_OBJ := $(patsubst %.cpp,%.o,$(NAM_SOURCES))
+	NAM_OBJ_WAVENET := $(patsubst %.cpp,%.o,$(NAM_SOURCES_WAVENET))
 	NAM_INCLUDES := -I$(NAM_DIR) -I$(NAM_DEPEND_DIR)eigen/ -I./ -I$(NAM_DEPEND_DIR)nlohmann/
 	NAM_LIB := libnam.$(STATIC_LIB_EXT)
 
@@ -200,7 +202,7 @@ endif
 	MODELER_OBJ := $(patsubst %.cpp,%.o,$(MODELER_SOURCES))
 	MODELER_LIB := libmodeler.$(STATIC_LIB_EXT)
 
-	NEURAL_OBJ := $(NAM_OBJ) $(RTN_OBJ) $(MODELER_OBJ)
+	NEURAL_OBJ := $(NAM_OBJ) $(NAM_OBJ_WAVENET) $(RTN_OBJ) $(MODELER_OBJ)
 	NEURAL_LIB := libneural.$(STATIC_LIB_EXT)
 
 	CONV_DIR := ../FFTConvolver/
@@ -433,9 +435,13 @@ $(NAM_OBJ): $(NAM_SOURCES)
 	@$(ECHO) "Building object file $@ $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) -MMD -Wall -c $(patsubst %.o,%.cpp,$@) -o $@  $(NAM_INCLUDES)
 
-$(NAM_LIB): $(NAM_OBJ)
+$(NAM_OBJ_WAVENET): $(NAM_SOURCES_WAVENET)
+	@$(ECHO) "Building object file $@ $(reset)"
+	$(QUIET)$(CXX) $(CXXFLAGS) -MMD -Wall -c $(patsubst %.o,%.cpp,$@) -o $@  $(NAM_INCLUDES)
+
+$(NAM_LIB): $(NAM_OBJ) $(NAM_OBJ_WAVENET)
 	@$(B_ECHO) "Build static library $@ $(reset)"
-	$(QUIET)$(AR) rcs $(NAM_LIB) $(NAM_OBJ)
+	$(QUIET)$(AR) rcs $(NAM_LIB) $(NAM_OBJ) $(NAM_OBJ_WAVENET)
 	@$(B_ECHO) "=================== DONE =======================$(reset)"
 
 $(CONV_OBJ): $(CONV_SOURCES)
@@ -478,7 +484,8 @@ $(EXEC_NAME)_ui.$(LIB_EXT): $(LV2_GUI).c $(GUIIMPL_SOURCE) $(UI_LIB)
 $(EXEC_NAME).$(LIB_EXT): $(LV2_PLUGIN).cpp $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
 	@$(B_ECHO) "Compiling $(EXEC_NAME).$(LIB_EXT) $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) $(LV2_INCLUDE) $(LV2_PLUGIN).cpp  \
-	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
+	-Wl,--whole-archive $(NEURAL_LIB) -Wl,--no-whole-archive \
+	-L. $(CONV_LIB) -L. $(RESAMP_LIB) $(LDFLAGS) -o $(EXEC_NAME).$(LIB_EXT)
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME).$(LIB_EXT)
 
 $(EXEC_NAME)$(EXE_EXT): $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB) $(UI_LIB) $(STANDALONE).cpp
@@ -486,14 +493,16 @@ ifneq ($(JACKFLAGS), )
 	@$(B_ECHO) "Compiling $@ $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) \
 	$(STANDALONE_INCLUDE) $(JACKFLAGS) $(STANDALONE).cpp -L. $(UI_LIB) \
-	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(JACKLDFLAGS) -o $@
+	-Wl,--whole-archive $(NEURAL_LIB) -Wl,--no-whole-archive \
+	-L. $(CONV_LIB) -L. $(RESAMP_LIB) $(JACKLDFLAGS) -o $@
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(EXEC_NAME)$(EXE_EXT)
 endif
 
 $(NAME)vst.$(LIB_EXT): $(VST2_SOURCES) $(CLAP_DIR)$(NAME).cc $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
 	@$(B_ECHO) "Compiling $(NAME)vst.$(LIB_EXT) $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) -Wno-multichar $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) $(VST2_INCLUDE) $(VST2_SOURCES)  \
-	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(GUI_LDFLAGS) $(LDFLAGS) -o $(NAME)vst.$(LIB_EXT)
+	-Wl,--whole-archive $(NEURAL_LIB) -Wl,--no-whole-archive \
+	-L. $(CONV_LIB) -L. $(RESAMP_LIB) $(GUI_LDFLAGS) $(LDFLAGS) -o $(NAME)vst.$(LIB_EXT)
 ifeq (,$(filter yes,$(DEBUG)))
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(NAME)vst.$(LIB_EXT)
 endif
@@ -501,7 +510,8 @@ endif
 $(NAME).clap: $(CLAP_SOURCES) $(CLAP_DIR)$(NAME).cc $(NEURAL_LIB) $(CONV_LIB) $(RESAMP_LIB)
 	@$(B_ECHO) "Compiling $(NAME).clap $(reset)"
 	$(QUIET)$(CXX) $(CXXFLAGS) $(NAM_INCLUDES) $(RTN_INCLUDES) $(ENGINE_INCLUDE) $(CLAP_INCLUDE) $(CLAP_SOURCES)  \
-	-L. $(NEURAL_LIB) -L. $(CONV_LIB) -L. $(RESAMP_LIB) $(GUI_LDFLAGS) $(LDFLAGS) -o $(NAME).clap
+	-Wl,--whole-archive $(NEURAL_LIB) -Wl,--no-whole-archive \
+	-L. $(CONV_LIB) -L. $(RESAMP_LIB) $(GUI_LDFLAGS) $(LDFLAGS) -o $(NAME).clap
 ifeq (,$(filter yes,$(DEBUG)))
 	$(QUIET)$(STRIP) -s -x -X -R .comment -R .note.ABI-tag $(NAME).clap
 endif
@@ -576,6 +586,7 @@ endif
 	$(QUIET)rm -f $(RESAMP_DIR)*.a $(RESAMP_DIR)*.lib $(RESAMP_DIR)*.o $(RESAMP_DIR)*.d
 	$(QUIET)rm -f $(CONV_DIR)*.a $(CONV_DIR)*.lib $(CONV_DIR)*.o $(CONV_DIR)*.d
 	$(QUIET)rm -f $(NAM_DIR)*.a $(NAM_DIR)*.lib $(NAM_DIR)*.o $(NAM_DIR)*.d
+	$(QUIET)rm -f $(NAM_DIR)wavenet/*.a $(NAM_DIR)wavenet/*.lib $(NAM_DIR)wavenet/*.o $(NAM_DIR)wavenet/*.d
 	$(QUIET)rm -f $(RTN_DIR)*.a $(RTN_DIR)*.lib $(RTN_DIR)*.o $(RTN_DIR)*.d
 	$(QUIET)rm -f $(ENGINE_DIR)*.a $(ENGINE_DIR)*.lib $(ENGINE_DIR)*.o $(ENGINE_DIR)*.d
 	$(QUIET)rm -rf ../bin

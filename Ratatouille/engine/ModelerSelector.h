@@ -19,6 +19,7 @@
 
 #include "dsp.h"
 #include "get_dsp.h"
+#include "slimmable.h"
 #include "activations.h"
 
 #include "RTNeural.h"
@@ -41,6 +42,7 @@ namespace ratatouille {
 class ModelerBase {
 public:
     virtual void setModelFile(std::string modelFile_) {}
+    virtual void setSlimSize(float slimSize) {}
     virtual inline std::string getModelFile() {return "";}
     virtual int getPhaseOffset() {return 0;}
     virtual inline void clearState() {}
@@ -89,9 +91,11 @@ private:
 public:
     std::string                     modelFile;
     float                           nGain;
+    float                           slimSize;
     int                             phaseOffset;
 
     void setModelFile(std::string modelFile_) override { modelFile = modelFile_;}
+    void setSlimSize(float slimSize_) override;
     inline std::string getModelFile() override;
     int getPhaseOffset() override;
     inline void clearState() override;
@@ -141,8 +145,10 @@ private:
 public:
     std::string                     modelFile;
     int                             phaseOffset;
+    float                           slimSize;
 
     void setModelFile(std::string modelFile_) override { modelFile = modelFile_;}
+    void setSlimSize(float slimSize_) override { slimSize = slimSize_;}
     inline std::string getModelFile() override;
     int getPhaseOffset() override;
     inline void clearState() override;
@@ -172,6 +178,10 @@ public:
                 modeler->init(sampleRate);
             }
             return modeler->setModelFile(modelFile_);}
+
+    void setSlimSize(float slimSize_) {
+        namModel.setSlimSize(slimSize_);
+    }
 
     inline std::string getModelFile() {
         return modeler->getModelFile();

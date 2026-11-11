@@ -450,7 +450,7 @@ static const clap_plugin_descriptor_t ratatouille_descriptor = {
     .url = "https://github.com/brummer10/Ratatouille",
     .manual_url = "https://github.com/brummer10/Ratatouille",
     .support_url = "https://github.com/brummer10/Ratatouille",
-    .version = "0.9.11",
+    .version = "0.9.12",
     .description = "CLAP plugin wrapper for Ratatouille",
     .features = (const char *[]){ CLAP_PLUGIN_FEATURE_AUDIO_EFFECT, NULL },
 };

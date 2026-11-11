@@ -68,6 +68,7 @@ public:
         param.registerParam("Norm SlotA", "Main", 0.0, 1.0, 0.0, 1.0, (void*)&engine.normSlotA, true, IS_INT);
         param.registerParam("Norm SlotB", "Main", 0.0, 1.0, 0.0, 1.0, (void*)&engine.normSlotB, true, IS_INT);
         param.registerParam("Enable", "Main", 0.0, 1.0, 1.0, 1.0, (void*)&engine.bypass, true, IS_UINT);
+        param.registerParam("Slim Size", "Main", 0.0, 1.0, 1.0, 1.0, (void*)&engine.slimSize, true, IS_UINT);
     }
 
     void startGui(Window window) {
@@ -311,6 +312,13 @@ public:
                 engine.phasecor_ = value;
             }
             break;
+            case 24:
+            {
+                engine.slimSize = value;
+                engine._setSlimSize.store(true, std::memory_order_release);
+                workToDo.store(true, std::memory_order_release);
+            }
+            break;
             default:
             break;
         }
@@ -366,7 +374,7 @@ public:
             std::string::size_type point_it = str.find(".");
             std::string temp_str = str;
             if (point_it != std::string::npos)
-                temp_str.replace(point_it, point_it + 1, point);
+                temp_str.replace(point_it, 1, point);
             return std::stod(temp_str);
         } else return std::stod(str);
     }
@@ -392,6 +400,7 @@ public:
         adj_set_value(ui->widget[10]->adj, static_cast<float>(engine.bypass));
         adj_set_value(ui->widget[15]->adj, engine.buffered);
         adj_set_value(ui->widget[16]->adj, engine.phasecor_);
+        adj_set_value(ui->widget[19]->adj, engine.slimSize);
     }
 
     void readState(std::string _stream) {
@@ -431,6 +440,8 @@ public:
                 engine.buffered = check_stod(value);
                 buf >> value;
                 engine.phasecor_ = check_stod(value);
+                buf >> value;
+                engine.slimSize = check_stod(value);
             } else if (key.compare("[Model]") == 0) {
                 engine.model_file = remove_sub(line, "[Model] ");
                 engine._ab.fetch_add(1, std::memory_order_relaxed);
@@ -476,6 +487,7 @@ public:
         buffer << engine.bypass << " ";
         buffer << engine.buffered << " ";
         buffer << engine.phasecor_ << " ";
+        buffer << engine.slimSize << " ";
         buffer << "|";
         buffer << "[Model] " << engine.model_file << "|";
         buffer << "[Model1] " << engine.model_file1 << "|";

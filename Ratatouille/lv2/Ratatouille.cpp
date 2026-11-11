@@ -50,8 +50,8 @@ private:
     float*                       _delay;
     float*                       _normA;
     float*                       _normB;
-    uint32_t                     normA;
-    uint32_t                     normB;
+    uint32_t                     normA = 0;
+    uint32_t                     normB = 0;
     float*                       _normSlotA;
     float*                       _normSlotB;
     float*                       _bypass;
@@ -64,6 +64,8 @@ private:
     float*                       _buffered;
     float*                       _phasecor;
     float*                       _xrun;
+    float*                       _slimSize;
+    float                        slimSize = 1.0f;
     uint32_t                     s_rate;
     double                       s_time;
     int                          processCounter;
@@ -149,7 +151,8 @@ Xratatouille::Xratatouille() :
     _latencyms(0),
     _buffered(0),
     _phasecor(0),
-    _xrun(0) {
+    _xrun(0),
+    _slimSize(0) {
         map = nullptr;
         schedule = nullptr;
         control = nullptr;
@@ -253,6 +256,9 @@ void Xratatouille::connect_(uint32_t port,void* data)
             break;
         case 23:
             _xrun = static_cast<float*>(data);
+            break;
+        case 24:
+            _slimSize = static_cast<float*>(data);
             break;
         default:
             break;
@@ -421,6 +427,14 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
             if (!doit) doit = true;
         }
     }
+    // check if slimSize have changed
+    if (slimSize != static_cast<float>(*(_slimSize))) {
+        slimSize = static_cast<float>(*(_slimSize));
+        engine.slimSize = slimSize;
+        engine._setSlimSize.store(true, std::memory_order_release);
+        if (!doit) doit = true;
+    }
+    
     // init buffer for background processing when needed
     if (!engine.bufferIsInit.load(std::memory_order_acquire)) {
         if (!doit) doit = true;

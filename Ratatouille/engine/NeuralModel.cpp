@@ -19,6 +19,7 @@ NeuralModel::NeuralModel(std::condition_variable *Sync)
     nGain = 1.0;
     needResample = 0;
     phaseOffset = 0;
+    slimSize = 1.0f;
     isInited = false;
     ready.store(false, std::memory_order_release);
     do_ramp.store(false, std::memory_order_release);
@@ -54,6 +55,17 @@ inline std::string NeuralModel::getModelFile() {
     return modelFile;
 }
 
+void NeuralModel::setSlimSize(float slimSize_) {
+    slimSize = slimSize_;
+    if (model) {
+        auto* slimmable = dynamic_cast<nam::SlimmableModel*>(model.get());
+        if (slimmable) {
+            slimmable->SetSlimmableSize((double)slimSize);
+            //std::cout << "setSlimmableSize(" << slimSize << ")" << std::endl;
+        }
+        //model->Reset(modelSampleRate, 8192);
+    }
+}
 inline void NeuralModel::normalize(int count, float *buf)
 {
     if (!model) return;
@@ -176,7 +188,13 @@ bool NeuralModel::loadModel() {
             } else if (modelSampleRate < fSampleRate) {
                 smp.setup(modelSampleRate, fSampleRate);
                 needResample = 2;
-            } 
+            }
+            auto* slimmable = dynamic_cast<nam::SlimmableModel*>(model.get());
+            if (slimmable) {
+                slimmable->SetSlimmableSize((double)slimSize);
+                //std::cout << "load setSlimmableSize(" << slimSize << ")" << std::endl;
+            }
+            model->Reset(modelSampleRate, 8192);
             float* buffer = new float[warmUpSize];
             memset(buffer, 0, warmUpSize * sizeof(float));
             float angle = 0.0;

@@ -117,6 +117,7 @@ public:
     float                        buffered;
     float                        latency;
     float                        XrunCounter;
+    float                        slimSize;
 
     int32_t                      normSlotA;
     int32_t                      normSlotB;
@@ -138,6 +139,7 @@ public:
     std::atomic<bool>            _notify_ui;
     std::atomic<bool>            _neuralA;
     std::atomic<bool>            _neuralB;
+    std::atomic<bool>            _setSlimSize;
     std::atomic<bool>            bufferIsInit;
     std::atomic<int>             _ab;
     std::atomic<int>             _cd;
@@ -210,8 +212,10 @@ inline Engine::Engine() :
         buffered = 0.0;
         latency = 0.0;
         XrunCounter = 0.0;
+        slimSize = 1.0;
         _neuralA.store(false, std::memory_order_release);
         _neuralB.store(false, std::memory_order_release);
+        _setSlimSize.store(false, std::memory_order_release);
 
         model_file = "None";
         model_file1 = "None";
@@ -359,7 +363,13 @@ void Engine::do_work_mono() {
         pdelay->set(phaseOffset);
         pdelay->clear_state_f();
     }
-    
+
+    if (_setSlimSize.load(std::memory_order_acquire)) {
+        slotA.setSlimSize(slimSize);
+        slotB.setSlimSize(slimSize);
+        _setSlimSize.store(false, std::memory_order_release);
+    }
+
     // init buffer for background processing
     if (buffersize < bufsize) {
         buffersize = bufsize * 2;

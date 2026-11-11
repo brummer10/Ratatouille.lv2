@@ -27,7 +27,7 @@ extern "C" {
 #define log_gprint(...) \
             ((void)((LV2LOG) ? fprintf(stderr, __VA_ARGS__) : 0))
 
-#define CONTROLS 19
+#define CONTROLS 20
 
 #define GUI_ELEMENTS 0
 

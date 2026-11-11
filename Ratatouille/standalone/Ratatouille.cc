@@ -58,7 +58,7 @@ public:
         set_custom_theme(ui);
         ui->win = create_window(&ui->main, os_get_root_window(&ui->main, IS_WINDOW), 0, 0, 610, 419);
         widget_set_title(ui->win, "Ratatouille");
-        widget_set_icon_from_png(ui->win,LDVAR(neuraldir_png));
+        widget_set_icon_from_png(ui->win,LDVAR(Ratatouille_png));
         ui->win->parent_struct = ui;
         plugin_create_controller_widgets(ui,"standalone");
         widget_show_all(ui->win);
@@ -190,6 +190,13 @@ public:
                 engine.phasecor_ = value;
             }
             break;
+            case 24:
+            {
+                engine.slimSize = value;
+                engine._setSlimSize.store(true, std::memory_order_release);
+                workToDo.store(true, std::memory_order_release);
+            }
+            break;
             default:
             break;
         }
@@ -309,7 +316,7 @@ private:
             std::string::size_type point_it = str.find(".");
             std::string temp_str = str;
             if (point_it != std::string::npos)
-                temp_str.replace(point_it, point_it + 1, point);
+                temp_str.replace(point_it, 1, point);
             return std::stod(temp_str);
         } else return std::stod(str);
     }

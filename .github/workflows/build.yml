@@ -3,7 +3,6 @@ name: build
 on:
   push:
 env:
-  PAWPAW_SKIP_GLIB: 0
   PAWPAW_SKIP_LV2: 0
 
 jobs:
@@ -11,7 +10,7 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
@@ -29,14 +28,14 @@ jobs:
     strategy:
       matrix:
         target: [linux-arm64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
           extraargs: modapp
@@ -46,17 +45,17 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -v3
+          postfix: -v3
           extraargs: modapp
           lto: false
           pawpaw: true
@@ -65,17 +64,17 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -clap
+          postfix: -clap
           extraargs: clap
           lto: false
           pawpaw: true
@@ -84,17 +83,17 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -vst2
+          postfix: -vst2
           extraargs: vst2
           lto: false
           pawpaw: true
@@ -103,17 +102,17 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -app
+          postfix: -app
           extraargs: standalone
           lto: false
           pawpaw: true
@@ -122,17 +121,17 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -v3
+          postfix: -v3
           extraargs: modapp
           pawpaw: true
 
@@ -140,17 +139,17 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -clap
+          postfix: -clap
           extraargs: clap
           pawpaw: true
 
@@ -158,17 +157,17 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -vst2
+          postfix: -vst2
           extraargs: vst2
           pawpaw: true
 
@@ -176,14 +175,14 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
           extraargs: SSE_CFLAGS="" FFT_FLAG="" modapp
@@ -193,17 +192,17 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on:  ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
         contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: ${{ matrix.target }}
-          suffix: -app
+          postfix: -app
           extraargs: standalone
           pawpaw: true
 
@@ -215,7 +214,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: distrho/dpf-makefile-action@v1
+      - uses: ./.github/actions
         with:
           target: source
 

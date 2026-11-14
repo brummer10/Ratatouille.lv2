@@ -431,6 +431,9 @@ inline void Xratatouille::check_messages(uint32_t n_samples)
     if (slimSize != static_cast<float>(*(_slimSize))) {
         slimSize = static_cast<float>(*(_slimSize));
         engine.slimSize = slimSize;
+        #ifdef  __MOD_DEVICES__
+        engine.slimSize = 0.0f;
+        #endif
         engine._setSlimSize.store(true, std::memory_order_release);
         if (!doit) doit = true;
     }

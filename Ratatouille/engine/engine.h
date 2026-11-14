@@ -212,7 +212,10 @@ inline Engine::Engine() :
         buffered = 0.0;
         latency = 0.0;
         XrunCounter = 0.0;
-        slimSize = 1.0;
+        slimSize = 1.0f;
+        #ifdef  __MOD_DEVICES__
+        slimSize = 0.0f;
+        #endif
         _neuralA.store(false, std::memory_order_release);
         _neuralB.store(false, std::memory_order_release);
         _setSlimSize.store(false, std::memory_order_release);

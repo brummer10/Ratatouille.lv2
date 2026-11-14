@@ -72,6 +72,41 @@ static void draw_card(cairo_t *cr, double x, double y, double w, double h, doubl
     cairo_stroke(cr);
 }
 
+
+/* text with letter spacing, optionally upper case and centered */
+static void text_spaced(cairo_t *cr, const char *str, double x, double y,
+                        double spacing, int center, int upper) {
+    char buf[64];
+    size_t n = strlen(str);
+    if (n > 60) n = 60;
+    for (size_t i = 0; i < n; i++) {
+        char c = str[i];
+        if (upper && c >= 'a' && c <= 'z') c = c - 32;
+        buf[i] = c;
+    }
+    buf[n] = '\0';
+    cairo_text_extents_t e;
+    char g[2] = { 0, 0 };
+    double total = 0.0;
+    for (size_t i = 0; i < n; i++) {
+        g[0] = buf[i];
+        cairo_text_extents(cr, g, &e);
+        total += e.x_advance + spacing;
+    }
+    if (n) total -= spacing;
+    double px = center ? x - total * 0.5 : x;
+    for (size_t i = 0; i < n; i++) {
+        g[0] = buf[i];
+        cairo_move_to(cr, px, y);
+        cairo_text_path (cr, g);
+        cairo_fill (cr);
+        cairo_text_extents(cr, g, &e);
+        px += e.x_advance + spacing;
+    }
+    cairo_new_path(cr);
+}
+
+
 #ifdef USE_ATOM
 // draw the file name of a ModelPicker, left aligned and cropped to the row
 static void draw_file_label(Widget_t *w, ModelPicker *m, const RowGeom *r) {
@@ -139,12 +174,9 @@ static void draw_window(void *w_, void* user_data) {
 
     cairo_set_font_size(cr, w->app->small_font);
     cairo_set_source_rgb(cr, C_MUTED);
-    cairo_move_to(cr, 24 * s,  73 * s);
-    cairo_text_path (cr, "Neural models");
-    cairo_fill (w->crb);
-    cairo_move_to(cr, 24 * s, 289 * s);
-    cairo_text_path (cr, "Impulse response");
-    cairo_fill (w->crb);
+    text_spaced(cr, "Neural models",    41 * s,  74 * s, 1.6 * s, 0, 1);
+    text_spaced(cr, "Impulse response", 41 * s, 290 * s, 1.6 * s, 0, 1);
+    
 
 #ifdef USE_ATOM
     X11_UI* ui = (X11_UI*)w->parent_struct;
@@ -253,10 +285,7 @@ static void draw_my_knob(void *w_, void* user_data) {
     cairo_set_font_size(w->crb, w->app->normal_font / w->scale.ascale);
     use_text_color_scheme(w, NORMAL_);
     cairo_text_extents(w->crb, w->label, &extents);
-    cairo_move_to(w->crb, cx - (extents.width * 0.5 + extents.x_bearing),
-                          w->height - 3);
-    cairo_text_path (w->crb, w->label);
-    cairo_fill (w->crb);
+    text_spaced(w->crb, w->label, cx, w->height - 3, 1.2, 1, 1);
     cairo_new_path(w->crb);
 
     cairo_pop_group_to_source(w->crb);

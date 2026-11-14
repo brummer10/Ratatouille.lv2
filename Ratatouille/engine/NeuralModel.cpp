@@ -43,6 +43,9 @@ inline void NeuralModel::init(unsigned int sample_rate)
     ramp_step = 256.0;
     ramp_down = ramp_step;
     ramp_div = 1.0/ramp_step;
+    #ifdef  __MOD_DEVICES__
+    slimSize = 0.0f;
+    #endif
     loadModel();
 }
 

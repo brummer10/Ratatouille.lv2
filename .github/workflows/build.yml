@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         target: [linux-arm64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -45,7 +45,7 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -64,7 +64,7 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -83,7 +83,7 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -102,7 +102,7 @@ jobs:
     strategy:
       matrix:
         target: [linux-x86_64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -121,7 +121,7 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -139,7 +139,7 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -157,7 +157,7 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -175,7 +175,7 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
@@ -192,7 +192,7 @@ jobs:
     strategy:
       matrix:
         target: [win64]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         contents: write
     steps:
